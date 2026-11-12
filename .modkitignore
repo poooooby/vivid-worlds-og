@@ -14,6 +14,7 @@
 # unit tests and engine tests
 tests/actor_renderer_unit_test.lua
 tests/battle_art_geometry_unit_test.lua
+tests/battle_sparkle_unit_test.lua
 tests/battle_trigger_unit_test.lua
 tests/behavior_unit_test.lua
 tests/cell_path_unit_test.lua
@@ -21,6 +22,7 @@ tests/companion_unit_test.lua
 tests/config_unit_test.lua
 tests/drivers/p1_checks.lua
 tests/drivers/p2_reacts.lua
+tests/drivers/p2_shiny.lua
 tests/drivers/p2_talk.lua
 tests/drivers/smoke.lua
 tests/encounter_source_unit_test.lua

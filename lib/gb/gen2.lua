@@ -25,7 +25,7 @@ Gen2.TARGETS = {
 }
 -- optional: where a render pipeline mod (Stadium2) draws the world (World.lua:11864)
 Gen2.PIPELINE = { mod = WORLD, field = "drawPipeline" }
--- read, never wrapped
+-- read (Mon.new is wrapped only by Gen2.installShiny, the Shiny Rate)
 Gen2.READONLY = {
   grassSlot = { mod = "src.battle.gen2.Encounter", field = "grassSlot" },
   waterSlot = { mod = "src.battle.gen2.Encounter", field = "waterSlot" },
@@ -156,8 +156,12 @@ function Gen2.repelAllows(world, level)
   return not (ok and suppressed)
 end
 
+-- the Shiny Rate (Gen2.installShiny): the decider, the live World, and "this Mon.new is a visible
+-- spawn's own battle" (its DVs were settled when it appeared)
+local decideDvs, worldOf, ownBuild = nil, nil, false
+
 --- The wild battle, the way World:tryWildEncounter starts one: Mon.new with the DVs the
---- spawn rolled, seen in the Pokedex, World:startBattle.
+--- spawn rolled (so its shininess), seen in the Pokedex, World:startBattle.
 function Gen2.startWild(world, enc, done)
   local Mon = load("src.battle.gen2.Mon")
   local game = world and world.game
@@ -166,7 +170,9 @@ function Gen2.startWild(world, enc, done)
   if type(enc.dvs) == "table" then
     dvs = { attack = enc.dvs.attack, defense = enc.dvs.defense, speed = enc.dvs.speed, special = enc.dvs.special }
   end
+  ownBuild = true
   local ok, wild = pcall(Mon.new, game.data, enc.species, tonumber(enc.level) or 5, { wild = true, dvs = dvs })
+  ownBuild = false
   if not (ok and wild) then return nil, "Mon.new failed: " .. tostring(wild) end
   local save = game.save
   if save then
@@ -223,7 +229,57 @@ function Gen2.shinyDvs(dvs)
 end
 
 function Gen2.isShiny(mon)
-  return type(mon) == "table" and Gen2.shinyDvs(mon.dvs)
+  return type(mon) == "table" and (mon.shiny == true or Gen2.shinyDvs(mon.dvs))
+end
+
+--- ChooseWildEncounter's Unown rule: a wild Unown's letter is one the Ruins of Alph unlocked.
+function Gen2.dvsAllowed(world, species, dvs)
+  local Unown = load("src.core.gen2.Unown")
+  if not (Unown and species == Unown.SPECIES) then return true end
+  if not (world and world.unownUnlockFlags) then return true end
+  local ok, flags = pcall(world.unownUnlockFlags, world)
+  if not (ok and type(flags) == "table") then return true end
+  local okL, yes = pcall(function() return Unown.letterUnlocked(Unown.letterFromDVs(dvs), flags) end)
+  return not okL or yes == true
+end
+
+-- ------------------------------------------------------------------ shiny (lib/shiny.lua)
+-- Gold builds every Pokemon with Mon.new and reads shininess from its DVs (CheckShininess). A wild
+-- one (opts.wild: step, Surf, fishing, Headbutt, the contest, a script's, a roaming beast's first
+-- meeting) gets the Shiny Rate's DVs; DVs the game fixed (a roaming beast met before, the red
+-- Gyarados's FORCESHINY) and a forced shiny stand. An Unown's were only rolled within its
+-- chamber's letters, so it is settled within them.
+
+--- `decide(dvs, allowed, rng) -> dvs, shiny`; `currentWorld()` -> the live World. Once.
+function Gen2.installShiny(decide, currentWorld)
+  decideDvs, worldOf = decide, currentWorld
+  local Mon = load("src.battle.gen2.Mon")
+  if not (Mon and Mon.new) then return false, "Gen 2 builder unavailable" end
+  if Mon._vwogShinyNew then return true end
+  local Unown = load("src.core.gen2.Unown")
+  local origNew = Mon.new
+  Mon._vwogShinyNew = function(data, species, level, opts, ...)
+    if ownBuild or not decideDvs or type(opts) ~= "table" or not opts.wild or opts.shiny then
+      return origNew(data, species, level, opts, ...)
+    end
+    local unown = Unown ~= nil and species == Unown.SPECIES
+    if type(opts.dvs) == "table" and not unown then return origNew(data, species, level, opts, ...) end
+    local allowed = nil
+    if unown then
+      local world = worldOf and worldOf()
+      allowed = function(d) return Gen2.dvsAllowed(world, species, d) end
+    end
+    local ok, dvs = pcall(decideDvs, opts.dvs, allowed)
+    if ok and type(dvs) == "table" then
+      local o = {}
+      for k, v in pairs(opts) do o[k] = v end
+      o.dvs = { attack = dvs.attack, defense = dvs.defense, speed = dvs.speed, special = dvs.special }
+      opts = o
+    end
+    return origNew(data, species, level, opts, ...)
+  end
+  Mon.new = Mon._vwogShinyNew
+  return true
 end
 
 function Gen2.isOutdoor(world)

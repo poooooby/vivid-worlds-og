@@ -30,3 +30,7 @@ here.
   not its species).
 - Classic Enc turns off only the step encounters: the Bug-Catching Contest, Sweet Scent and
   fishing stay as the game has them.
+- **Shiny Rate** (Off to Always, 1/4096 by default) for every wild Pokémon on all six games. A
+  shiny is a matter of its DVs (Gold's rule, which Red, Blue and Yellow follow too), so the shiny
+  you see in the grass is the shiny you battle and catch; a shiny partner shows its shiny sprite.
+  Red, Blue and Yellow battles play a sparkle and chime for a shiny.

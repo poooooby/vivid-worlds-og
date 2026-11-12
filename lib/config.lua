@@ -7,6 +7,7 @@ Config.DEFAULTS = {
   enabled = true,
   sprite_style = "pokemmo", -- HGSS / PokeMMO; "followers" = Poke Followers / GSC
   classic_enc = true,
+  shiny_rate = "modern", -- 1/4096
   wild_silhouettes = "off",
   species_sizes = true,
   spawn_amount = "normal",
@@ -417,6 +418,17 @@ end
 
 function Config.classicEncEnabled(mod)
   return optGet(mod, "classic_enc") == true
+end
+
+--- The Shiny Rate option (lib/shiny.lua): "off", "gen2" (1/8192), "modern" (1/4096), "common"
+--- (1/1024), "frequent" (1/512), "often" (1/100), "high" (1/10) or "always"; the default for
+--- anything else.
+local VALID_SHINY_RATE = { off = true, gen2 = true, modern = true, common = true, frequent = true,
+  often = true, high = true, always = true }
+function Config.shinyRate(mod)
+  local v = optGet(mod, "shiny_rate")
+  if type(v) == "string" and VALID_SHINY_RATE[v] then return v end
+  return Config.DEFAULTS.shiny_rate
 end
 
 --- The Spawn Amount option's density row ({ min, max, tilesPer }); Normal for

@@ -11,7 +11,8 @@ author): its spawning, partner, Battler, Forager, effects and Game Boy engine la
 ## Code adapted from Wilds of Kanto Revival
 
 `lib/json_decode.lua`, `lib/HGSS_scale.lua` (the per-species overworld size table), the 3D world
-adapters under `lib/compat/`, `tools/generate_sprite_atlases.py` and
+adapters under `lib/compat/`, the Shiny Rate (`lib/shiny.lua`) and the battle sparkle
+(`lib/battle_sparkle.lua`), `tools/generate_sprite_atlases.py` and
 `tools/validate_sprite_atlases.py` are copied or adapted from
 **Wilds of Kanto Revival** (`poooooby/wilds-of-kanto-gen-3`), which is
 released under the MIT License:
@@ -30,13 +31,26 @@ released under the MIT License:
 > substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS",
 > WITHOUT WARRANTY OF ANY KIND (the full MIT terms are in `LICENSE`).
 
+## Shiny Pokemon (masterwebx)
+
+The Shiny Rate (`lib/shiny.lua`) and the battle sparkle (`lib/battle_sparkle.lua`) are based on the
+design of **Shiny Pokemon** by [masterwebx](https://github.com/masterwebx/gen1recomp-shiny-pokemon)
+(MIT License, Copyright (c) 2026 masterwebx): real shiny DVs on wild Pokemon at a configurable rate
+(the same rate steps and the Gen 2 shiny DV rule), a visible Pokemon's roll handed to its battle, and
+a one-time battle sparkle with the "Dex Page Added" chime that waits for the intro to finish. The code
+was written for Wilds of Kanto Revival and adapted here, not copied file-for-file; the approach and
+constants follow the original. Shiny Pokemon is a declared manifest conflict and is neither bundled
+nor required. Its MIT permission notice: permission is granted, free of charge, to use, copy, modify,
+merge, publish, distribute, sublicense and/or sell copies of the software, subject to including the
+copyright and permission notice in copies or substantial portions.
+
 ## Inspiration
 
 - **TTiN** and **Untamed Tohjo**: the idea of weighting a Forager's finds by its friendship (a fonder
   Pokemon finds better and rarer items) comes from their foraging. No code or assets were copied; the
   Forager here (`lib/forager.lua`, `lib/forage_items.lua`) is this mod's own implementation.
 - **TTiN** and **Untamed Tohjo**: the shiny chain -- beat or catch one species in a row and it turns up
-  more, is more likely to be shiny and has better stats -- comes from their work, used with permission.
+  more and is more likely to be shiny -- comes from their work, used with permission.
   No code or assets were copied; the chain here is our own implementation (Modern Spawns'
   `src/chain.lua`, and `lib/shiny.lua` here).
 

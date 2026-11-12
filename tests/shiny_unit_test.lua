@@ -1,4 +1,6 @@
 -- Run: lua tests/shiny_unit_test.lua
+-- lib/shiny.lua (the Shiny Rate, settled in DVs) and its two engine seams: lib/gb/gen1.lua
+-- (BattleState.newWild's Pokemon.new) and lib/gb/gen2.lua (Mon.new for wild Pokemon).
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
 local failures = 0
@@ -14,26 +16,6 @@ local function eq(a, b, msg)
   check(a == b, string.format("%s (got %s expected %s)", msg, tostring(a), tostring(b)))
 end
 
-local engineIsShiny -- real bxor-based reference check, mirrors pokemon.lua:1397
-local function realIsShiny(personality, otId, otSecretId)
-  local function xor16(a, b)
-    a, b = a % 65536, b % 65536
-    local result, bitval = 0, 1
-    for _ = 1, 16 do
-      local abit, bbit = a % 2, b % 2
-      if abit ~= bbit then result = result + bitval end
-      a, b = (a - abit) / 2, (b - bbit) / 2
-      bitval = bitval * 2
-    end
-    return result
-  end
-  local hi = math.floor(personality / 65536) % 65536
-  local lo = personality % 65536
-  local value = xor16(xor16(otId, otSecretId), xor16(hi, lo))
-  return value < 8
-end
-engineIsShiny = realIsShiny
-
 local fakeEngine = {}
 local modules = {}
 local V = { path = "." }
@@ -43,137 +25,211 @@ function V.require(name)
     modules[name] = fakeEngine
     return fakeEngine
   end
-  local chunk = assert(loadfile("lib/" .. name .. ".lua"))
-  local value = chunk(V)
+  local value = assert(loadfile("lib/" .. name .. ".lua"))(V)
   modules[name] = value
   return value
 end
 
-fakeEngine.trainerIds = function() return { otId = 1000, otSecretId = 2000 } end
-fakeEngine.isShiny = function(p, otId, otSecretId) return realIsShiny(p, otId, otSecretId) end
-fakeEngine.genderOf = function(_species, _p) return 0 end
-
+local rate = "modern"
+local mod = { options = { get = function(_, key) if key == "shiny_rate" then return rate end end } }
 local Shiny = V.require("shiny")
 
--- ------- xor16 correctness against known values
-eq(Shiny._xor16(0, 0), 0, "xor16(0,0)")
-eq(Shiny._xor16(0xFFFF, 0xFFFF), 0, "xor16(ffff,ffff)")
-eq(Shiny._xor16(0xFF00, 0x00FF), 0xFFFF, "xor16(ff00,00ff)")
-eq(Shiny._xor16(0x1234, 0x5678), 0x444C, "xor16(1234,5678) matches a known value")
+-- the engine's own rule (src/pokemon/Stats.lua, src/battle/gen2/Mon.lua vanillaShiny)
+local function engineShiny(d)
+  if d.defense ~= 10 or d.speed ~= 10 or d.special ~= 10 then return false end
+  return d.attack % 4 == 2 or d.attack % 4 == 3
+end
+local function hpOf(d) return (d.attack % 2) * 8 + (d.defense % 2) * 4 + (d.speed % 2) * 2 + (d.special % 2) end
 
--- ------- boostedPersonality always returns a personality that is
--- genuinely shiny for the given trainer, and keeps nature + gender
-math.randomseed(1)
-for trial = 1, 20 do
-  local otId, otSecretId = 1000 * trial, 2000 + trial
-  local base = math.floor(math.random() * 4294967296)
-  local wantGender = trial % 3 -- fake gender tag, just needs to round-trip
-  local genderFn = function(p)
-    -- deterministic pure function of p for this test -- real callers pass
-    -- EnginePatch.genderOf(species, p)
-    return (p + trial) % 3
+-- ------- the DV pattern
+do
+  local same = true
+  for a = 0, 15 do
+    for _, s in ipairs({ 9, 10, 11 }) do
+      local d = { attack = a, defense = 10, speed = 10, special = s }
+      if Shiny.dvsAreShiny(d) ~= engineShiny(d) then same = false end
+    end
   end
-  -- Make `base` actually have gender wantGender for a fair nature/gender test.
-  while genderFn(base) ~= wantGender do base = base + 1 end
-  local p = Shiny.boostedPersonality(base, otId, otSecretId, genderFn, 256)
-  check(p ~= nil, "boostedPersonality finds a match (trial " .. trial .. ")")
-  if p then
-    check(realIsShiny(p, otId, otSecretId), "result is genuinely shiny (trial " .. trial .. ")")
-    eq(p % 25, base % 25, "nature preserved (trial " .. trial .. ")")
-    eq(genderFn(p), wantGender, "gender preserved (trial " .. trial .. ")")
+  check(same, "dvsAreShiny is the engine's rule (Attack 2/3/6/7/10/11/14/15, the rest 10)")
+  for i = 1, 20 do
+    local d = Shiny.makeDVs(math.random)
+    if not (engineShiny(d) and d.hp == hpOf(d)) then same = false end
   end
+  check(same, "makeDVs: always shiny, HP DV from the other four")
+  local r = Shiny.randomDvs(function(lo, hi) return hi end)
+  check(r.attack == 15 and r.special == 15 and r.hp == 15, "randomDvs: each 0..15 with its HP DV")
 end
 
--- ------- boostedPersonality with no genderFn only has to keep nature
-math.randomseed(2)
-local baseNoGender = math.floor(math.random() * 4294967296)
-local p2 = Shiny.boostedPersonality(baseNoGender, 42, 99, nil, 256)
-check(p2 ~= nil, "boostedPersonality works without a genderFn")
-if p2 then
-  check(realIsShiny(p2, 42, 99), "no-gender result is genuinely shiny")
-  eq(p2 % 25, baseNoGender % 25, "no-gender result preserves nature")
+-- ------- the rate
+do
+  rate = "always"
+  check(Shiny.roll(mod, function() return 2 end), "Always: every roll")
+  rate = "off"
+  check(not Shiny.roll(mod, function() return 1 end), "Off: never")
+  rate = "gen2"
+  local asked
+  check(Shiny.roll(mod, function(lo, hi) asked = hi return 1 end), "1/8192: a 1 hits")
+  eq(asked, 8192, "...out of 8192")
+  check(not Shiny.roll(mod, function() return 2 end), "...anything else misses")
+  rate = "nonsense"
+  eq(Shiny.rateKey(mod), "modern", "an unknown saved value reads as the default (1/4096)")
+  rate = "high"
+  Shiny.roll(mod, function(lo, hi) asked = hi return 1 end)
+  eq(asked, 10, "1/10 rolls out of 10")
 end
 
--- ------- rollForEncounter: without a chain, only the engine's own shiny
-fakeEngine.isShiny = function(_p, _otId, _otSecretId) return true end
-local enc = { species = 25, level = 10, personality = 1 }
-Shiny.rollForEncounter(enc, nil)
-eq(enc.shiny, true, "an engine-shiny roll stays shiny")
-eq(enc.personality, 1, "...untouched")
-fakeEngine.isShiny = function(_p, _otId, _otSecretId) return false end
-enc = { species = 25, level = 10, personality = 1 }
-Shiny.rollForEncounter(enc, nil)
-eq(enc.shiny, false, "no chain: a non-shiny roll stays non-shiny (native odds only)")
-eq(enc.personality, 1, "...untouched")
-eq(enc.ivs, nil, "...and no IVs are added")
-
--- ------- rollForEncounter: a chain's shiny chance
-fakeEngine.isShiny = function(p, otId, otSecretId) return realIsShiny(p, otId, otSecretId) end
-fakeEngine.trainerIds = function() return { otId = 7, otSecretId = 11 } end
-math.randomseed(3)
-enc = { species = 25, level = 10, personality = 12345 }
-local nature = enc.personality % 25
-Shiny.rollForEncounter(enc, { shiny = 1, perfectIvs = 0 }, function(a, b)
-  if a == nil then return 0 end -- the chance draw: always hits
-  return math.random(a, b)
-end)
-eq(enc.shiny, true, "a chain's chance that hits makes it shiny")
-eq(enc.personality % 25, nature, "...keeping its nature")
-check(realIsShiny(enc.personality, 7, 11), "...genuinely shiny for this trainer")
-eq(enc.ivs, nil, "no perfect stats asked: IVs left to the engine")
-
-fakeEngine.isShiny = function(_p, _otId, _otSecretId) return false end
-enc = { species = 25, level = 10, personality = 999 }
-Shiny.rollForEncounter(enc, { shiny = 0.5, perfectIvs = 0 }, function(a, b)
-  if a == nil then return 0.9 end -- misses
-  return math.random(a, b)
-end)
-eq(enc.shiny, false, "a chance that misses leaves it alone")
-eq(enc.personality, 999, "...personality untouched")
-
--- ------- the stat floor
-local function count31(ivs)
-  local n = 0
-  for _, k in ipairs(Shiny.STATS) do if ivs[k] == 31 then n = n + 1 end end
-  return n
+-- ------- settle
+do
+  local plain = { attack = 1, defense = 2, speed = 3, special = 4, hp = 0 }
+  local d, s = Shiny.settle(plain, true, nil, function() return 1 end)
+  check(s == true and engineShiny(d), "want shiny: shiny DVs")
+  d, s = Shiny.settle(plain, false)
+  check(s == false and d == plain, "not wanted, not shiny: the DVs stand untouched")
+  local natural = { attack = 6, defense = 10, speed = 10, special = 10, hp = 0 }
+  d, s = Shiny.settle(natural, false)
+  check(s == false and not engineShiny(d) and d.attack == 6 and d.defense == 10, "Off: a natural shiny is nudged out of the pattern")
+  eq(d.hp, hpOf(d), "...with its HP DV redone")
+  d, s = Shiny.settle(natural, true)
+  check(s == true and d == natural, "a natural shiny that is wanted stays as it is")
+  -- the game's limit: only Attack 14 allowed
+  d, s = Shiny.settle(plain, true, function(x) return x.attack == 14 end, function() return 1 end)
+  check(s == true and d.attack == 14, "a shiny within the game's limit (an Unown's letters)")
+  d, s = Shiny.settle(plain, true, function(x) return not engineShiny(x) end, function() return 1 end)
+  check(s == false and d == plain, "no shiny the game allows: it stays not shiny")
 end
-local zero = function(a, b) if a == nil then return 0.9 end return a end -- lowest IVs, no shuffle
-enc = { species = 25, level = 10, personality = 5 }
-Shiny.ivFloor(enc, 2, zero)
-check(type(enc.ivs) == "table", "an encounter without IVs gets them rolled the engine's way")
-eq(count31(enc.ivs), 2, "...with 2 perfect stats")
-for _, k in ipairs(Shiny.STATS) do
-  check(enc.ivs[k] >= 0 and enc.ivs[k] <= 31, "IV " .. k .. " in 0..31")
-end
-enc = { ivs = { hp = 4, atk = 5, def = 6, spe = 7, spa = 8, spd = 9 } }
-Shiny.ivFloor(enc, 3, math.random)
-eq(count31(enc.ivs), 3, "3 perfect stats on given IVs")
-local kept = 0
-for k, v in pairs({ hp = 4, atk = 5, def = 6, spe = 7, spa = 8, spd = 9 }) do
-  if enc.ivs[k] == v then kept = kept + 1 end
-end
-eq(kept, 3, "...the other 3 kept as they were")
-enc = { ivs = { hp = 1 } }
-Shiny.ivFloor(enc, 0, math.random)
-eq(enc.ivs.hp, 1, "0 perfect stats changes nothing")
-enc = {}
-Shiny.ivFloor(enc, 9, math.random)
-eq(count31(enc.ivs), 6, "never more than all six")
-local seen = {}
-for _ = 1, 200 do
-  local e = { ivs = { hp = 0, atk = 0, def = 0, spe = 0, spa = 0, spd = 0 } }
-  Shiny.ivFloor(e, 1, math.random)
-  for k, v in pairs(e.ivs) do if v == 31 then seen[k] = true end end
-end
-local all = true
-for _, k in ipairs(Shiny.STATS) do if not seen[k] then all = false end end
-check(all, "the perfect stat can land on any of the six")
 
--- rollForEncounter applies the floor with the chain's bonus
-fakeEngine.isShiny = function() return false end
-enc = { species = 25, level = 10, personality = 77 }
-Shiny.rollForEncounter(enc, { shiny = 0, perfectIvs = 1 })
-eq(count31(enc.ivs) >= 1, true, "rollForEncounter gives the chain's perfect stats")
+-- ------- a visible spawn's roll
+do
+  local askedAllowed = {}
+  fakeEngine.dvsAllowed = function(species, d) askedAllowed[#askedAllowed + 1] = species return true end
+  rate = "always"
+  local enc = Shiny.rollForEncounter(mod, { species = "PIDGEY", level = 3 })
+  check(enc.shiny == true and engineShiny(enc.dvs), "Always: the spawn is shiny, in its DVs")
+  eq(askedAllowed[1], "PIDGEY", "...within what the game allows that species")
+  rate = "off"
+  enc = Shiny.rollForEncounter(mod, { species = "PIDGEY", level = 3 })
+  check(enc.shiny == false and type(enc.dvs) == "table" and not engineShiny(enc.dvs), "Off: not shiny, DVs to battle with")
+  local given = { attack = 1, defense = 2, speed = 3, special = 4, hp = 0 }
+  enc = Shiny.rollForEncounter(mod, { species = "SENTRET", dvs = given })
+  check(enc.dvs == given, "DVs the encounter already rolled (Gen 2) are kept when not shiny")
+  enc = Shiny.rollForEncounter(mod, { species = "PIDGEY" }, { shiny = 1 }, math.random)
+  check(enc.shiny == true, "a shiny chain's chance (Modern Spawns) can make it shiny with the rate Off")
+  enc = Shiny.rollForEncounter(mod, { species = "PIDGEY" }, nil, nil, true)
+  check(enc.shiny == true and engineShiny(enc.dvs), "a forced shiny (developer test spawn)")
+  rate = "always"
+  enc = Shiny.rollForEncounter(mod, { species = "PIDGEY" }, nil, nil, false)
+  check(enc.shiny == false, "a forced plain one, whatever the rate")
+  fakeEngine.dvsAllowed = function() return false end
+  enc = Shiny.rollForEncounter(mod, { species = "UNOWN", dvs = { attack = 1, defense = 2, speed = 3, special = 4 } })
+  check(enc.shiny == false, "no shiny the game allows: not shiny")
+  fakeEngine.dvsAllowed = nil
+end
+
+-- ------- Gen 1 seam: BattleState.newWild's Pokemon.new
+do
+  local built = {}
+  local Pokemon = {}
+  function Pokemon.new(data, species, level)
+    local mon = { species = species, level = level, dvs = { attack = 1, defense = 2, speed = 3, special = 4, hp = 0 },
+      stats = { hp = 11 }, hp = 11 }
+    built[#built + 1] = mon
+    return mon
+  end
+  local BattleState = {}
+  function BattleState.newWild(game, species, level)
+    return { enemy = { mon = Pokemon.new(game.data, species, level) } }
+  end
+  local Stats = {
+    isShiny = engineShiny,
+    calc = function(def, level, dvs) return { hp = 100 + dvs.attack } end,
+  }
+  local fakeMods = { ["src.pokemon.Pokemon"] = Pokemon, ["src.battle.BattleState"] = BattleState,
+    ["src.pokemon.Stats"] = Stats }
+  local Gen1 = assert(loadfile("lib/gb/gen1.lua"))(V)
+  Gen1.init(function(name) return fakeMods[name] end)
+  local Shiny1 = Shiny
+  rate = "always"
+  check(Gen1.installShiny(function(dvs, allowed, rng) return Shiny1.wildDvs(mod, dvs, allowed, rng) end),
+    "Gen 1: the seam installs")
+  check(Gen1.installShiny(function(dvs, allowed, rng) return Shiny1.wildDvs(mod, dvs, allowed, rng) end),
+    "...and installing again is harmless")
+  local game = { data = { pokemon = { RATTATA = { baseStats = {} } } } }
+  local battle = BattleState.newWild(game, "RATTATA", 3)
+  local wild = battle.enemy.mon
+  check(engineShiny(wild.dvs) and wild.shiny == true, "Gen 1, Always: a step encounter's Pokemon is shiny")
+  eq(wild.hp, 100 + wild.dvs.attack, "...its stats rebuilt from its new DVs")
+  check(Gen1.isShiny(wild), "...and reads as shiny (Stats.isShiny)")
+  local trainerMon = Pokemon.new(game.data, "RATTATA", 3)
+  check(not engineShiny(trainerMon.dvs) and trainerMon.shiny == nil, "a Pokemon built outside newWild is never touched")
+  rate = "off"
+  wild = BattleState.newWild(game, "RATTATA", 3).enemy.mon
+  check(not Gen1.isShiny(wild), "Gen 1, Off: not shiny")
+  -- a visible spawn's battle: its own DVs, whatever the rate
+  rate = "always"
+  local ow = { pushBattle = function() end, map = {} }
+  Gen1.game = function() return game end
+  local spawnDvs = { attack = 3, defense = 7, speed = 8, special = 9 }
+  local pushed
+  ow.pushBattle = function(_, b) pushed = b end
+  check(Gen1.startWild(ow, { species = "RATTATA", level = 4, dvs = spawnDvs }), "Gen 1: a visible spawn's battle starts")
+  local m = pushed and pushed.enemy.mon
+  check(m and m.dvs.attack == 3 and m.dvs.special == 9 and not Gen1.isShiny(m),
+    "...with the DVs it rolled when it appeared (not re-rolled at Always)")
+  eq(m and m.hp, 103, "...and stats built from them")
+end
+
+-- ------- Gen 2 seam: Mon.new for wild Pokemon
+do
+  local Mon = {}
+  local lastOpts
+  function Mon.new(data, species, level, opts)
+    lastOpts = opts
+    local dvs = (opts and opts.dvs) or { attack = 1, defense = 2, speed = 3, special = 4 }
+    return { species = species, level = level, dvs = dvs, shiny = (opts and opts.shiny) or engineShiny(dvs) }
+  end
+  Mon.isShiny = function(dvs) return engineShiny(dvs) end
+  local unlocked = { [9] = true } -- only letter I
+  local Unown = {
+    SPECIES = "UNOWN",
+    letterFromDVs = function(d) return (d.attack == 2 or d.attack == 3 or d.attack == 10 or d.attack == 11) and 9 or 22 end,
+    letterUnlocked = function(letter) return unlocked[letter] == true end,
+  }
+  local fakeMods = { ["src.battle.gen2.Mon"] = Mon, ["src.core.gen2.Unown"] = Unown }
+  local Gen2 = assert(loadfile("lib/gb/gen2.lua"))(V)
+  Gen2.init(function(name) return fakeMods[name] end)
+  local world = { unownUnlockFlags = function() return {} end }
+  check(Gen2.installShiny(function(dvs, allowed, rng) return Shiny.wildDvs(mod, dvs, allowed, rng) end,
+    function() return world end), "Gen 2: the seam installs")
+  rate = "always"
+  local wild = Mon.new({}, "SENTRET", 3, { wild = true })
+  check(wild.shiny and engineShiny(wild.dvs), "Gen 2, Always: a wild Pokemon is shiny, in its DVs")
+  local trainer = Mon.new({}, "SENTRET", 3, {})
+  check(not trainer.shiny, "a trainer's / gift's Pokemon (no opts.wild) is never touched")
+  local fixed = { attack = 5, defense = 5, speed = 5, special = 5 }
+  local roamer = Mon.new({}, "RAIKOU", 40, { wild = true, dvs = fixed })
+  check(roamer.dvs == fixed and not roamer.shiny, "DVs the game fixed (a roaming beast met before) stand")
+  local opts = { wild = true }
+  Mon.new({}, "SENTRET", 3, opts)
+  eq(opts.dvs, nil, "the caller's own options table is left as it was")
+  local unown = Mon.new({}, "UNOWN", 5, { wild = true, dvs = { attack = 0, defense = 0, speed = 0, special = 0 } })
+  check(unown.shiny and Unown.letterFromDVs(unown.dvs) == 9, "an Unown is made shiny only with a letter its chamber unlocked")
+  unlocked = { [1] = true } -- neither shiny letter unlocked
+  unown = Mon.new({}, "UNOWN", 5, { wild = true, dvs = { attack = 0, defense = 0, speed = 0, special = 0 } })
+  check(not unown.shiny, "...and stays plain when neither shiny letter is unlocked")
+  rate = "off"
+  wild = Mon.new({}, "SENTRET", 3, { wild = true, dvs = nil })
+  check(not wild.shiny, "Gen 2, Off: not shiny")
+  -- a visible spawn's battle keeps its own DVs
+  rate = "always"
+  local started
+  local w = { game = { data = {}, save = {} }, startBattle = function(_, b) started = b end }
+  check(Gen2.startWild(w, { species = "SENTRET", level = 3, dvs = { attack = 1, defense = 1, speed = 1, special = 1 } }),
+    "Gen 2: a visible spawn's battle starts")
+  check(started and started.wild.dvs.attack == 1 and not started.wild.shiny, "...with the DVs it rolled (not re-rolled)")
+  rate = "off"
+  local redGyarados = Mon.new({}, "GYARADOS", 30, { wild = true, dvs = { attack = 14, defense = 10, speed = 10, special = 10 } })
+  check(redGyarados.shiny, "the red Gyarados (FORCESHINY DVs) stays shiny with the rate Off")
+end
 
 print("")
 if failures > 0 then

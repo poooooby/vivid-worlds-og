@@ -859,16 +859,35 @@ function EngineGb.isCaught(species)
   return ok and yes == true
 end
 
---- Gen 2: the shiny DV pattern. Gen 1: never.
+--- The shiny DV pattern (Gen 2's CheckShininess; Gen 1's Stats.isShiny).
 function EngineGb.shinyDvs(dvs)
   local a = A()
   return a ~= nil and a.shinyDvs ~= nil and a.shinyDvs(dvs) == true
 end
 
---- Is this party Pokemon shiny (Gen 2: its DVs)?
+--- Is this party Pokemon shiny (its DVs)?
 function EngineGb.monShiny(mon)
   local a = A()
   return a ~= nil and a.isShiny(mon) == true
+end
+
+--- Could a wild `species` have these DVs here (Gen 2: an Unown's letter must be one the Ruins
+--- of Alph unlocked)? true when the game sets no limit.
+function EngineGb.dvsAllowed(species, dvs)
+  local a = A()
+  if not (a and a.dvsAllowed) then return true end
+  local ok, yes = pcall(a.dvsAllowed, EngineGb._world, species, dvs)
+  return not ok or yes ~= false
+end
+
+--- Every wild Pokemon the engine builds gets its DVs from `decide(dvs, allowed, rng) -> dvs,
+--- shiny` (lib/shiny.lua's Shiny Rate); a visible spawn's battle keeps the DVs it rolled.
+function EngineGb.installShiny(decide)
+  local a = A()
+  if not (a and a.installShiny) then return false, "no shiny seam" end
+  local ok, done, err = pcall(a.installShiny, decide, function() return EngineGb._world end)
+  if not ok then return false, tostring(done) end
+  return done, err
 end
 
 -- ------------------------------------------------------------------ the party / follower

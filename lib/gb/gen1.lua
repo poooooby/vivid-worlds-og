@@ -5,7 +5,8 @@ local V = ...
 local Gen1 = { generation = 1, layout = "gen1" }
 
 -- the optional systems main.lua may build on this generation (EnginePatch.supports)
-Gen1.FEATURES = { wild_reacts = true, interaction = true, roles = true }
+-- (battle_sparkle: Gen 1 battles have no shiny animation of their own; Gen 2's do)
+Gen1.FEATURES = { wild_reacts = true, interaction = true, roles = true, battle_sparkle = true }
 
 local load = function() return nil end
 function Gen1.init(loadModule) load = loadModule end
@@ -24,7 +25,7 @@ Gen1.TARGETS = {
   -- of the two is ever the running state, so never twice a frame)
   messageTick = { mod = "src.render.TextBox", field = "update" },
 }
--- read, never wrapped
+-- read (newWild is wrapped only by Gen1.installShiny, the Shiny Rate)
 Gen1.READONLY = {
   newWild = { mod = "src.battle.BattleState", field = "newWild" },
   indoor = { mod = OW, field = "rollsIndoorEncounters" },
@@ -214,16 +215,92 @@ function Gen1.repelAllows(_ow, level)
   return not (lead and tonumber(level) and tonumber(lead.level) and level < lead.level)
 end
 
+-- ------------------------------------------------------------------ shiny (lib/shiny.lua)
+-- Gen 1 has no shininess in the ROM; the engine's "virtual shiny" (Stats.isShiny) reads it from
+-- the DVs the way Gen 2 does. BattleState.newWild builds its wild Pokemon with Pokemon.new
+-- (BattleState.lua:879): while it runs, that one Pokemon gets the DVs of the visible spawn being
+-- fought (handOff, from Gen1.startWild) or the Shiny Rate's (decideDvs). Nothing else is touched.
+local handOff, inNewWild, decideDvs = nil, false, nil
+
+function Gen1.shinyDvs(dvs)
+  local Stats = load("src.pokemon.Stats")
+  if not (Stats and Stats.isShiny and type(dvs) == "table") then return false end
+  local ok, yes = pcall(Stats.isShiny, dvs)
+  return ok and yes == true
+end
+
+function Gen1.isShiny(mon)
+  if type(mon) ~= "table" then return false end
+  return mon.shiny == true or Gen1.shinyDvs(mon.dvs)
+end
+
+-- `mon`, just built, takes `dvs`: its stats rebuilt from them, at full HP
+local function giveDvs(data, mon, dvs)
+  local d = mon.dvs
+  if type(d) == "table" and d.attack == dvs.attack and d.defense == dvs.defense and d.speed == dvs.speed
+    and d.special == dvs.special then return end
+  mon.dvs = { attack = dvs.attack, defense = dvs.defense, speed = dvs.speed, special = dvs.special,
+    hp = (dvs.attack % 2) * 8 + (dvs.defense % 2) * 4 + (dvs.speed % 2) * 2 + (dvs.special % 2) }
+  local Stats = load("src.pokemon.Stats")
+  local def = data and data.pokemon and data.pokemon[mon.species]
+  if not (Stats and Stats.calc and def) then return end
+  local ok, stats = pcall(Stats.calc, def, mon.level or 1, mon.dvs, mon.statExp)
+  if ok and type(stats) == "table" then mon.stats, mon.hp = stats, stats.hp end
+end
+
+--- `decide(dvs, allowed, rng) -> dvs, shiny` for every wild Pokemon newWild builds. Once.
+function Gen1.installShiny(decide)
+  decideDvs = decide
+  local Pokemon = load("src.pokemon.Pokemon")
+  local BattleState = load("src.battle.BattleState")
+  if not (Pokemon and Pokemon.new and BattleState and BattleState.newWild) then
+    return false, "Gen 1 builders unavailable"
+  end
+  if not Pokemon._vwogShinyNew then
+    local origNew = Pokemon.new
+    Pokemon._vwogShinyNew = function(data, species, level, rng, ...)
+      local mon = origNew(data, species, level, rng, ...)
+      if not inNewWild or type(mon) ~= "table" then return mon end
+      inNewWild = false -- the wild Pokemon is the one newWild builds
+      local dvs = handOff
+      handOff = nil
+      if not dvs and decideDvs then
+        local ok, d = pcall(decideDvs, mon.dvs, nil, type(rng) == "function" and rng or nil)
+        dvs = ok and d or nil
+      end
+      if type(dvs) == "table" then giveDvs(data, mon, dvs) end
+      mon.shiny = Gen1.shinyDvs(mon.dvs) or nil
+      return mon
+    end
+    Pokemon.new = Pokemon._vwogShinyNew
+  end
+  if not BattleState._vwogShinyNewWild then
+    local origNewWild = BattleState.newWild
+    BattleState._vwogShinyNewWild = function(...)
+      inNewWild = true
+      local ok, battle = pcall(origNewWild, ...)
+      inNewWild, handOff = false, nil
+      if not ok then error(battle, 0) end
+      return battle
+    end
+    BattleState.newWild = BattleState._vwogShinyNewWild
+  end
+  return true
+end
+
 --- The wild battle, built the way the engine's own step encounter builds it
 --- (OverworldController.lua:4940): the ghost of the Pokemon Tower without the Silph
---- Scope, a Safari battle in the Safari Zone, afterBattle on the way out.
+--- Scope, a Safari battle in the Safari Zone, afterBattle on the way out. The Pokemon
+--- fought has the DVs the spawn rolled (its shininess).
 function Gen1.startWild(ow, enc, done)
   local Game = Gen1.game()
   local BattleState = load("src.battle.BattleState")
   if not (Game and ow and BattleState and BattleState.newWild and ow.pushBattle) then
     return nil, "Gen 1 battle unavailable"
   end
+  handOff = type(enc.dvs) == "table" and enc.dvs or nil
   local ok, battle = pcall(BattleState.newWild, Game, enc.species, tonumber(enc.level) or 5)
+  handOff = nil
   if not ok or not battle then return nil, "newWild failed: " .. tostring(battle) end
   battle.checkpointOrigin = { kind = "wild_encounter", map = ow.map and ow.map.id }
   local Map = load("src.world.Map")
@@ -267,9 +344,6 @@ function Gen1.isCaught(species)
     or (type(dex.caught) == "table" and dex.caught[species] == true)
 end
 
-function Gen1.isShiny(_mon)
-  return false -- Gen 1 has no shiny Pokemon
-end
 
 function Gen1.isOutdoor(ow)
   local Map = load("src.world.Map")

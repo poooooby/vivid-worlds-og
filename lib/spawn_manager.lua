@@ -269,10 +269,10 @@ end
 function SpawnManager:_place(terrain, cell, enc, keepShiny)
   local dex = FormSource.artKeyFor(self.mod, enc.species)
   if not dex then return false end
-  -- the engine's own shiny, plus a shiny chain's bonus (Modern Spawns); never a bonus for
-  -- the roamer, whose personality is the engine's saved one
-  if not keepShiny then
-    enc = Shiny.rollForEncounter(enc, not enc.roamer and ModernSpawns.chainBonus(enc.species) or nil)
+  -- the Shiny Rate, plus a shiny chain's bonus (Modern Spawns), settled in the DVs its battle
+  -- is built with; never for the roamer, whose DVs are the engine's saved ones
+  if not keepShiny and not enc.roamer then
+    enc = Shiny.rollForEncounter(self.mod, enc, ModernSpawns.chainBonus(enc.species))
   end
 
   local id = self.nextId
@@ -320,23 +320,12 @@ end
 -- For developer tools (a separate mod calls these through mod.exports): they
 -- reproduce a problem spawn on demand. Nothing in the game calls them.
 
---- An encounter for engine species id `species` at `level` with a fresh
---- personality; `opts.shiny` makes it genuinely shiny (same nature and gender).
+--- An encounter for species `species` (a Game Boy game's string key, "PIDGEY") at `level`
+--- with fresh DVs; `opts.shiny` makes it genuinely shiny, otherwise it is not.
 function SpawnManager:encounterFor(species, level, opts)
   opts = opts or {}
-  -- a number (Gen 3's internal id) or a Game Boy game's string key ("PIDGEY")
-  local enc = { species = tonumber(species) or species, level = tonumber(level) or 10,
-                personality = EnginePatch.randomPersonality(), shiny = false }
-  if opts.shiny then
-    local ids = EnginePatch.trainerIds() or { otId = 0, otSecretId = 0 }
-    if not EnginePatch.isShiny(enc.personality, ids.otId, ids.otSecretId) then
-      local p = Shiny.boostedPersonality(enc.personality, ids.otId, ids.otSecretId,
-        function(x) return EnginePatch.genderOf(enc.species, x) end)
-      if p then enc.personality = p end
-    end
-    enc.shiny = true
-  end
-  return enc
+  local enc = { species = tonumber(species) or species, level = tonumber(level) or 10 }
+  return Shiny.rollForEncounter(self.mod, enc, nil, nil, opts.shiny == true)
 end
 
 --- Spawns `species` on a free eligible tile within `opts.radius` (default 3)

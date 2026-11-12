@@ -32,6 +32,11 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   Bug-Catching Contest and Sweet Scent work as always.
 - 😮 **They react to you:** Bike past and weaker Pokémon get startled and run off, while
   stronger ones get angry and chase you down. Walking disturbs nobody.
+- ✨ **Shinies you can spot:** Set how often wild Pokémon are shiny, from the original 1 in 8192
+  up to always. A shiny out in the grass shows its shiny colours with a twinkle, is the same
+  shiny when you battle it, and stays shiny once caught. Red, Blue and Yellow battles greet a
+  shiny with a sparkle and a chime; Gold, Silver and Crystal flash it the way they always have.
+  The rate covers every wild Pokémon, including random encounters, fishing and Headbutt.
 
 ### Your Partner
 
@@ -71,6 +76,7 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 | **Smooth Follow** | On / Off | On | Your partner glides round when you turn, or snaps into place. |
 | **Type Aura** | On / Off | Off | Now and then a little puff of your partner's type. |
 | **Classic Enc** | On / Off | On | The original step-based encounters in grass, caves and on Surf. |
+| **Shiny Rate** | Off / 1/8192 (GSC) / 1/4096 / 1/1024 / 1/512 / 1/100 / 1/10 / Always | 1/4096 | How often a wild Pokémon is shiny. |
 | **Silhouette** | Off / Undiscovered / All | Off | Silhouettes for uncaught species, or for all of them. |
 | **Species Sizes** | On / Off | On | Each HGSS species at its own size in the 3D world mods. |
 
@@ -95,6 +101,10 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - During the Bug-Catching Contest, the National Park has no visible wild Pokémon: the contest's
   own encounters run as in the game.
 - In Gold, Silver and Crystal your partner's Battler and Forager roles are not there yet.
+- Red, Blue and Yellow have no shiny Pokémon of their own, so a shiny there follows Gold and
+  Silver's rule: it is written in the Pokémon's hidden stats. Pokémon the game itself fixes as
+  shiny or not, like the red Gyarados or a roaming beast you have already met, stay that way.
+- The separate **Shiny Pokémon** mod can't run alongside this one; the Shiny Rate does its job.
 
 ## 🪪 Credits
 
@@ -105,6 +115,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - **MegaMan-Omega** and **FrenchOrange**: the GSC sprites; **Wooble**: recolours;
   [Pokémon Wilds](https://github.com/SheerSt/pokewilds): GSC sprites beyond dex 251.
 - **Nuclear-Blizzard**: the Pokémon Tower ghost.
+- [masterwebx](https://github.com/masterwebx): the
+  [Shiny Pokemon](https://github.com/masterwebx/gen1recomp-shiny-pokemon) mod, whose shiny rate and
+  battle sparkle the Shiny Rate is based on.
 - **TTiN** and **Untamed Tohjo**: the ideas behind the friendship-weighted foraging and the
   shiny chain.
 

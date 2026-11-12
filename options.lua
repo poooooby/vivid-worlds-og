@@ -96,6 +96,23 @@ return {
     description = "Classic Encounters: the original step-based random encounters in grass, caves and water (Surf). Visible wild Pokemon stay active either way. Fishing, the Bug-Catching Contest and Sweet Scent are unaffected.",
   },
   {
+    key = "shiny_rate",
+    label = "Shiny Rate",
+    type = "choice",
+    default = "modern",
+    choices = {
+      { "OFF", "off" },
+      { "1/8192 (GSC)", "gen2" },
+      { "1/4096", "modern" },
+      { "1/1024", "common" },
+      { "1/512", "frequent" },
+      { "1/100", "often" },
+      { "1/10", "high" },
+      { "ALWAYS", "always" },
+    },
+    description = "How often a wild Pokemon is shiny. A shiny visible Pokemon shows its shiny colours (with a twinkle), is the same shiny in battle, and stays shiny once caught. Applies to every wild Pokemon: visible ones, random encounters, fishing, Headbutt. 1/8192 is the original Gold / Silver / Crystal rate. Off means none.",
+  },
+  {
     key = "wild_silhouettes",
     label = "Silhouette",
     type = "choice",

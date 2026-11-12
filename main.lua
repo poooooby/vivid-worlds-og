@@ -306,6 +306,16 @@ return function(mod)
 
   mod.exports.engineReady = true
 
+  -- Shiny Rate: every wild Pokemon the engine builds (step encounters, fishing, Headbutt ...)
+  -- gets the option's odds in its DVs; the visible ones roll when they appear (lib/shiny.lua).
+  -- Red / Blue / Yellow battles get a sparkle for a shiny; Gold's flash one natively.
+  local okShiny, whyShiny = V.require("shiny").install(mod)
+  if not okShiny then mod.log:warn("[vivid_worlds_og] Shiny Rate unavailable: %s", tostring(whyShiny)) end
+  if supported("battle_sparkle") then
+    local okSp, whySp = V.require("battle_sparkle").install(mod)
+    if not okSp then mod.log:warn("[vivid_worlds_og] battle sparkle unavailable: %s", tostring(whySp)) end
+  end
+
   -- A 3D world mod (TERRARIUM, Battle Art, Potato Voxel, Dramaless, Stadium2) draws the world from engine
   -- sprites: our Pokemon go in as sheets baked from their own art (lib/voxel_sheets.lua), on
   -- cards of their own size (lib/compat/: one adapter per provider over one shared
