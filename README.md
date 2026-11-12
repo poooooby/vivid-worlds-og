@@ -61,7 +61,8 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   size so a Snorlax towers over a Rattata, or **GSC** sprites, one tile each like the original
   games (705 species; any it lacks, or a shiny it has no art for, shows its HGSS sprite).
 - 🧊 **3D worlds:** In TERRARIUM, Battle Art (Gen 1 and 2), Potato, Dramaless and Stadium 2's 3D
-  worlds, wild Pokémon and your partner stand as cards of their own size.
+  worlds, wild Pokémon and your partner stand as cards of their own size, and their emotes,
+  sparkles, health bars and battle effects show up in 3D too.
 - 🌑 **Silhouettes:** Optionally hide species you haven't caught as dark shapes.
 
 ## ⚙️ Options

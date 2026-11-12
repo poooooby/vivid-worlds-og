@@ -65,6 +65,7 @@ function SpawnFx.rustleActor(sheet, frames, age, gx, gy, py, elevation, id)
     kind = "ow_spawn_rustle",
     elevation = elevation or 3,
     sortY = py + 0.6,
+    groundX = gx + 8, groundY = gy + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     x = x, y = y,
     i = 91600 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
@@ -150,6 +151,7 @@ function SpawnFx.ringsActor(age, gx, gy, py, elevation, id)
     kind = "ow_spawn_rings",
     elevation = elevation or 3,
     sortY = py - 0.4, -- on the water: under the Pokemon surfacing through it
+    groundX = gx + 8, groundY = gy + 16,
     x = cx, y = cy,
     i = 91700 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
@@ -190,6 +192,7 @@ function SpawnFx.wakeActor(age, cfg, gx, gy, elevation, id)
     kind = "ow_swim_wake",
     elevation = elevation or 3,
     sortY = gy - 0.4,
+    groundX = gx + 8, groundY = gy + 16,
     x = cx, y = cy,
     i = 91800 + (tonumber(id) or 0),
     draw = function(_, camX, camY)

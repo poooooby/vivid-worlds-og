@@ -678,6 +678,7 @@ function FinisherFx.actor(kind, age, x, y, elevation, id, level)
   return {
     kind = "ow_finisher_fx", elevation = elevation or 3, oamPriority = 1,
     sortY = y + 96, x = x + 8, y = y + 8,
+    groundX = x + 8, groundY = y + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     i = 90900 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
       if not (love and love.graphics and love.graphics.rectangle) then return end
@@ -709,6 +710,7 @@ function FinisherFx.hitActor(kind, age, x, y, power, crit, elevation, id, level)
   return {
     kind = "ow_hit_spark", elevation = elevation or 3, oamPriority = 1,
     sortY = y + 95, x = x + 8, y = y + 8,
+    groundX = x + 8, groundY = y + 16,
     i = 90950 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
       if not (love and love.graphics and love.graphics.rectangle) then return end
@@ -731,6 +733,7 @@ function FinisherFx.moveActor(kind, contact, t, windup, x, y, dx, dy, lunge, ele
   return {
     kind = "ow_move_fx", elevation = elevation or 3, oamPriority = 1,
     sortY = y + 94, x = x + 8, y = y + 8,
+    groundX = x + 8, groundY = y + 16,
     i = 90980 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
       if not (love and love.graphics and love.graphics.rectangle) then return end
@@ -759,6 +762,7 @@ function FinisherFx.markActor(kind, age, x, y, elevation, id)
   return {
     kind = "ow_ko_mark", elevation = elevation or 3,
     sortY = y - 0.5, x = x + 8, y = y + 13,
+    groundX = x + 8, groundY = y + 16,
     i = 90990 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
       if not (love and love.graphics and love.graphics.rectangle) then return end

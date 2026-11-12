@@ -35,6 +35,7 @@ function HitEffect.actor(wx, wy, age, heavy, elevation, id)
     kind = "ow_hit_effect",
     elevation = elevation or 3,
     sortY = wy + 90,
+    groundX = wx + 8, groundY = wy + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     x = cx, y = cy,
     i = 90800 + (tonumber(id) or 0),
     draw = function(_, camX, camY)

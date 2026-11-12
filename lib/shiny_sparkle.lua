@@ -111,6 +111,7 @@ function ShinySparkle.actor(age, id, cx, top, height, halfWidth, sortY, elevatio
   if #stars == 0 then return nil end
   return {
     kind = "ow_shiny_sparkle", elevation = elevation or 3, sortY = sortY, x = cx, y = top,
+    groundX = cx, groundY = top + (tonumber(height) or 16), -- (3D: lib/engine_patch.lua drawFx anchor)
     i = 99700 + (tonumber(id) or 0) % 1000,
     draw = function(_, camX, camY)
       if not (love and love.graphics and love.graphics.rectangle) then return end

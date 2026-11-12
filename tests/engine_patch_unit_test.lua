@@ -81,6 +81,12 @@ function OverworldState.drawWorld(ow)
   end
   table.sort(ow.entities, function(a, b) return (a.py or 0) < (b.py or 0) end)
   for _, e in ipairs(ow.entities) do if e.draw then e:draw(ow.camera.x, ow.camera.y) end end
+  -- a render pipeline draws the world, then the frame's field FX (OverworldController drawFx)
+  if drawn.pipeline then
+    local ctx = { scale = 3, drawFx = function() drawn.engineFx = (drawn.engineFx or 0) + 1 end }
+    local P = require("src.render.Pipelines")
+    P.drawWorld(drawn.pipeline, ctx)
+  end
   if drawn.fail then error("engine draw failed") end
 end
 function OverworldState.update(_ow) drawn.updated = (drawn.updated or 0) + 1 end
@@ -185,7 +191,13 @@ function ListMenu:close()
   if stack:top() == self then stack:pop() end
 end
 fake["src.ui.ListMenu"] = ListMenu
-fake["src.render.Pipelines"] = { worldPipeline = function() return drawn.pipeline end }
+fake["src.render.Pipelines"] = { worldPipeline = function() return drawn.pipeline end,
+  -- the pipeline mod: its scene, then ctx.drawFx with its camera's projection (2 px right / 1 down)
+  drawWorld = function(_id, ctx)
+    drawn.pipelineCtx = ctx
+    ctx.drawFx(function(wx, wy) return (wx + 2) * 3, (wy + 1) * 3 end, ctx.scale)
+    return "canvas"
+  end }
 
 -- ------- fake battle / bag / font engine, for the role seams (Tier 2b)
 local FakeStats = {
@@ -375,7 +387,29 @@ check(spr == vsprite, "its pose() hands the pipeline the voxel sprite")
 check(px == 64 and py == 16 and facing == "down" and phase == 0, "...at its tile, facing, standing")
 eq(drawn.luma, true, "a palette colour mode asks for the luminance sheet")
 eq(#ow.entities, 1, "...and it is gone after the draw")
+-- our effects in the 3D world: the frame's drawFx draws the engine's own, then ours
+actorDraws, drawn.engineFx = 0, 0
+local translated = {}
+love.graphics.translate = function(x, y) translated[#translated + 1] = { x, y } end
+OverworldState.drawWorld(ow)
+eq(drawn.engineFx, 1, "3D: the engine's own field FX still draw (once)")
+eq(actorDraws, 2, "...and our code-drawn effect draws too, through drawFx (beside the voxel figure)")
+local tr = translated[#translated]
+-- the fx actor: ground point (x 0, sortY 40.5), camera (0, 0); projected ((0+2)*3, (40.5+1)*3) at scale 3
+check(tr and math.abs(tr[1] - 2) < 1e-9 and math.abs(tr[2] - (41.5 - 40.5)) < 1e-9,
+  "...slid from its flat ground point onto where that point projects")
+love.graphics.translate = function() end
+drawn.pipelineCtx.drawFx = nil
+local gx, gy = EP.fxAnchor({ x = 5, sortY = 99, groundX = 7, groundY = 30 })
+check(gx == 7 and gy == 30, "an effect's own ground point wins over its sort point")
+eq(EP.drawFxActors(function() return nil end, 3, { { x = 0, sortY = 0, draw = function() error("drawn") end } }, 0, 0), 0,
+  "an effect behind the camera is not drawn")
+eq(EP.drawFxActors(function() return 1, 1 end, 3, { { x = 0, sortY = 0, draw = function() error("boom") end } }, 0, 0), 0,
+  "an effect that errors never breaks the frame")
 drawn.pipeline = nil
+actorDraws = 0
+OverworldState.drawWorld(ow)
+eq(actorDraws, 2, "back in 2D: both draw as proxies again")
 
 -- terrain: grass, water, indoor floor
 eq(EP.terrainAt(2, 1), "land", "Gen 1 grass is land")

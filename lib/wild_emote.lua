@@ -102,6 +102,7 @@ function WildEmote.zzzActor(age, wx, wy, lift, id, over, every, alphaMul)
   local x0, y0 = wx + 10, wy + 16 - (lift or 16) - 2
   return {
     kind = "ow_zzz", elevation = 3, oamPriority = over and 1 or nil, sortY = wy + 18,
+    groundX = wx + 8, groundY = wy + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     x = x0, y = y0, i = 99000 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
       if not (love and love.graphics and love.graphics.rectangle) then return end
@@ -154,6 +155,7 @@ function WildEmote.actor(kind, age, wx, wy, lift, elevation, id)
     elevation = elevation or 3,
     oamPriority = 1, -- over roofs and tree crowns too, like the engine's own bubble
     sortY = wy + 18,
+    groundX = wx + 8, groundY = wy + 16,
     x = cx, y = base + bob,
     i = 91800 + (tonumber(id) or 0),
     draw = function(_, camX, camY)

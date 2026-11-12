@@ -25,6 +25,7 @@ tests/drivers/p2_emotes.lua
 tests/drivers/p2_reacts.lua
 tests/drivers/p2_shiny.lua
 tests/drivers/p2_talk.lua
+tests/drivers/p2_voxel_fx.lua
 tests/drivers/smoke.lua
 tests/emote_art_unit_test.lua
 tests/encounter_source_unit_test.lua

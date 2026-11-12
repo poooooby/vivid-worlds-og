@@ -30,6 +30,7 @@ function ForageSparkle.actor(wx, wy, age, elevation, id)
     kind = "ow_forage_sparkle",
     elevation = elevation or 3,
     sortY = wy + 2, -- sits on the ground: drawn under a sprite standing on the tile
+    groundX = wx + 8, groundY = wy + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     x = cx, y = cy,
     i = 90900 + (tonumber(id) or 0),
     draw = function(_, camX, camY)

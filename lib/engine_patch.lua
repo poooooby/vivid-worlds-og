@@ -171,6 +171,10 @@ end
 
 local pool = {}
 local scratch = {}
+-- while a render pipeline draws the world: this frame's code-drawn effects (emotes, sparkles,
+-- bars, hit FX ...), which get no proxy; drawn by the frame's ctx.drawFx instead (below)
+local fxActors, fxCamX, fxCamY = {}, 0, 0
+EngineGb._lastFrame = { actors = 0, fx = 0, proxies = 0, pipeline = false }
 
 -- a proxy's pose() for a render pipeline mod (e:pose() -> sprite, px, py, facing, phase,
 -- flip, the engine NPC's contract): the voxel sheet of its renderer (lib/voxel_sheets.lua)
@@ -205,8 +209,10 @@ local function buildProxies(world, hooks, pipeline)
   local a = A()
   local actors = scratch
   for i = #actors, 1, -1 do actors[i] = nil end
+  for i = #fxActors, 1, -1 do fxActors[i] = nil end
   if not (hooks and hooks.collectActors) then return 0 end
   local camX, camY = a.camera(world)
+  fxCamX, fxCamY = camX or 0, camY or 0
   hooks.collectActors(actors, camX or 0, camY or 0)
   local gen = a.generation
   local paletteFx = gen == 1 and loadModule("src.render.PaletteFX") or nil
@@ -216,7 +222,10 @@ local function buildProxies(world, hooks, pipeline)
   for i = 1, #actors do
     local act = actors[i]
     local sprite = pipeline and not act.draw and voxelSprite(act.renderer, mode) or nil
-    if pipeline and not sprite then goto continue end
+    if pipeline and not sprite then
+      if act.draw then fxActors[#fxActors + 1] = act end
+      goto continue
+    end
     n = n + 1
     local p = pool[n]
     if not p then
@@ -256,6 +265,9 @@ local function buildProxies(world, hooks, pipeline)
     if pipeline then p.py = act.y or p.py end -- its tile, not its sort point
     ::continue::
   end
+  -- (what the last frame put in: drivers / tests read it; one table, no garbage)
+  local lf = EngineGb._lastFrame
+  lf.actors, lf.fx, lf.proxies, lf.pipeline = #actors, #fxActors, n, pipeline and true or false
   return n
 end
 
@@ -279,6 +291,72 @@ local function listOf(world)
   if not world then return nil end
   return a.generation == 1 and world.entities or world.npcs
 end
+
+-- ------------------------------------------------------------------ effects in 3D
+-- A render pipeline (TERRARIUM, Battle Art ...) draws terrain and figures as geometry and then
+-- calls the frame's ctx.drawFx(project, scale) for the 2D field effects: each is drawn flat and
+-- slid onto where its ground point projects, unscaled by depth (OverworldController.lua /
+-- World.lua drawFx, the engine's own emote bubble). Ours join that same pass: every effect
+-- actor kept above, anchored at its `groundX/groundY` (else its x / sortY: the feet of the
+-- Pokemon a bubble sits over).
+
+--- The ground point an effect actor is placed by in 3D.
+function EngineGb.fxAnchor(act)
+  return act.groundX or act.x or 0, act.groundY or act.sortY or act.y or 0
+end
+
+--- Draws this frame's effect actors through a pipeline's `project(wx, wy) -> sx, sy`
+--- (nil behind the camera) at `scale` canvas pixels per world pixel. Returns how many drew.
+function EngineGb.drawFxActors(project, scale, actors, camX, camY)
+  actors, camX, camY = actors or fxActors, camX or fxCamX, camY or fxCamY
+  scale = tonumber(scale) or 1
+  if #actors == 0 or type(project) ~= "function" or scale <= 0 then return 0 end
+  local g = love and love.graphics
+  if not (g and g.push) then return 0 end
+  local n = 0
+  for i = 1, #actors do
+    local act = actors[i]
+    local wx, wy = EngineGb.fxAnchor(act)
+    local okP, sx, sy = pcall(project, wx, wy)
+    if okP and sx and sy then
+      g.push()
+      g.scale(scale, scale)
+      g.translate(sx / scale - (wx - camX), sy / scale - (wy - camY))
+      local ok = pcall(act.draw, act, camX, camY)
+      g.pop()
+      if ok then n = n + 1 end
+    end
+  end
+  return n
+end
+
+-- the frame's own drawFx, then ours (one function, no closure per frame)
+local fxOriginal, fxScale = nil, 1
+local function drawFxWithOurs(project, scale, ...)
+  local orig = fxOriginal
+  if orig then
+    local ok, err = pcall(orig, project, scale, ...)
+    if not ok and EngineGb._log then EngineGb._log:warn("[vivid_worlds_og] drawFx: %s", tostring(err)) end
+  end
+  EngineGb.drawFxActors(project, scale or fxScale)
+end
+
+--- Pipelines.drawWorld wrapped: a frame with effects of ours gets a drawFx that draws them too.
+local function wrapPipelines(originals)
+  local Pipelines = loadModule("src.render.Pipelines")
+  if not (Pipelines and type(Pipelines.drawWorld) == "function") or originals.pipelinesDrawWorld then return end
+  local orig = Pipelines.drawWorld
+  originals.pipelinesDrawWorld = orig
+  Pipelines.drawWorld = function(id, ctx, ...)
+    if type(ctx) == "table" and type(ctx.drawFx) == "function" and ctx.drawFx ~= drawFxWithOurs
+        and #fxActors > 0 then
+      fxOriginal, fxScale = ctx.drawFx, tonumber(ctx.scale) or 1
+      ctx.drawFx = drawFxWithOurs
+    end
+    return orig(id, ctx, ...)
+  end
+end
+EngineGb._wrapPipelines = wrapPipelines
 
 --- Is a render pipeline mod drawing the world (src/render/Pipelines.lua)?
 function EngineGb.pipelineActive()
@@ -333,6 +411,7 @@ function EngineGb.install(hooks, log)
       for i = 1, n do pool[i].actor, pool[i].sprite = nil, nil end
     end
     for i = #scratch, 1, -1 do scratch[i] = nil end
+    for i = #fxActors, 1, -1 do fxActors[i] = nil end
     if not okD then error(r1, 0) end
     return r1, r2, r3
   end
@@ -423,6 +502,10 @@ function EngineGb.install(hooks, log)
     end
   end
 
+  -- our effects in a 3D world (ctx.drawFx, above)
+  EngineGb._log = log
+  wrapPipelines(originals)
+
   EngineGb._originals = originals
   EngineGb._installed = true
   return true
@@ -432,6 +515,8 @@ function EngineGb.uninstall()
   if not EngineGb._installed then return end
   local a = A()
   local o = EngineGb._originals or {}
+  local Pipes = loadModule("src.render.Pipelines")
+  if Pipes and o.pipelinesDrawWorld then Pipes.drawWorld = o.pipelinesDrawWorld end
   if a then
     for key, spec in pairs(a.TARGETS) do
       local M = loadModule(spec.mod)

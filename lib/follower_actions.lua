@@ -219,6 +219,7 @@ function FollowerActions.ballActor(ball, ox, oy, elevation)
     kind = "follower_action_ball",
     elevation = elevation or 3,
     sortY = gy + 0.5,
+    groundX = gx, groundY = oy + CELL, -- (3D: lib/engine_patch.lua drawFx anchor)
     x = gx, y = gy,
     i = 90500,
     draw = function(_, camX, camY)

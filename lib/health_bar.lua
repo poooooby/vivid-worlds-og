@@ -63,6 +63,7 @@ function HealthBar.actor(wx, wy, hp, maxHp, lift, elevation, id)
     kind = "ow_health_bar",
     elevation = elevation or 3,
     sortY = wy + 80,
+    groundX = wx + 8, groundY = wy + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     x = gx, y = gy,
     i = 90700 + (tonumber(id) or 0),
     draw = function(_, camX, camY)

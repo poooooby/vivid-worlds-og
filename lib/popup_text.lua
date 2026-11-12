@@ -399,6 +399,7 @@ function PopupText.actor(text, ox, oy, elevation, lift, id, age)
     kind = "follower_popup",
     elevation = elevation or 3,
     sortY = gy + 64, -- always in front of the sprites around it
+    groundX = gx, groundY = oy + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     x = gx, y = gy,
     i = 90600 + (tonumber(id) or 0),
     style = style, lift = lift,

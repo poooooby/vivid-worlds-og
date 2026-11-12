@@ -37,3 +37,5 @@ here.
 - The partner's mood shows in each game's own emote bubbles: Red and Blue's smile, Yellow's
   eight (heart, smile, Zs, bolt, skull ...), Gold, Silver and Crystal's eight (heart, happy, sad,
   sleep, bolt ...); a mood a game has no bubble for keeps its drawn effect.
+- In a 3D world mod (TERRARIUM, Battle Art) the mod's emotes, sparkles, health bars, hit effects
+  and pop-up text draw in the 3D scene, over the Pokémon they belong to.

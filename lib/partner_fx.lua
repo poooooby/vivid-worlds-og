@@ -99,6 +99,7 @@ function PartnerFx.actor(parts, x, y, lift, elevation, id)
   return {
     kind = "ow_partner_fx", elevation = elevation or 3, oamPriority = 1, parts = parts,
     sortY = y + 93, x = x + 8, y = cy,
+    groundX = x + 8, groundY = y + 16, -- (3D: lib/engine_patch.lua drawFx anchor)
     i = 90970 + (tonumber(id) or 0),
     draw = function(_, camX, camY)
       if not (love and love.graphics and love.graphics.rectangle) then return end
