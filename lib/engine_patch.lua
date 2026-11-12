@@ -389,7 +389,7 @@ function EngineGb.install(hooks, log)
       EngineGb._world = world
       local native = a.nativeTalk and select(2, pcall(a.nativeTalk, world)) == true
       if not native then
-        local consumed = safeCall(log, "interact", hooks.interact, a.game and a.game() or nil)
+        local consumed = safeCall(log, "interact", hooks.interact, a.game and a.game(EngineGb._world) or nil)
         if consumed then return end
       end
       return originals.interact(world, ...)
@@ -406,7 +406,7 @@ function EngineGb.install(hooks, log)
     originals.messageTick = Mod[field]
     Mod[field] = function(box, ...)
       local r1, r2 = originals.messageTick(box, ...)
-      safeCall(log, "followerTick", hooks.followerTick, a.game and a.game() or nil)
+      safeCall(log, "followerTick", hooks.followerTick, a.game and a.game(EngineGb._world) or nil)
       return r1, r2
     end
   end
@@ -980,18 +980,19 @@ local function adapterCall(name, ...)
   return r1, r2, r3, r4
 end
 
-function EngineGb.isMessageOpen() return adapterCall("isMessageOpen") == true end
-function EngineGb.showMessage(text, opts) return adapterCall("showMessage", text, opts) == true end
-function EngineGb.messageOnLastPage() return adapterCall("messageOnLastPage") == true end
-function EngineGb.closeStayMessage() return adapterCall("closeStayMessage") == true end
+-- the message / menu calls hand the adapter the live world first (Gen 2 finds its game there)
+function EngineGb.isMessageOpen() return adapterCall("isMessageOpen", EngineGb._world) == true end
+function EngineGb.showMessage(text, opts) return adapterCall("showMessage", EngineGb._world, text, opts) == true end
+function EngineGb.messageOnLastPage() return adapterCall("messageOnLastPage", EngineGb._world) == true end
+function EngineGb.closeStayMessage() return adapterCall("closeStayMessage", EngineGb._world) == true end
 function EngineGb.showChoice(options, defaultIdx, cb, _layout)
-  return adapterCall("showChoice", options, defaultIdx, cb) == true
+  return adapterCall("showChoice", EngineGb._world, options, defaultIdx, cb) == true
 end
-function EngineGb.choiceActive() return adapterCall("choiceActive") == true end
+function EngineGb.choiceActive() return adapterCall("choiceActive", EngineGb._world) == true end
 
---- The dialogue box's place in 8 px tiles (the portrait sits above it).
+--- The dialogue box's place in 8 px tiles.
 function EngineGb.dialogueWindow()
-  local win = adapterCall("dialogueWindow")
+  local win = adapterCall("dialogueWindow", EngineGb._world)
   return type(win) == "table" and win or nil
 end
 
@@ -1053,7 +1054,18 @@ end
 -- the mod-kept friendship (lib/gb_friendship.lua), handed over by main.lua on a GB boot
 function EngineGb.setFriendshipStore(store) EngineGb._friendship = store end
 
+--- Does this generation keep a real friendship byte (Gold's happiness) instead of the store?
+function EngineGb.realFriendship()
+  local a = A()
+  return a ~= nil and a.friendshipOf ~= nil
+end
+
 function EngineGb.friendshipOf(mon)
+  local a = A()
+  if a and a.friendshipOf then
+    local ok, v = pcall(a.friendshipOf, mon)
+    if ok and tonumber(v) then return tonumber(v) end
+  end
   local store = EngineGb._friendship
   if store then
     local ok, v = pcall(store.valueOf, store, mon)
@@ -1063,6 +1075,11 @@ function EngineGb.friendshipOf(mon)
 end
 
 function EngineGb.setFriendship(mon, value)
+  local a = A()
+  if a and a.setFriendship then
+    local ok, v = pcall(a.setFriendship, mon, value)
+    if ok and tonumber(v) then return tonumber(v) end
+  end
   local store = EngineGb._friendship
   if store then
     local ok, v = pcall(store.set, store, mon, value)
@@ -1071,11 +1088,13 @@ function EngineGb.setFriendship(mon, value)
   return EngineGb.friendshipOf(mon)
 end
 
---- A stable number standing in for Gen 3's personality (none exists here): the species'
---- national dex and the DVs. lib/companion.lua and lib/level_ready.lua key mons by it.
+--- A stable number standing in for Gen 3's personality (none exists here): the original
+--- trainer's id and the DVs -- never the species, so a partner that evolves keeps its role,
+--- its friendship and its waiting move / evolution. lib/companion.lua, lib/level_ready.lua and
+--- lib/gb_friendship.lua key mons by it.
 function EngineGb.monIdentity(mon)
   if type(mon) ~= "table" then return nil end
-  local dex = EngineGb.nationalFor(mon.species) or 0
+  local ot = math.floor(tonumber(mon.otId) or 0) % 65536
   local d, dv = mon.dvs, 0
   if type(d) == "table" then
     dv = (tonumber(d.attack) or 0) * 4096 + (tonumber(d.defense) or 0) * 256
@@ -1083,28 +1102,28 @@ function EngineGb.monIdentity(mon)
   elseif tonumber(d) then
     dv = tonumber(d) % 65536
   end
-  return dex * 65536 + dv
+  return ot * 65536 + dv
 end
 
 --- Species facts for the ambient systems (string key or national dex number in).
 function EngineGb.isWaterType(species)
   local a = A()
   if not (a and a.hasType) then return false end
-  local ok, yes = pcall(a.hasType, species, "WATER")
+  local ok, yes = pcall(a.hasType, species, "WATER", EngineGb._world)
   return ok and yes == true
 end
 
 function EngineGb.heightDm(species)
   local a = A()
   if not (a and a.heightDm) then return nil end
-  local ok, dm = pcall(a.heightDm, species)
+  local ok, dm = pcall(a.heightDm, species, EngineGb._world)
   return ok and dm or nil
 end
 
 function EngineGb.baseStatTotal(species)
   local a = A()
   if not (a and a.baseStatTotal) then return nil end
-  local ok, sum = pcall(a.baseStatTotal, species)
+  local ok, sum = pcall(a.baseStatTotal, species, EngineGb._world)
   return ok and sum or nil
 end
 
@@ -1124,7 +1143,7 @@ function EngineGb.fieldEffectSheet(name)
   if name == "exclamation_question_mark" then fn = a.emoteSheet
   elseif name == "ground_impact_dust" then fn = a.dustSheet end
   if not fn then return nil end
-  local ok, sheet = pcall(fn)
+  local ok, sheet = pcall(fn, EngineGb._world)
   return ok and sheet or nil
 end
 
@@ -1253,7 +1272,7 @@ end
 function EngineGb.isFlying(species)
   local a = A()
   if not (a and a.hasType) then return false end
-  local ok, yes = pcall(a.hasType, species, "FLYING")
+  local ok, yes = pcall(a.hasType, species, "FLYING", EngineGb._world)
   return ok and yes == true
 end
 function EngineGb.cryFinished() return true end

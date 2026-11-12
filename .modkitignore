@@ -20,6 +20,8 @@ tests/cell_path_unit_test.lua
 tests/companion_unit_test.lua
 tests/config_unit_test.lua
 tests/drivers/p1_checks.lua
+tests/drivers/p2_reacts.lua
+tests/drivers/p2_talk.lua
 tests/drivers/smoke.lua
 tests/encounter_source_unit_test.lua
 tests/engine_api_unit_test.lua

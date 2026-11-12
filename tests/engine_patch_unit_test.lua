@@ -760,6 +760,7 @@ end
 function World.step(_world) end
 function World.pollInput(world) world.heldDir = "down" end
 function World.startBattle() end
+function World.interact(_world) drawn.engineInteract = (drawn.engineInteract or 0) + 1 end
 fake["src.world.gen2.World"] = World
 local unlocked = false
 fake["src.core.gen2.Unown"] = { SPECIES = "UNOWN", anyUnlocked = function() return unlocked end,
@@ -851,6 +852,49 @@ eq(world.heldDir, nil, "held: no direction is held on Gen 2")
 EP2.unlockField("contact")
 World.pollInput(world)
 eq(world.heldDir, "down", "released: it is")
+
+-- ------- Gen 2 talk: the shared text box on Gold's stack, its ScriptMenu, real happiness
+do
+  local list = {}
+  game2.stack = {
+    top = function() return list[#list] end,
+    push = function(_, st) list[#list + 1] = st end,
+    pop = function() list[#list] = nil end,
+  }
+  local chosen
+  local ScriptMenu = { new = function(_g, o) return { kind = o.kind, header = o.header, onChoose = o.onChoose } end }
+  fake["src.ui.gen2.ScriptMenu"] = ScriptMenu
+  fake["src.ui.gen2.union.Dialog"] = { menuHeader = function(labels) return { items = labels, cursor = 1 } end }
+  EP2._world = world
+  check(EP2.supports("interaction") and EP2.supports("wild_reacts"), "Gen 2 carries Pet / Play / Talk and the wild reactions")
+  check(not EP2.supports("roles"), "...not the roles yet")
+  check(EP2.canStartInteraction(), "the overworld free and the player still: a talk can start")
+  check(EP2.showMessage("Hello!", { stay = true }), "a message opens on Gold's stack")
+  check(EP2.isMessageOpen(), "...and reads as open")
+  check(not EP2.canStartInteraction(), "...while something is on the stack, no talk starts")
+  check(EP2.showChoice({ "PET", "PLAY", "TALK" }, 0, function(i) chosen = i end), "the menu opens")
+  check(EP2.choiceActive(), "...and is the menu up")
+  local menu = list[#list]
+  menu.onChoose(2)
+  eq(chosen, 1, "the second row answers 1 (0-based)")
+  check(not EP2.choiceActive(), "...and the menu is gone")
+  check(EP2.closeStayMessage(), "the stay box closes")
+  eq(#list, 0, "...the stack is empty again")
+  EP2.showChoice({ "PET", "PLAY" }, 0, function(i) chosen = i end)
+  list[#list].onChoose(0)
+  eq(chosen, 127, "B on the menu answers 127, like a cancel")
+  local mon = { species = "SENTRET", happiness = 70, otId = 1234, dvs = { attack = 1, defense = 2, speed = 3, special = 4 } }
+  check(EP2.realFriendship(), "Gold keeps a real happiness byte")
+  eq(EP2.friendshipOf(mon), 70, "friendship reads the happiness byte")
+  eq(EP2.setFriendship(mon, 300), 255, "...and writes it, clamped to a byte")
+  eq(mon.happiness, 255, "...on the mon itself")
+  local evolved = { species = "FURRET", otId = 1234, dvs = mon.dvs }
+  eq(EP2.monIdentity(evolved), EP2.monIdentity(mon), "an evolved mon keeps its identity (OT + DVs, never the species)")
+  check(EP2.monIdentity({ species = "SENTRET", otId = 99, dvs = mon.dvs }) ~= EP2.monIdentity(mon),
+    "another trainer's mon with the same DVs is someone else")
+  eq(EP2.displayName({ species = "SENTRET", name = "SENTRET", nickname = "Scout" }), "Scout", "a nickname is its name")
+  game2.stack = { top = function() return nil end }
+end
 EP2.uninstall()
 
 print("")

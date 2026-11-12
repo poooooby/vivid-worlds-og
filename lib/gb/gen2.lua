@@ -1,7 +1,12 @@
 -- Gold / Silver / Crystal: the engine calls lib/engine_patch.lua needs, against Gen1Recomp's
 -- Gen 2 overworld (src/world/gen2/World.lua, `world` = the World). Every call is guarded
 -- by the caller; nothing here keeps state.
+local V = ...
 local Gen2 = { generation = 2, layout = "gen2" }
+
+-- the optional systems main.lua may build on this generation (EnginePatch.supports);
+-- the partner roles (Battler / Forager) follow in P3
+Gen2.FEATURES = { interaction = true, wild_reacts = true }
 
 local load = function() return nil end
 function Gen2.init(loadModule) load = loadModule end
@@ -13,6 +18,10 @@ Gen2.TARGETS = {
   draw = { mod = WORLD, field = "drawPeople" }, -- draws world.npcs y-sorted (World.lua:11727)
   tick = { mod = WORLD, field = "step" },       -- one logic frame (World.lua:11321)
   input = { mod = WORLD, field = "pollInput" }, -- the held direction (World.lua:11553)
+  interact = { mod = WORLD, field = "interact" }, -- the A press (World.lua:8976): the partner menu goes first
+  -- a box on the stack pauses World:step (Game2 runs the top state only): tick from the box
+  -- too, so the interaction's state machine and the spawns keep moving mid-conversation
+  messageTick = { mod = "src.render.TextBox", field = "update" },
 }
 -- optional: where a render pipeline mod (Stadium2) draws the world (World.lua:11864)
 Gen2.PIPELINE = { mod = WORLD, field = "drawPipeline" }
@@ -262,6 +271,191 @@ end
 function Gen2.party(world)
   local save = Gen2.save(world)
   return save and save.party
+end
+
+-- ------------------------------------------------------------------ talk / UI
+-- The same text box as Gen 1 (src/render/TextBox.lua, shared), through lib/gb/ui.lua; the
+-- choice menu is Gold's own ScriptMenu with a header built like the union room's
+-- (src/ui/gen2/union/Dialog.lua menuHeader). On Gold the overworld runs while the game's
+-- state stack is EMPTY: anything on it (a box, a menu, a battle) owns the screen.
+local ui = V.require("gb/ui").new(function(world) return Gen2.game(world) end, function() return load end)
+
+function Gen2.isMessageOpen(world) return ui.isMessageOpen(world) end
+function Gen2.showMessage(world, text, opts) return ui.showMessage(world, text, opts) end
+function Gen2.messageOnLastPage(world) return ui.messageOnLastPage(world) end
+function Gen2.closeStayMessage(world) return ui.closeStayMessage(world) end
+function Gen2.choiceActive(world) return ui.choiceActive(world) end
+
+--- The menu for `options` (labels): `cb(index)` 0-based, B -> cb(127).
+function Gen2.showChoice(world, options, defaultIdx, cb)
+  local game = Gen2.game(world)
+  local ScriptMenu = load("src.ui.gen2.ScriptMenu")
+  local Dialog = load("src.ui.gen2.union.Dialog")
+  if not (game and game.stack and ScriptMenu and ScriptMenu.new and Dialog and Dialog.menuHeader) then
+    return false
+  end
+  local labels = {}
+  for i, label in ipairs(options or {}) do labels[i] = tostring(label) end
+  if #labels == 0 then return false end
+  local okH, header = pcall(Dialog.menuHeader, labels)
+  if not (okH and type(header) == "table") then return false end
+  if tonumber(defaultIdx) and defaultIdx >= 1 and defaultIdx < #labels then header.cursor = defaultIdx + 1 end
+  local menu
+  local okM, m = pcall(ScriptMenu.new, game, {
+    header = header, kind = "vivid_worlds_og_partner",
+    onChoose = function(index)
+      ui.trackChoice(nil)
+      if game.stack:top() == menu then pcall(game.stack.pop, game.stack) end
+      if cb then pcall(cb, (tonumber(index) or 0) >= 1 and index - 1 or 127) end
+    end,
+  })
+  if not (okM and m) then return false end
+  menu = m
+  local okP = pcall(game.stack.push, game.stack, menu)
+  if not okP then return false end
+  ui.trackChoice(menu)
+  return true
+end
+
+--- The dialogue box's place in 8 px tiles: the bottom six rows, as on Gen 1.
+function Gen2.dialogueWindow(_world)
+  return { left = 0, top = 12, width = 20, height = 6 }
+end
+
+--- Something owns the whole screen: anything on the state stack.
+function Gen2.screenBusy(world)
+  return ui.stackTop(world) ~= nil
+end
+
+--- The top of the engine's own A press: nothing on the stack, no script, the player still.
+function Gen2.canStartInteraction(world)
+  if not world or Gen2.busy(world) then return false end
+  if world.scriptRunning then
+    local ok, running = pcall(world.scriptRunning, world)
+    if ok and running then return false end
+  end
+  local p = world.player
+  return p ~= nil and not p.moving
+end
+
+--- Gold has no follower of its own to talk to: the partner's menu always answers.
+function Gen2.nativeTalk(_world) return false end
+
+function Gen2.displayName(mon)
+  if type(mon) ~= "table" then return "POKeMON" end
+  if type(mon.nickname) == "string" and mon.nickname ~= "" then return mon.nickname end
+  if type(mon.name) == "string" and mon.name ~= "" then return mon.name end
+  return type(mon.species) == "string" and mon.species or "POKeMON"
+end
+
+--- Width in px of `text` in the engine's font (shared with Gen 1).
+function Gen2.measureText(text)
+  local Font = load("src.render.Font")
+  if not (Font and Font.width) then return 0 end
+  local ok, w = pcall(Font.width, tostring(text or ""))
+  return ok and tonumber(w) or 0
+end
+
+--- Draws `text` with the engine's font at (x, y), top-left, dark; returns the width.
+function Gen2.drawText(text, x, y)
+  local Font = load("src.render.Font")
+  if not (Font and Font.draw) then return 0 end
+  local g = love and love.graphics
+  if not g then return 0 end
+  local r, gr, b, a = g.getColor()
+  g.setColor(0, 0, 0, 1)
+  pcall(Font.draw, tostring(text or ""), x, y)
+  g.setColor(r, gr, b, a)
+  return Gen2.measureText(text)
+end
+
+-- ------------------------------------------------------------------ emote art
+--- Gold's own showemote bubbles as the two-frame "!" / "?" sheet lib/wild_emote.lua reads
+--- (frame 0 SHOCK, frame 1 QUESTION: menu_gfx.lua emotes, the art World:showEmote draws),
+--- shaded to the bubble's white / grey / black like Gen 1's sheet. Built once.
+local emoteSheet
+function Gen2.emoteSheet(world)
+  if emoteSheet ~= nil then return emoteSheet or nil end
+  if not (world and love and love.graphics and love.image and love.image.newImageData) then return nil end
+  local Assets = load("src.render.Assets")
+  local okT, gfx = false, nil
+  if world.dataTable then okT, gfx = pcall(world.dataTable, world, "gen2MenuGfx", "data/generated/menu_gfx.lua") end
+  local emotes = okT and type(gfx) == "table" and gfx.emotes or nil
+  if not (Assets and Assets.imageData and emotes and emotes.shock and emotes.question) then
+    emoteSheet = false
+    return nil
+  end
+  local ok, sheet = pcall(function()
+    local out = love.image.newImageData(32, 16)
+    for i, key in ipairs({ "shock", "question" }) do
+      local src = Assets.imageData(emotes[key])
+      local w, h = math.min(16, src:getWidth()), math.min(16, src:getHeight())
+      for y = 0, h - 1 do
+        for x = 0, w - 1 do
+          local r, _, _, a = src:getPixel(x, y)
+          local v = 0
+          if r > 0.5 then v = 1 elseif r > 0.17 then v = 170 / 255 end
+          out:setPixel((i - 1) * 16 + x, y, v, v, v, a)
+        end
+      end
+    end
+    local img = love.graphics.newImage(out)
+    if img.setFilter then img:setFilter("nearest", "nearest") end
+    local quads = {
+      [0] = love.graphics.newQuad(0, 0, 16, 16, 32, 16),
+      [1] = love.graphics.newQuad(16, 0, 16, 16, 32, 16),
+    }
+    return { image = img, quads = quads, fw = 16, fh = 16, frames = 2 }
+  end)
+  emoteSheet = (ok and sheet) or false
+  return emoteSheet or nil
+end
+
+-- ------------------------------------------------------------------ friendship
+-- Gold keeps a real happiness byte on every party mon (Mon.new: happiness, 70 for a wild one):
+-- the partner's friendship IS it, so Pet / Play / Talk change what Return, Frustration and the
+-- happiness evolutions read.
+function Gen2.friendshipOf(mon)
+  return type(mon) == "table" and tonumber(mon.happiness) or nil
+end
+
+function Gen2.setFriendship(mon, value)
+  if type(mon) ~= "table" then return nil end
+  local v = math.max(0, math.min(255, math.floor(tonumber(value) or 0)))
+  mon.happiness = v
+  return v
+end
+
+-- ------------------------------------------------------------------ species facts
+--- The species' data row, by key ("PIKACHU") or national dex number.
+function Gen2.speciesDef(species, world)
+  local data = Gen2.data(world)
+  local mons = data and data.pokemon
+  if type(mons) ~= "table" or species == nil then return nil end
+  if type(species) == "string" then return mons[species] end
+  local n = tonumber(species)
+  if not n then return nil end
+  for _, def in pairs(mons) do
+    if type(def) == "table" and tonumber(def.dex) == n then return def end
+  end
+  return nil
+end
+
+function Gen2.hasType(species, wanted, world)
+  local def = Gen2.speciesDef(species, world)
+  for _, t in ipairs(def and def.types or {}) do
+    if t == wanted then return true end
+  end
+  return false
+end
+
+function Gen2.baseStatTotal(species, world)
+  local def = Gen2.speciesDef(species, world)
+  local b = def and def.baseStats
+  if type(b) ~= "table" then return nil end
+  local sum = 0
+  for _, v in pairs(b) do sum = sum + (tonumber(v) or 0) end
+  return sum > 0 and sum or nil
 end
 
 -- ------------------------------------------------------------------ Bug-Catching Contest

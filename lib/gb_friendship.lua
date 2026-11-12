@@ -1,7 +1,7 @@
--- Friendship on the Game Boy games, which keep no such stat (Gen 1; Gen 2's real
--- happiness byte is a later wiring). The mod keeps its own 0..255 per Pokemon in
--- mod.save, keyed by species and DVs (stable for a mon's whole life, no personality
--- exists), seeded at SEED like a Gen 2 wild catch. Pet / Play / Talk move it
+-- Friendship on Red / Blue / Yellow, which keep no such stat (Gold reads its real happiness
+-- byte instead, lib/gb/gen2.lua). The mod keeps its own 0..255 per Pokemon in mod.save, keyed
+-- by its original trainer and DVs (stable for a mon's whole life, evolution included -- no
+-- personality exists), seeded at SEED like a Gen 2 wild catch. Pet / Play / Talk move it
 -- (lib/follower_interaction.lua through EnginePatch.setFriendship), and walking with a
 -- lead raises it slowly (onStep, +1 every STEP_EVERY steps, the Gen 2 pace).
 --
@@ -30,7 +30,8 @@ function GbFriendship.new(mod, saveFor)
   }, GbFriendship)
 end
 
---- A mon's stable key: species and DVs (hex), e.g. "PIKACHU:fa93". No DVs -> species.
+--- A mon's stable key: its original trainer's id and its DVs (hex), e.g. "OT1234:fa93" --
+--- never the species, so evolving keeps it.
 function GbFriendship.keyOf(mon)
   if type(mon) ~= "table" or mon.species == nil then return nil end
   local d = mon.dvs
@@ -41,7 +42,7 @@ function GbFriendship.keyOf(mon)
   elseif tonumber(d) then
     dv = tonumber(d)
   end
-  return tostring(mon.species) .. ":" .. string.format("%04x", dv % 65536)
+  return "OT" .. tostring(math.floor(tonumber(mon.otId) or 0) % 65536) .. ":" .. string.format("%04x", dv % 65536)
 end
 
 -- Yellow's own happiness byte stands in for its starter Pikachu

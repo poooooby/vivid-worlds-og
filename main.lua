@@ -373,11 +373,12 @@ return function(mod)
     end
   end)
 
-  -- Gen 1 keeps no friendship stat: the mod keeps its own per-mon value
+  -- Gen 2 keeps a real happiness byte (lib/gb/gen2.lua friendshipOf). Gen 1 keeps no friendship
+  -- stat: the mod keeps its own per-mon value
   -- (lib/gb_friendship.lua; Yellow's starter Pikachu uses the game's own happiness byte),
   -- served through EnginePatch.friendshipOf / setFriendship, raised slowly by walking.
   local gbFriendship
-  if EnginePatch.setFriendshipStore then
+  if EnginePatch.setFriendshipStore and not (EnginePatch.realFriendship and EnginePatch.realFriendship()) then
     gbFriendship = GbFriendship.new(mod, function()
       local a = EnginePatch.adapter and EnginePatch.adapter()
       return a and a.save and a.save()

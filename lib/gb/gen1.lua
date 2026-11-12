@@ -1,6 +1,7 @@
 -- Red / Blue / Yellow: the engine calls lib/engine_patch.lua needs, against Gen1Recomp's
 -- Gen 1 overworld (src/world/OverworldController.lua, `ow` = the OverworldState). Every
 -- call is guarded by the caller; nothing here keeps state.
+local V = ...
 local Gen1 = { generation = 1, layout = "gen1" }
 
 -- the optional systems main.lua may build on this generation (EnginePatch.supports)
@@ -445,82 +446,18 @@ end
 -- are tracked here so isMessageOpen sees a "stay" box under a menu, the way Gen 3's
 -- Message does.
 
-local openBoxes = setmetatable({}, { __mode = "k" }) -- our TextBoxes still open
-local stayBox -- the one "stay" box up (the interaction's report)
-local choiceMenu -- the one ListMenu up (the interaction's rows)
-
-local function stackTop()
-  local Game = Gen1.game()
-  local stack = Game and Game.stack
-  if not (stack and stack.top) then return nil end
-  local ok, top = pcall(stack.top, stack)
-  return ok and top or nil
-end
+local ui = V.require("gb/ui").new(function() return Gen1.game() end, function() return load end)
+local function stackTop() return ui.stackTop() end
 
 --- Any dialogue box up: the stack's top, or the mod's own "stay" box under a menu.
-function Gen1.isMessageOpen()
-  local top = stackTop()
-  if type(top) == "table" and top.isTextBox then return true end
-  return stayBox ~= nil and openBoxes[stayBox] == true
-end
-
---- The engine's own dialogue box. `opts`: `stay` keeps it up (the caller closes it with
---- closeStayMessage), `done` runs when it closes itself. Returns true when it opened.
-function Gen1.showMessage(text, opts)
-  local Game = Gen1.game()
-  local TextBox = load("src.render.TextBox")
-  if not (Game and Game.stack and TextBox and TextBox.new) then return false end
-  local box
-  local function onDone()
-    if box then openBoxes[box] = nil end
-    if box == stayBox then stayBox = nil end
-    if opts and opts.done then pcall(opts.done) end
-  end
-  local tbOpts = nil
-  if opts and opts.stay then tbOpts = { stay = {} } end
-  local ok, b = pcall(TextBox.new, Game, tostring(text or ""), onDone, tbOpts)
-  if not (ok and b) then return false end
-  box = b
-  openBoxes[box] = true
-  if opts and opts.stay then stayBox = box end
-  local okP = pcall(Game.stack.push, Game.stack, box)
-  if not okP then openBoxes[box] = nil if box == stayBox then stayBox = nil end return false end
-  return true
-end
-
---- Has the open box typed out its last page (a menu can open over it now)?
-function Gen1.messageOnLastPage()
-  local top = stackTop()
-  local box = (type(top) == "table" and top.isTextBox) and top or stayBox
-  if not (type(box) == "table" and box.pages) then return false end
-  return box.done == true and box.pageIndex ~= nil and box.pageIndex >= #box.pages
-end
-
---- Closes the "stay" box, wherever it sits on the stack.
-function Gen1.closeStayMessage()
-  local box = stayBox
-  if not box then return false end
-  stayBox = nil
-  openBoxes[box] = nil
-  local Game = Gen1.game()
-  local stack = Game and Game.stack
-  if not stack then return false end
-  if stackTop() == box then
-    pcall(stack.pop, stack)
-    return true
-  end
-  -- under something else (should not happen: the menu closes first): drop it from the list
-  local list = stack.stack or stack.states
-  if type(list) == "table" then
-    for i = #list, 1, -1 do
-      if list[i] == box then table.remove(list, i) return true end
-    end
-  end
-  return false
-end
+function Gen1.isMessageOpen(_ow) return ui.isMessageOpen() end
+--- The engine's own dialogue box (lib/gb/ui.lua): `opts.stay`, `opts.done`.
+function Gen1.showMessage(_ow, text, opts) return ui.showMessage(nil, text, opts) end
+function Gen1.messageOnLastPage(_ow) return ui.messageOnLastPage() end
+function Gen1.closeStayMessage(_ow) return ui.closeStayMessage() end
 
 --- The engine's list menu as Gen 3's Choice.multi: `cb(index)` 0-based, B -> cb(127).
-function Gen1.showChoice(options, defaultIdx, cb)
+function Gen1.showChoice(_ow, options, defaultIdx, cb)
   local Game = Gen1.game()
   local ListMenu = load("src.ui.ListMenu")
   if not (Game and Game.stack and ListMenu and ListMenu.new) then return false end
@@ -534,14 +471,14 @@ function Gen1.showChoice(options, defaultIdx, cb)
   local ok, menu = pcall(ListMenu.new, Game, "", items, {
     itemBox = true,
     onChoose = function(item, m)
-      choiceMenu = nil
+      ui.trackChoice(nil)
       if m and m.close then pcall(m.close, m) end
       local idx = 0
       for i, it in ipairs(items) do if it == item then idx = i - 1 break end end
       if cb then pcall(cb, idx) end
     end,
     onCancel = function()
-      choiceMenu = nil
+      ui.trackChoice(nil)
       if cb then pcall(cb, 127) end
     end,
   })
@@ -549,17 +486,15 @@ function Gen1.showChoice(options, defaultIdx, cb)
   if tonumber(defaultIdx) and defaultIdx >= 1 and defaultIdx < #items then menu.index = defaultIdx + 1 end
   local okP = pcall(Game.stack.push, Game.stack, menu)
   if not okP then return false end
-  choiceMenu = menu
+  ui.trackChoice(menu)
   return true
 end
 
-function Gen1.choiceActive()
-  return choiceMenu ~= nil and stackTop() == choiceMenu
-end
+function Gen1.choiceActive(_ow) return ui.choiceActive() end
 
 --- The dialogue box's place in 8 px tiles ({ left, top, width, height }): the Gen 1 box
 --- fills the screen's bottom six tile rows (0,12 .. 19,17 on 160x144).
-function Gen1.dialogueWindow()
+function Gen1.dialogueWindow(_ow)
   return { left = 0, top = 12, width = 20, height = 6 }
 end
 

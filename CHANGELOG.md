@@ -24,5 +24,9 @@ here.
 - Battle Art (Gen 1 and Gen 2) 3D worlds show wild Pokémon and your partner as cards of their own
   size.
 - Psychic-type battle effects show as Psychic (the Game Boy data's PSYCHIC_TYPE).
+- Gold, Silver and Crystal: Pet / Play / Talk with your partner (Gold's own menus), raising its
+  real happiness; wild Pokémon react when you bike close by, with the game's own "!" and "?".
+- A partner that evolves keeps its role and friendship (it is known by its trainer and stats,
+  not its species).
 - Classic Enc turns off only the step encounters: the Bug-Catching Contest, Sweet Scent and
   fishing stay as the game has them.

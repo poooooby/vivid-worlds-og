@@ -274,6 +274,12 @@ end
 -- own evolution scene / move relearner.
 function FollowerInteraction:rowsFor(name)
   local rows = MENUS[name]
+  -- no Role row where this generation has no partner roles yet (EnginePatch.supports)
+  if name == "main" and EnginePatch.supports and not EnginePatch.supports("roles") then
+    local kept = {}
+    for _, row in ipairs(rows) do if row[2] ~= "menu:role" then kept[#kept + 1] = row end end
+    rows = kept
+  end
   local pending = name == "main" and self.levelReady and self.mon and self.levelReady:pending(self.mon) or nil
   if not pending then return rows end
   local out = {}
@@ -289,9 +295,11 @@ function FollowerInteraction.labels(name, rows)
   -- the rows' labels in the Language option's language
   local shown = {}
   for i, row in ipairs(rows) do shown[i] = trc("menu", row[1]) end
+  -- the Game Boy font has the right arrow but no left one: Back goes without it there
+  local gbFont = EnginePatch.fontLayout ~= nil and EnginePatch.fontLayout() == "gb"
   for i, row in ipairs(rows) do
     out[i] = shown[i]
-    if row[2] == "back" then out[i] = LEFT .. " " .. shown[i] end
+    if row[2] == "back" and not gbFont then out[i] = LEFT .. " " .. shown[i] end
     if row[2] and row[2]:find("^menu:") then
       arrowed[#arrowed + 1] = i
       if not widest or #shown[i] > #shown[widest] then widest = i end
@@ -300,7 +308,6 @@ function FollowerInteraction.labels(name, rows)
   if #arrowed == 0 then return out end
   -- the pixel-placed arrow rides the Gen 3 font's pen codes; the Game Boy font
   -- ("gb") has none, so it takes the plain space-padded branch below
-  local gbFont = EnginePatch.fontLayout ~= nil and EnginePatch.fontLayout() == "gb"
   local arrow = not gbFont and measure(RIGHT) or 0
   if arrow > 0 then
     local arrowX = math.min(255, math.floor(measure(shown[widest]) + ARROW_GAP))

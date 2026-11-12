@@ -12,9 +12,8 @@ A mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp), for its Gener
 games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 > [!NOTE]
-> **Early preview.** Red, Blue and Yellow have every feature below. Gold, Silver and Crystal
-> have the wild Pokémon, battles and your partner following you; their partner roles, Pet /
-> Play / Talk and the wild reactions are still on the way.
+> **Early preview.** Red, Blue and Yellow have every feature below. In Gold, Silver and Crystal
+> your partner's Battler and Forager roles are still on the way.
 
 ## ✨ Features
 
@@ -45,7 +44,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - 💎 **Foraging:** As a Forager it spots a glint, dashes over, digs and brings back an item.
   The fonder it is of you, the better its finds.
 - 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood shows as an emote above
-  its head.
+  its head. In Gold, Silver and Crystal this raises its real happiness, the stat behind Return,
+  Frustration and happiness evolutions.
+- 🌱 **It stays your partner:** its role and friendship carry over when it evolves.
 
 ### A Living World
 
@@ -63,7 +64,7 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 | **Show Wild Mons** | On / Off | On | Visible wild Pokémon in encounter areas. |
 | **Spawn Amount** | Low / Normal / High | Normal | How many wild Pokémon are out at once. |
 | **Sprite Style** | HGSS / GSC | HGSS | HGSS sprites at true size, or one-tile GSC sprites (HGSS for any species GSC lacks). |
-| **Wild Reacts** | On / Off | On | Biking close by startles or angers them (Red, Blue, Yellow). |
+| **Wild Reacts** | On / Off | On | Biking close by startles or angers them. |
 | **Follower** | On / Off | On | Your partner walks behind you, or stays in its Poké Ball. |
 | **Battler: Pad** | R / L / Off | Off | A controller button that sends your partner into battle and back. |
 | **Battler: Key** | E (R) / Q (L) / R / Off | Off | The same on the keyboard. |
@@ -93,8 +94,7 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - In the Safari Zone, wild Pokémon battle as Safari Pokémon, and your Battler leaves them be.
 - During the Bug-Catching Contest, the National Park has no visible wild Pokémon: the contest's
   own encounters run as in the game.
-- In Gold, Silver and Crystal your partner follows you, but its roles, Pet / Play / Talk and
-  the wild reactions are not there yet.
+- In Gold, Silver and Crystal your partner's Battler and Forager roles are not there yet.
 
 ## 🪪 Credits
 
