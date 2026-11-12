@@ -129,6 +129,6 @@ return {
     label = "Species Sizes",
     type = "toggle",
     default = true,
-    description = "In a 3D world mod (TERRARIUM, Battle Art, Potato, Dramaless, Stadium 2), draw each species at its own size next to you: small ones knee-high, giants towering over you. The flat 2D field always draws each sprite at its own art size.",
+    description = "Draw each species at its own size next to you: small ones knee-high, giants towering over you. On the flat 2D field this needs WoobleView with its Field HD on (in Red, Blue and Yellow, the ADVANCED colours); in a 3D world mod (TERRARIUM, Battle Art, Potato, Dramaless, Stadium 2) it always applies. Off: each sprite at its own art size.",
   },
 }

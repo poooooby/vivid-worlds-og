@@ -95,7 +95,7 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 | **Classic Enc** | On / Off | On | The original step-based encounters in grass, caves and on Surf. |
 | **Shiny Rate** | Off / 1/8192 (GSC) / 1/4096 / 1/1024 / 1/512 / 1/100 / 1/10 / Always | 1/4096 | How often a wild Pokémon is shiny. |
 | **Silhouette** | Off / Undiscovered / All | Off | Silhouettes for uncaught species, or for all of them. |
-| **Species Sizes** | On / Off | On | Each HGSS species at its own size in the 3D world mods. |
+| **Species Sizes** | On / Off | On | Each HGSS species at its own size next to you, on the field with WoobleView and in the 3D world mods. |
 
 ## 💾 Installation
 
@@ -109,6 +109,10 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 - [Modern Spawns](https://github.com/poooooby/g1r_modern_spawns): its generated encounter tables,
   its rare legendaries and its shiny chains fill the overworld too.
+- [WoobleView](https://github.com/poooooby/gen3-hd-sprites) with its **Field HD** on: your partner
+  and the wild Pokémon are drawn sharp at your screen's resolution, glide smoothly between
+  pixels and stand at their species' true sizes (**Species Sizes**). In Red, Blue and Yellow
+  this needs the **ADVANCED** colours, which keep their full colour.
 - 3D world mods: TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2.
 - **Wilds of Kanto Revival** does the same job, so only one of the two can be on at a time.
 

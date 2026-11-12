@@ -26,6 +26,7 @@
 --            EngineGb.collisionVerdict.
 local V = ...
 local GbColor = V.require("gb_color")
+local HdField = V.require("hd_field")
 
 local EngineGb = { isGb = true }
 
@@ -217,6 +218,8 @@ local function buildProxies(world, hooks, pipeline)
   local gen = a.generation
   local paletteFx = gen == 1 and loadModule("src.render.PaletteFX") or nil
   local mode = GbColor.mode(gen, paletteFx)
+  -- the grey art the palette pass colours stays on the field canvas: WoobleView leaves it be
+  HdField.setPlain(mode == "luma")
   local map = world and world.map
   local n = 0
   for i = 1, #actors do

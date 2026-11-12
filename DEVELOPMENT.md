@@ -57,7 +57,11 @@ area's one-off build on a map change.
   Battler. `lib/forager.lua` + `lib/forage_*.lua`: the Forager.
 - Sprites: HGSS only (`lib/sprite_source.lua`, `lib/actor_renderer.lua`), served from the atlas
   in a release (`lib/sprite_atlas.lua`). `lib/HGSS_scale.lua` sizes the 3D cards
-  (`lib/voxel_sheets.lua`, `lib/compat/`).
+  (`lib/voxel_sheets.lua`, `lib/compat/`) and the sheets WoobleView (`gen3-hd-sprites`) draws at
+  window resolution on the flat field (`lib/hd_field.lua`: the species' factor x
+  `Config.gbSizeRatio`, a GSC sheet at 1). Gen 1's palette modes colour the world canvas after it
+  is drawn, which a window-resolution sprite never reaches, so the sheets are untagged there
+  (`HdField.setPlain`, set each frame in `buildProxies`); only ADVANCED keeps them sharp.
 - `lib/partner_emote.lua`: the partner's mood while you talk to it (no portraits).
 
 ## Release

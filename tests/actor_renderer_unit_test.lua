@@ -304,10 +304,16 @@ do
   local r = setmetatable({ mod = libMod }, ActorRenderer)
   r.imagePath = function() return "assets/wilds_generated/true_size18/hgss/006-normal.png" end
   r.frameWidth = function() return 40 end
+  local Cfg = V.require("config")
   Hd.setSpeciesSizes(true)
-  eq(r:visualWidth(), 40, "visualWidth = the sheet's own width (the flat field draws every sheet at its own size)")
+  local k = math.max(0.2, math.min(2, SS[6] * Cfg.gbSizeRatio()))
+  eq(r:visualWidth(), 40 * k, "visualWidth = the sheet's width at its species' size (WoobleView's Field HD)")
   Hd.setSpeciesSizes(false)
-  eq(r:visualWidth(), 40, "...with Species Sizes off too")
+  eq(r:visualWidth(), 40, "...the sheet's own width with Species Sizes off")
+  Hd.setSpeciesSizes(true)
+  Hd.setPlain(true)
+  eq(r:visualWidth(), 40, "...and in Gen 1's grey colour modes (nothing tagged)")
+  Hd.setPlain(false)
   Hd.setSpeciesSizes(true)
   r.mod = { find = function() return nil end }
   eq(r:visualWidth(), 40, "...and the sheet's own width without gen3-hd-sprites")
