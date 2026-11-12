@@ -90,11 +90,11 @@ docs/PROVENANCE.md
 
 
 # local Claude Code settings and skills (gitignored)
-
+.claude/skills/lua-developer/SKILL.md
 
 # local notes and the README banner image (not needed to run)
 CLAUDE.md
 DEVELOPMENT.md
 
 # local build output
-
+dist/vivid-worlds-og-v0.0.1.zip
