@@ -45,7 +45,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   **forage** for items as you walk, or **battle** the wild Pokémon around you. A Battler button
   sends it into battle and calls it back with one press.
 - ⚔️ **Overworld battles:** As a Battler it charges nearby wild Pokémon and fights them right
-  on the field with its real moves, with hit sparks, knockouts and EXP for its wins.
+  on the field with its real moves and each game's own damage rules, with hit sparks,
+  knockouts and EXP for its wins. Whatever it wears a wild Pokémon down to carries into the
+  real battle if you then walk into it, and an Exp. Share holder gets its cut.
 - 💎 **Foraging:** As a Forager it spots a glint, dashes over, digs and brings back an item.
   The fonder it is of you, the better its finds.
 - 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood pops up above its head in
@@ -103,7 +105,6 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - In the Safari Zone, wild Pokémon battle as Safari Pokémon, and your Battler leaves them be.
 - During the Bug-Catching Contest, the National Park has no visible wild Pokémon: the contest's
   own encounters run as in the game.
-- In Gold, Silver and Crystal your partner's Battler and Forager roles are not there yet.
 - Red, Blue and Yellow have no shiny Pokémon of their own, so a shiny there follows Gold and
   Silver's rule: it is written in the Pokémon's hidden stats. Pokémon the game itself fixes as
   shiny or not, like the red Gyarados or a roaming beast you have already met, stay that way.

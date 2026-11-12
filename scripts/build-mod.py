@@ -39,7 +39,7 @@ RAW_SPRITE_DIRS = [
     "assets/wilds_generated/gsc",
 ]
 ATLAS_FAMILIES = "hgss18,swimming18,levitates18,gsc"
-MAX_ZIP_MB = 3.5
+MAX_ZIP_MB = 4.0
 
 # Never ship, even if present under an included root.
 FORBIDDEN_SUFFIXES = (".pyc", ".pyo")

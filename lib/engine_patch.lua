@@ -61,7 +61,7 @@ function EngineGb.adapter()
   local a = adapters[g]
   if not a then
     a = V.require(g == 1 and "gb/gen1" or "gb/gen2")
-    a.init(loadModule)
+    a.init(loadModule, function() return EngineGb._world end)
     adapters[g] = a
   end
   return a
@@ -1285,8 +1285,9 @@ function EngineGb.moveDamage(attacker, defender, moveId, rng, noCrit)
   return tonumber(dmg), info
 end
 
-function EngineGb.buildWildFighter(species, level, personality)
-  return (adapterCall("buildWildFighter", species, level, personality))
+--- `dvs`: the spawn's own, so the skirmish and the real battle are the same Pokemon.
+function EngineGb.buildWildFighter(species, level, _personality, _ivs, dvs)
+  return (adapterCall("buildWildFighter", species, level, dvs))
 end
 
 function EngineGb.expGain(species, level)
@@ -1351,6 +1352,38 @@ end
 
 function EngineGb.playSelect()
   return adapterCall("playSelect") == true
+end
+
+--- An overworld battle sound by Gen 3 name (lib/finisher_fx.lua): the hit sounds
+--- (SE_EFFECTIVE / SE_SUPER_EFFECTIVE / SE_NOT_EFFECTIVE) as the game's own battle plays
+--- them, a knockout's move sound (SE_M_*) as the faint. Each adapter's SFX names them.
+function EngineGb.playSeNamed(name)
+  local a = A()
+  local map = a and a.SFX
+  local sfx = map and type(name) == "string" and (map[name] or (name:match("^SE_M_") and map.KO))
+  local Sound = sfx and loadModule("src.core.Sound")
+  local data = Sound and a.data(EngineGb._world)
+  if not (data and Sound.play) then return false end
+  return (pcall(Sound.play, data, sfx))
+end
+
+--- Does `mon` take a share of a win it did not fight (Gen 1: an EXP.ALL in the bag shares to
+--- the whole party; Gen 2: it holds an EXP.SHARE)?
+function EngineGb.holdsExpShare(mon)
+  return adapterCall("holdsExpShare", mon) == true
+end
+
+--- What a knocked-out wild `species` drops: the game's own held-item roll (Gen 2 only: Gen 1
+--- wild Pokemon hold nothing).
+function EngineGb.wildHeldItem(species)
+  return (adapterCall("wildHeldItem", species))
+end
+
+function EngineGb.itemName(id)
+  local a = A()
+  local data = a and a.data(EngineGb._world)
+  local row = data and type(data.items) == "table" and data.items[id]
+  return type(row) == "table" and row.name or tostring(id)
 end
 
 --- The engine font, for the little overworld labels (lib/popup_text.lua). The

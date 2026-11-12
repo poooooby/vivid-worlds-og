@@ -191,6 +191,7 @@ end
 -- (EnginePatch.showChoice, the same one the follower talk menu uses).
 
 local GB_ROLES = { "FOLLOW", "FORAGE", "FIGHT", "BACK" }
+local GB_MAX_ROWS = 8
 local ROLE_OF = { FOLLOW = "follow", FORAGE = "forage", FIGHT = "battle" }
 
 --- The `ui.party.submenu` hook's list (main.lua wraps it on a GB boot): adds the
@@ -203,9 +204,13 @@ function PartyRoles:gbRows(items, mon, ctx)
   for _, row in ipairs(items) do
     if type(row) == "table" and row._wildsRole then return items end
   end
+  -- Gold's submenu holds at most 8 rows (NUM_MONMENU_ITEMS): a Pokemon with every field
+  -- move has no room for one more
+  if #items >= GB_MAX_ROWS then return items end
   local at = #items + 1
   for i, row in ipairs(items) do
-    local action = type(row) == "table" and row.action
+    -- Gen 1 rows carry `action` ("stats"), Gold's `id` ("STATS")
+    local action = type(row) == "table" and tostring(row.action or row.id or ""):lower()
     if action == "stats" or action == "switch" or action == "cancel" then at = i break end
   end
   local roles = self
@@ -235,6 +240,8 @@ function PartyRoles:gbOpenRoleMenu(mon, game)
     if type(menu) == "table" and menu.setMessage then
       pcall(menu.setMessage, menu, line)
       menu.submenu = nil -- back to the party list, the line in the bottom box
+    elseif type(menu) == "table" and menu.refuse then
+      pcall(menu.refuse, menu, line) -- Gold: closes the submenu, the line in the bottom box
     end
   end)
 end

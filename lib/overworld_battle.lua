@@ -245,7 +245,7 @@ function OverworldBattle:_engage(env, e, path)
   -- one fighter per wild Pokemon, kept on it (`owWild`): a second skirmish picks up its HP
   -- where the last left it, and walking into it starts the real battle with that HP and
   -- those IVs (lib/battle_trigger.lua onPlayerBumped)
-  local wild = e.owWild or c.buildWild(e.species, e.level, e.personality, e.ivs)
+  local wild = e.owWild or c.buildWild(e.species, e.level, e.personality, e.ivs, e.dvs)
   if not wild then
     e.noFight = true -- never try this one again
     return false

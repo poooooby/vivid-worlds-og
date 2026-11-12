@@ -2,6 +2,7 @@
 -- Gen 1 overworld (src/world/OverworldController.lua, `ow` = the OverworldState). Every
 -- call is guarded by the caller; nothing here keeps state.
 local V = ...
+local Shared = V.require("gb/shared")
 local Gen1 = { generation = 1, layout = "gen1" }
 
 -- the optional systems main.lua may build on this generation (EnginePatch.supports)
@@ -262,13 +263,17 @@ function Gen1.installShiny(decide)
       local mon = origNew(data, species, level, rng, ...)
       if not inNewWild or type(mon) ~= "table" then return mon end
       inNewWild = false -- the wild Pokemon is the one newWild builds
-      local dvs = handOff
+      local given = handOff
       handOff = nil
-      if not dvs and decideDvs then
+      local dvs = given and given.dvs
+      if not given and decideDvs then
         local ok, d = pcall(decideDvs, mon.dvs, nil, type(rng) == "function" and rng or nil)
         dvs = ok and d or nil
       end
       if type(dvs) == "table" then giveDvs(data, mon, dvs) end
+      -- worn down by the partner's Battler: the HP it has left
+      local hp = given and tonumber(given.hp)
+      if hp and hp > 0 and type(mon.stats) == "table" then mon.hp = math.min(math.floor(hp), mon.stats.hp) end
       mon.shiny = Gen1.shinyDvs(mon.dvs) or nil
       return mon
     end
@@ -291,14 +296,14 @@ end
 --- The wild battle, built the way the engine's own step encounter builds it
 --- (OverworldController.lua:4940): the ghost of the Pokemon Tower without the Silph
 --- Scope, a Safari battle in the Safari Zone, afterBattle on the way out. The Pokemon
---- fought has the DVs the spawn rolled (its shininess).
+--- fought has the DVs the spawn rolled (its shininess) and the HP the Battler left it.
 function Gen1.startWild(ow, enc, done)
   local Game = Gen1.game()
   local BattleState = load("src.battle.BattleState")
   if not (Game and ow and BattleState and BattleState.newWild and ow.pushBattle) then
     return nil, "Gen 1 battle unavailable"
   end
-  handOff = type(enc.dvs) == "table" and enc.dvs or nil
+  handOff = { dvs = type(enc.dvs) == "table" and enc.dvs or nil, hp = enc.hp }
   local ok, battle = pcall(BattleState.newWild, Game, enc.species, tonumber(enc.level) or 5)
   handOff = nil
   if not ok or not battle then return nil, "newWild failed: " .. tostring(battle) end
@@ -621,27 +626,8 @@ end
 -- the Gen 1 answers to the engine facts lib/ow_combat.lua, lib/forage_items.lua and
 -- lib/level_ready.lua ask for (the same contracts lib/engine_patch.lua serves on Gen 3).
 
--- Move ids are STRINGS here ("TACKLE"); the combat code compares ids numerically
--- (`id > 0`), so each key is interned to a stable number for the session and
--- translated back at the data lookups.
-local moveNums, moveKeys = {}, {}
-function Gen1.moveNumber(m)
-  if type(m) == "table" then m = m.id or m.move or m.moveId end
-  if type(m) == "number" then return m end
-  if type(m) ~= "string" then return nil end
-  local n = moveNums[m]
-  if not n then
-    n = #moveKeys + 1
-    moveKeys[n] = m
-    moveNums[m] = n
-  end
-  return n
-end
-
-local function moveKeyOf(id)
-  if type(id) == "string" then return id end
-  return moveKeys[tonumber(id) or 0]
-end
+Gen1.moveNumber = Shared.moveNumber
+local moveKeyOf = Shared.moveKey
 
 local function moveDef(id)
   local data = Gen1.data()
@@ -715,7 +701,7 @@ end
 --- A wild Pokemon built for an overworld skirmish: the engine's own constructor
 --- (moves and PP from the learnset, random DVs -- the same roll the engine's
 --- step battle makes), hp full, `maxHp` set.
-function Gen1.buildWildFighter(species, level)
+function Gen1.buildWildFighter(species, level, dvs)
   local data = Gen1.data()
   local Pokemon = load("src.pokemon.Pokemon")
   local def, key = Gen1.speciesDef(species)
@@ -723,6 +709,7 @@ function Gen1.buildWildFighter(species, level)
   local ok, mon = pcall(Pokemon.new, data, key, tonumber(level) or 5)
   if not (ok and type(mon) == "table") then return nil end
   if not (type(mon.moves) == "table" and #mon.moves > 0) then return nil end
+  if type(dvs) == "table" then giveDvs(data, mon, dvs) end -- the spawn's own (its real battle's)
   mon.maxHp = type(mon.stats) == "table" and tonumber(mon.stats.hp) or nil
   if not mon.maxHp or mon.maxHp <= 0 then return nil end
   mon.hp = mon.maxHp
@@ -788,14 +775,7 @@ function Gen1.movesLearnedAt(mon, level)
   return (ok and type(list) == "table") and list or {}
 end
 
-function Gen1.knowsMove(mon, moveId)
-  local key = moveKeyOf(moveId)
-  if not key then return false end
-  for _, mv in ipairs(type(mon) == "table" and mon.moves or {}) do
-    if type(mv) == "table" and mv.id == key then return true end
-  end
-  return false
-end
+Gen1.knowsMove = Shared.knowsMove
 
 --- What `mon` evolves into right now by LEVEL (never a stone or a trade), or nil.
 function Gen1.evolutionTarget(mon)
@@ -874,19 +854,6 @@ function Gen1.startMoveLearn(mon, moveIds, onDone)
   return true
 end
 
--- the item-use kinds lib/forage_items.lua weighs (the Gen 1 data carries none)
-local USE_OF = {
-  POTION = "heal", SUPER_POTION = "heal", HYPER_POTION = "heal", MAX_POTION = "heal",
-  FULL_RESTORE = "heal", FRESH_WATER = "heal", SODA_POP = "heal", LEMONADE = "heal",
-  ANTIDOTE = "status", BURN_HEAL = "status", ICE_HEAL = "status", AWAKENING = "status",
-  PARLYZ_HEAL = "status", FULL_HEAL = "status",
-  REVIVE = "revive", MAX_REVIVE = "revive",
-  HP_UP = "vitamin", PROTEIN = "vitamin", IRON = "vitamin", CARBOS = "vitamin",
-  CALCIUM = "vitamin", PP_UP = "vitamin",
-}
-local EVO_STONES = { FIRE_STONE = true, WATER_STONE = true, THUNDER_STONE = true,
-                     LEAF_STONE = true, MOON_STONE = true }
-
 --- Every item the Forager may consider, in the entry shape lib/forage_items.lua
 --- reads. Gen 1's data carries only { id, name, price, keyItem }: the pocket, use
 --- kind and TM / HM / stone flags are derived (key items -> KEY_ITEMS, a priced
@@ -905,9 +872,9 @@ function Gen1.itemCatalog()
       elseif price > 0 and name:upper():match("BALL$") then pocket = "POKE_BALLS" end
       out[#out + 1] = {
         id = row.id or id, name = name, pocket = pocket, price = price,
-        use = USE_OF[row.id or id] or "none",
+        use = Shared.USE_OF[row.id or id] or "none",
         isHm = name:match("^HM%d") ~= nil, isTm = name:match("^TM%d") ~= nil,
-        isEvo = EVO_STONES[row.id or id] == true,
+        isEvo = Shared.EVO[row.id or id] == true,
       }
     end
   end
@@ -915,41 +882,20 @@ function Gen1.itemCatalog()
   return out
 end
 
---- Puts `qty` of item `id` into the bag (src/inventory/Bag, the game's own rules:
---- Gen 1's single 20-slot bag, 99 a stack). False when it does not fit.
-function Gen1.bagAdd(id, qty)
-  local save = Gen1.save()
-  local Bag = load("src.inventory.Bag")
-  if not (save and Bag and Bag.add) then return false end
-  local ok, added = pcall(Bag.add, save, id, qty or 1, Gen1.data())
-  return ok and added == true
+--- The bag, by the game's own rules (Gen 1's single 20-slot bag, 99 a stack).
+function Gen1.bagAdd(id, qty) return Shared.bagAdd(load("src.inventory.Bag"), Gen1.save(), Gen1.data(), id, qty) end
+function Gen1.bagCanAdd(id, qty)
+  return Shared.bagCanAdd(load("src.inventory.Bag"), Gen1.save(), Gen1.data(), id, qty)
 end
 
---- Would it fit right now? A dry run of the bag's own add against scratch copies
---- (Bag.addTo mutates nothing on failure, and the copies catch its successes).
-function Gen1.bagCanAdd(id, qty)
+-- the battle's own hit sounds (EffectRegistry) and faint thud, for EnginePatch.playSeNamed
+Gen1.SFX = { SE_EFFECTIVE = "Damage", SE_SUPER_EFFECTIVE = "Super_Effective",
+  SE_NOT_EFFECTIVE = "Not_Very_Effective", KO = "Faint_Thud" }
+
+--- EXP.ALL is a bag item in Gen 1: carried, every party Pokemon shares a win.
+function Gen1.holdsExpShare(_mon)
   local save = Gen1.save()
-  local Bag = load("src.inventory.Bag")
-  local data = Gen1.data()
-  if not (save and Bag and Bag.addTo and Bag.order and Bag.slots and Bag.capacity and Bag.pocketOf) then
-    return false
-  end
-  local ok, fits = pcall(function()
-    local inv = {}
-    for k, v in pairs(save.inventory or {}) do inv[k] = v end
-    local order = {}
-    for i, v in ipairs(Bag.order(save, data)) do order[i] = v end
-    local stacks = {}
-    for k, v in pairs(type(save.bagStacks) == "table" and save.bagStacks or {}) do
-      local list = {}
-      if type(v) == "table" then for j, c in ipairs(v) do list[j] = c end end
-      stacks[k] = list
-    end
-    local pocket = Bag.pocketOf(id, data)
-    return Bag.addTo(inv, order, id, qty or 1, data,
-      Bag.slots(save, data, pocket), Bag.capacity(data, pocket), stacks)
-  end)
-  return ok and fits == true
+  return save ~= nil and type(save.inventory) == "table" and (tonumber(save.inventory.EXP_ALL) or 0) > 0
 end
 
 --- The found-it jingle / the menu click (the engine's own sound effects).
@@ -971,26 +917,11 @@ end
 
 --- Width in px of `text` in the engine's font (every glyph is 8 px in Gen 1's,
 --- but pen codes make Font.width the one true answer).
-function Gen1.measureText(text)
-  local Font = load("src.render.Font")
-  if not (Font and Font.width) then return 0 end
-  local ok, w = pcall(Font.width, tostring(text or ""))
-  return ok and tonumber(w) or 0
-end
+function Gen1.measureText(text) return Shared.measureText(load("src.render.Font"), text) end
 
---- Draws `text` with the engine's font at (x, y), top-left, in the dark text
---- colour the engine's own menus use; returns the width.
-function Gen1.drawText(text, x, y)
-  local Font = load("src.render.Font")
-  if not (Font and Font.draw) then return 0 end
-  local g = love and love.graphics
-  if not g then return 0 end
-  local r, gr, b, a = g.getColor()
-  g.setColor(0, 0, 0, 1)
-  pcall(Font.draw, tostring(text or ""), x, y)
-  g.setColor(r, gr, b, a)
-  return Gen1.measureText(text)
-end
+--- Draws `text` with the engine's font at (x, y), top-left, in the dark text colour the
+--- engine's own menus use (a "+" as a drawn cross); returns the width.
+function Gen1.drawText(text, x, y) return Shared.drawText(load("src.render.Font"), text, x, y) end
 
 --- The engine's little dust puff (one 8x8 tile) as the sheet shape
 --- lib/hit_effect.lua reads; its three frame indexes all land on the one frame.

@@ -61,7 +61,7 @@ python3 tools/check_modkitignore.py --write   # after adding a file under tests/
 python3 tools/validate_option_labels.py       # option labels <= 14 chars, ASCII
 python3 tools/validate_release_version.py     # manifest.json and main.lua agree
 python3 tools/line_budget.py                  # the shipped Lua stays within 20,000 lines
-python3 scripts/build-mod.py                  # -> dist/vivid-worlds-og-v<ver>.zip (<= 3.5 MB)
+python3 scripts/build-mod.py                  # -> dist/vivid-worlds-og-v<ver>.zip (<= 4 MB)
 ```
 
 Pre-1.0 versions ship as GitHub prereleases only (never an auto-update).

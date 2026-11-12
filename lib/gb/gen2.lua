@@ -2,14 +2,19 @@
 -- Gen 2 overworld (src/world/gen2/World.lua, `world` = the World). Every call is guarded
 -- by the caller; nothing here keeps state.
 local V = ...
+local Shared = V.require("gb/shared")
 local Gen2 = { generation = 2, layout = "gen2" }
 
--- the optional systems main.lua may build on this generation (EnginePatch.supports);
--- the partner roles (Battler / Forager) follow in P3
-Gen2.FEATURES = { interaction = true, wild_reacts = true }
+-- the optional systems main.lua may build on this generation (EnginePatch.supports)
+Gen2.FEATURES = { interaction = true, wild_reacts = true, roles = true }
 
 local load = function() return nil end
-function Gen2.init(loadModule) load = loadModule end
+local liveWorld = function() return nil end
+--- `currentWorld()`: the live World, for the calls that come without one (the roles).
+function Gen2.init(loadModule, currentWorld)
+  load = loadModule
+  if currentWorld then liveWorld = currentWorld end
+end
 
 local WORLD = "src.world.gen2.World"
 
@@ -161,7 +166,8 @@ end
 local decideDvs, worldOf, ownBuild = nil, nil, false
 
 --- The wild battle, the way World:tryWildEncounter starts one: Mon.new with the DVs the
---- spawn rolled (so its shininess), seen in the Pokedex, World:startBattle.
+--- spawn rolled (so its shininess) and the HP the Battler left it, seen in the Pokedex,
+--- World:startBattle.
 function Gen2.startWild(world, enc, done)
   local Mon = load("src.battle.gen2.Mon")
   local game = world and world.game
@@ -174,6 +180,9 @@ function Gen2.startWild(world, enc, done)
   local ok, wild = pcall(Mon.new, game.data, enc.species, tonumber(enc.level) or 5, { wild = true, dvs = dvs })
   ownBuild = false
   if not (ok and wild) then return nil, "Mon.new failed: " .. tostring(wild) end
+  -- worn down by the partner's Battler: the HP it has left
+  local hp = tonumber(enc.hp)
+  if hp and hp > 0 then wild.hp = math.min(math.floor(hp), wild.maxHp or hp) end
   local save = game.save
   if save then
     save.pokedex = save.pokedex or { seen = {}, caught = {} }
@@ -405,25 +414,10 @@ function Gen2.displayName(mon)
 end
 
 --- Width in px of `text` in the engine's font (shared with Gen 1).
-function Gen2.measureText(text)
-  local Font = load("src.render.Font")
-  if not (Font and Font.width) then return 0 end
-  local ok, w = pcall(Font.width, tostring(text or ""))
-  return ok and tonumber(w) or 0
-end
+function Gen2.measureText(text) return Shared.measureText(load("src.render.Font"), text) end
 
 --- Draws `text` with the engine's font at (x, y), top-left, dark; returns the width.
-function Gen2.drawText(text, x, y)
-  local Font = load("src.render.Font")
-  if not (Font and Font.draw) then return 0 end
-  local g = love and love.graphics
-  if not g then return 0 end
-  local r, gr, b, a = g.getColor()
-  g.setColor(0, 0, 0, 1)
-  pcall(Font.draw, tostring(text or ""), x, y)
-  g.setColor(r, gr, b, a)
-  return Gen2.measureText(text)
-end
+function Gen2.drawText(text, x, y) return Shared.drawText(load("src.render.Font"), text, x, y) end
 
 -- ------------------------------------------------------------------ emote art
 -- the showemote bubbles (EMOTE_* order, menu_gfx.lua emotes) by the names lib/emote_art.lua reads
@@ -580,6 +574,254 @@ function Gen2.reachMover(world)
     end
     return nil
   end
+end
+
+-- ------------------------------------------------------------------ roles (Battler / Forager)
+-- The partner's overworld battles and foraging (lib/overworld_battle.lua, lib/forager.lua,
+-- lib/level_ready.lua) by Gold's own rules: Damage.calc with the type chart and the critical
+-- ladder, Mon.new / gainExperience / learnMoveOn, Evolution.checkMon and the evolution screen,
+-- the four-pocket bag. These calls come without a world: `liveWorld()`.
+local function liveData() return Gen2.data(liveWorld()) end
+local function liveGame() return Gen2.game(liveWorld()) end
+
+Gen2.moveNumber = Shared.moveNumber
+Gen2.knowsMove = Shared.knowsMove
+
+local function moveDef(id)
+  local data = liveData()
+  local key = Shared.moveKey(id)
+  local row = key and data and type(data.moves) == "table" and data.moves[key]
+  return type(row) == "table" and row or nil, key
+end
+
+--- { power, accuracy (percent), type, pp } for an (interned) move id, or nil.
+function Gen2.moveRow(id)
+  local row = moveDef(id)
+  if not row then return nil end
+  return { power = tonumber(row.power) or 0, accuracy = tonumber(row.accuracy) or 0,
+           type = row.type, pp = tonumber(row.pp) or 0 }
+end
+
+--- The battler the damage reads: the mon, its level, stats and types (`maxHp` mirrored).
+function Gen2.battlerOf(mon)
+  local def = Gen2.speciesDef(mon.species, liveWorld())
+  if type(mon.stats) == "table" and tonumber(mon.stats.hp) then mon.maxHp = mon.maxHp or mon.stats.hp end
+  return { mon = mon, def = def, name = Gen2.displayName(mon), level = mon.level, stages = {},
+           curStats = type(mon.stats) == "table" and mon.stats or {},
+           curTypes = mon.types or (def and def.types) or {}, curMoves = mon.moves }
+end
+
+--- Gold's damage between two battlers: the critical roll on its ladder (a high-crit move two
+--- rungs up), then Damage.calc with the type chart. `rng(lo, hi)`. Returns damage,
+--- { critical, effectiveness } (nil on any trouble).
+function Gen2.moveDamage(attacker, defender, moveId, rng, noCrit)
+  local Damage = load("src.battle.gen2.Damage")
+  local data = liveData()
+  local move, key = moveDef(moveId)
+  local chart = data and data.type_chart
+  if not (Damage and Damage.calc and move and chart) then return nil end
+  rng = rng or math.random
+  local function random(n) return rng(0, n - 1) end
+  local rules = chart.battleRules or {}
+  local critical = false
+  if not noCrit and rules.criticalChances then
+    local okC, crit = pcall(Damage.rollCritical, Damage.criticalLevel({
+      highCritMove = rules.highCriticalMoves and rules.highCriticalMoves[key] == true }),
+      random, rules.criticalChances)
+    critical = okC and crit == true
+  end
+  local a, d = attacker.curStats or {}, defender.curStats or {}
+  local ok, dmg, info = pcall(Damage.calc, {
+    level = attacker.level or 1, power = tonumber(move.power) or 0, moveType = move.type,
+    attacker = { attack = a.attack, specialAttack = a.specialAttack, types = attacker.curTypes },
+    defender = { defense = d.defense, specialDefense = d.specialDefense, types = defender.curTypes },
+    types = chart.types, matchups = chart.matchups, critical = critical, random = random,
+  })
+  if not ok then return nil end
+  return tonumber(dmg), {
+    critical = type(info) == "table" and info.critical or false,
+    effectiveness = (type(info) == "table" and tonumber(info.effectiveness) or 10) / 10,
+  }
+end
+
+--- The wild Pokemon of a skirmish: Mon.new with the spawn's own DVs (`dvs`, so it is the one
+--- its real battle builds), moves from the learnset, full HP.
+function Gen2.buildWildFighter(species, level, dvs)
+  local data = liveData()
+  local Mon = load("src.battle.gen2.Mon")
+  if not (data and Mon and Mon.new and data.pokemon and data.pokemon[species]) then return nil end
+  local opts = {}
+  if type(dvs) == "table" then
+    opts.dvs = { attack = dvs.attack, defense = dvs.defense, speed = dvs.speed, special = dvs.special }
+  end
+  local ok, mon = pcall(Mon.new, data, species, tonumber(level) or 5, opts)
+  if not (ok and type(mon) == "table" and type(mon.moves) == "table" and #mon.moves > 0) then return nil end
+  mon.maxHp = tonumber(mon.maxHp) or (type(mon.stats) == "table" and tonumber(mon.stats.hp)) or nil
+  if not mon.maxHp or mon.maxHp <= 0 then return nil end
+  mon.hp = mon.maxHp
+  return mon
+end
+
+--- EXP a wild `species` at `level` is worth to one participant (Mon.experienceGain).
+function Gen2.expGain(species, level)
+  local data = liveData()
+  local Mon = load("src.battle.gen2.Mon")
+  local def = data and data.pokemon and data.pokemon[species]
+  if not (def and Mon and Mon.experienceGain) then return 0 end
+  local ok, n = pcall(Mon.experienceGain, def, tonumber(level) or 1, 1, false, {})
+  return ok and tonumber(n) or 0
+end
+
+--- Mon.gainExperience: levels, stats, the HP gain carried, `pokemon.level_up` per level.
+--- Returns { gained, fromLevel, toLevel } or nil.
+function Gen2.expApply(mon, amount)
+  local data = liveData()
+  local Mon = load("src.battle.gen2.Mon")
+  if not (data and Mon and Mon.gainExperience and type(mon) == "table") then return nil end
+  local from = tonumber(mon.level) or 1
+  amount = math.max(0, math.floor(tonumber(amount) or 0))
+  if not pcall(Mon.gainExperience, mon, amount, data) then return nil end
+  return { gained = amount, fromLevel = from, toLevel = tonumber(mon.level) or from }
+end
+
+--- The level-up moves of the species at exactly `level`.
+function Gen2.movesLearnedAt(mon, level)
+  local data = liveData()
+  local def = type(mon) == "table" and data and data.pokemon and data.pokemon[mon.species]
+  local out = {}
+  for _, e in ipairs(def and def.levelMoves or {}) do
+    if e.level == tonumber(level) then out[#out + 1] = e.move end
+  end
+  return out
+end
+
+-- Evolution.checkMon by level-up at this hour (an Everstone or unmet happiness refuses)
+local function evolutionEntry(mon)
+  local Evolution = load("src.core.gen2.Evolution")
+  local Palettes = load("src.world.gen2.Palettes")
+  local data = liveData()
+  if not (Evolution and Evolution.checkMon and data and type(mon) == "table") then return nil end
+  local okT, tod = false, nil
+  if Palettes and Palettes.clockDaytime then okT, tod = pcall(Palettes.clockDaytime) end
+  local ok, entry = pcall(Evolution.checkMon, data, mon, { timeOfDay = okT and tod or nil })
+  return ok and type(entry) == "table" and entry or nil
+end
+
+function Gen2.evolutionTarget(mon)
+  local entry = evolutionEntry(mon)
+  return entry and entry.into or nil
+end
+
+--- The evolution screen Rare Candy and a battle use (Game2:afterRareCandy). False -- and
+--- `onDone` never runs -- when nothing evolves.
+function Gen2.startEvolution(mon, _target, onDone)
+  local game = liveGame()
+  local Screens = load("src.ui.Screens")
+  local entry = evolutionEntry(mon)
+  if not (game and game.stack and Screens and Screens.push and entry) then return false end
+  local party = (game.save and game.save.party) or {}
+  local index
+  for i, m in ipairs(party) do if m == mon then index = i end end
+  return (pcall(Screens.push, game, "Gen2EvolutionAnim", {
+    mon = mon, entry = entry, index = index, party = party, save = game.save,
+    onDone = function()
+      pcall(game.stack.pop, game.stack)
+      if game.restartMapMusicAfterEvolution then pcall(game.restartMapMusicAfterEvolution, game) end
+      if onDone then onDone() end
+    end,
+  }))
+end
+
+--- Gold's own LearnMove for each of `moveIds` in turn (a full set asks which to forget);
+--- `onDone(learnedAny)`. False -- and `onDone` never runs -- when there is nothing to learn.
+function Gen2.startMoveLearn(mon, moveIds, onDone)
+  local game = liveGame()
+  if not (game and game.learnMoveOn and type(mon) == "table" and type(moveIds) == "table") then return false end
+  local queue = {}
+  for _, id in ipairs(moveIds) do
+    local def, key = moveDef(id)
+    if def and not Shared.knowsMove(mon, key) then queue[#queue + 1] = key end
+  end
+  if #queue == 0 then return false end
+  local learnedAny, nextMove = false, nil
+  nextMove = function()
+    local key = table.remove(queue, 1)
+    if not key then
+      if onDone then pcall(onDone, learnedAny) end
+      return
+    end
+    local ok = pcall(game.learnMoveOn, game, mon, key, function(learned)
+      if learned then learnedAny = true end
+      nextMove()
+    end)
+    if not ok then nextMove() end
+  end
+  nextMove()
+  return true
+end
+
+-- Gold's pockets by the names lib/forage_items.lua reads
+local POCKETS = { ITEM = "ITEMS", BALL = "POKE_BALLS", KEY_ITEM = "KEY_ITEMS", TM_HM = "TM_CASE" }
+
+--- Every item the Forager may consider (lib/forage_items.lua's entry shape). No mail: it only
+--- exists to be written on.
+function Gen2.itemCatalog()
+  local data = liveData()
+  local out = {}
+  for id, row in pairs(data and type(data.items) == "table" and data.items or {}) do
+    local key = tostring(id)
+    if type(row) == "table" and type(row.name) == "string" and row.name ~= "" and not key:match("_MAIL$") then
+      out[#out + 1] = {
+        id = id, name = row.name, pocket = POCKETS[row.pocket] or "ITEMS", price = tonumber(row.price) or 0,
+        use = Shared.USE_OF[id] or "none", isEvo = Shared.EVO[id] == true,
+        isHm = key:match("^HM_") ~= nil, isTm = key:match("^TM_") ~= nil,
+      }
+    end
+  end
+  table.sort(out, function(a, b) return tostring(a.id) < tostring(b.id) end)
+  return out
+end
+
+function Gen2.bagAdd(id, qty)
+  return Shared.bagAdd(load("src.inventory.Bag"), Gen2.save(liveWorld()), liveData(), id, qty)
+end
+function Gen2.bagCanAdd(id, qty)
+  return Shared.bagCanAdd(load("src.inventory.Bag"), Gen2.save(liveWorld()), liveData(), id, qty)
+end
+
+-- Gold's own sound effects by name (World:playSfxNamed)
+local function sfx(name)
+  local world = liveWorld()
+  if not (world and world.playSfxNamed) then return false end
+  return (pcall(world.playSfxNamed, world, name))
+end
+function Gen2.playSuccess() return sfx("Sfx_Item") end
+function Gen2.playSelect() return sfx("Sfx_ReadText2") end
+
+-- the battle's own hit sounds (BattleState:effectivenessSfx) and faint, for EnginePatch.playSeNamed
+Gen2.SFX = { SE_EFFECTIVE = "Sfx_Damage", SE_SUPER_EFFECTIVE = "Sfx_SuperEffective",
+  SE_NOT_EFFECTIVE = "Sfx_NotVeryEffective", KO = "Sfx_Faint" }
+
+function Gen2.holdsExpShare(mon)
+  return type(mon) == "table" and mon.item == "EXP_SHARE"
+end
+
+--- Mon.wildItem: a wild Pokemon's held item by its species' own odds (or nil).
+function Gen2.wildHeldItem(species)
+  local data = liveData()
+  local Mon = load("src.battle.gen2.Mon")
+  local def = data and data.pokemon and data.pokemon[species]
+  if not (def and Mon and Mon.wildItem) then return nil end
+  local ok, item = pcall(Mon.wildItem, def)
+  return ok and item or nil
+end
+
+--- Gen 3's map types as far as the mod reads them: 1 a town, 3 a route, 4 a cave / dungeon,
+--- 8 indoors (a house, a gate). The Forager sets out on routes and in caves.
+local MAP_TYPES = { TOWN = 1, ROUTE = 3, CAVE = 4, DUNGEON = 4, INDOOR = 8, GATE = 8 }
+function Gen2.mapTypeOf(world)
+  local env = world and world.map and world.map.def and world.map.def.environment
+  return MAP_TYPES[env] or (Gen2.isOutdoor(world) and 3 or 8)
 end
 
 return Gen2

@@ -33,8 +33,8 @@ local T = require("tests.modkit")
 local CASES = {
   { game = "red", gen = 1, layout = "gen1", roles = true },
   { game = "yellow", gen = 1, layout = "gen1", roles = true },
-  { game = "gold", gen = 2, layout = "gen2" },
-  { game = "crystal", gen = 2, layout = "gen2" },
+  { game = "gold", gen = 2, layout = "gen2", roles = true },
+  { game = "crystal", gen = 2, layout = "gen2", roles = true },
 }
 
 for _, case in ipairs(CASES) do

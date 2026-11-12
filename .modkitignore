@@ -26,6 +26,7 @@ tests/drivers/p2_reacts.lua
 tests/drivers/p2_shiny.lua
 tests/drivers/p2_talk.lua
 tests/drivers/p2_voxel_fx.lua
+tests/drivers/p3_roles.lua
 tests/drivers/smoke.lua
 tests/emote_art_unit_test.lua
 tests/encounter_source_unit_test.lua
@@ -44,6 +45,7 @@ tests/forager_unit_test.lua
 tests/form_source_unit_test.lua
 tests/gb_color_unit_test.lua
 tests/gb_friendship_unit_test.lua
+tests/gb_roles_unit_test.lua
 tests/hd_field_unit_test.lua
 tests/health_bar_unit_test.lua
 tests/hit_effect_unit_test.lua

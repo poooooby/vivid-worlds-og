@@ -901,7 +901,7 @@ do
   fake["src.ui.gen2.union.Dialog"] = { menuHeader = function(labels) return { items = labels, cursor = 1 } end }
   EP2._world = world
   check(EP2.supports("interaction") and EP2.supports("wild_reacts"), "Gen 2 carries Pet / Play / Talk and the wild reactions")
-  check(not EP2.supports("roles"), "...not the roles yet")
+  check(EP2.supports("roles"), "...and the partner roles (Battler / Forager)")
   check(EP2.canStartInteraction(), "the overworld free and the player still: a talk can start")
   check(EP2.showMessage("Hello!", { stay = true }), "a message opens on Gold's stack")
   check(EP2.isMessageOpen(), "...and reads as open")

@@ -39,3 +39,12 @@ here.
   sleep, bolt ...); a mood a game has no bubble for keeps its drawn effect.
 - In a 3D world mod (TERRARIUM, Battle Art) the mod's emotes, sparkles, health bars, hit effects
   and pop-up text draw in the 3D scene, over the Pokémon they belong to.
+- Gold, Silver and Crystal: the partner's Battler and Forager roles (the ROLE row in the party
+  menu, the Battler button). Fights use Gold's own damage, type chart and critical hits; a win
+  gives EXP the way Gold counts it, with its level-up moves and evolution screens; finds go
+  into the right pocket (TMs into the TM pocket).
+- A wild Pokémon your Battler wore down starts its real battle with the HP it has left, and is
+  the very same Pokémon (the same stats) on both games.
+- The Battler's hit and knockout sounds, Exp. Share (Gold) / EXP.ALL (Red, Blue, Yellow) and
+  Gold's held items dropped by a knocked-out wild Pokémon.
+- The "+" of a "+5 EXP" label shows (the Game Boy fonts have no "+").
