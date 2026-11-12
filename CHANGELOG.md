@@ -48,3 +48,17 @@ here.
 - The Battler's hit and knockout sounds, Exp. Share (Gold) / EXP.ALL (Red, Blue, Yellow) and
   Gold's held items dropped by a knocked-out wild Pokémon.
 - The "+" of a "+5 EXP" label shows (the Game Boy fonts have no "+").
+- Gold, Silver and Crystal: Raikou, Entei and Suicune turn up among the visible wild Pokémon on
+  the route they roam, at the game's own odds, one of each at most; touching one starts the
+  game's own roaming battle (its kept HP and DVs, the flee, the move afterwards). A visible beast
+  leaves when it moves on, and with Classic Enc off none jumps you on a step either.
+- Gold, Silver and Crystal: each Unown in the Ruins of Alph wears the letter its DVs make (HGSS and
+  GSC letter sprites), the same letter you battle.
+- Red, Blue and Yellow: without the Silph Scope every wild Pokémon in the Pokémon Tower wears the
+  ghost sprite (no shiny twinkle, no silhouette), battles as a GHOST and is never picked by the
+  Battler; no battle sparkle gives a shiny ghost away.
+- Red, Blue and Yellow: Safari Zone Pokémon may run when you walk within three tiles, at the odds
+  of the game's own Safari flee check (2 x Speed of 256); none chase.
+- Modern Spawns on Red / Blue / Yellow and Gold / Silver / Crystal: the visible spawns roll from
+  its generated tables (a swarm in progress is kept), with its legendaries (never a second copy of
+  a roaming beast still out) and its shiny chain's species.

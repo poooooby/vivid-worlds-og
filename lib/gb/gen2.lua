@@ -107,13 +107,55 @@ function Gen2.terrainAt(world, x, y)
   return map:isWalkableCell(x, y) and "land" or nil
 end
 
+-- Modern Spawns' tables in place of the game's (lib/modern_spawns_bridge.lua gen2Tables), or nil
+local tableView = nil
+function Gen2.setTableView(view) tableView = view end
+
 local function wildTables(world)
   if not world then return nil end
+  local t = world.encounters
   if world.wildTables then
-    local ok, t = pcall(world.wildTables, world)
-    if ok and type(t) == "table" then return t end
+    local ok, live = pcall(world.wildTables, world)
+    if ok and type(live) == "table" then t = live end
   end
-  return world.encounters
+  if tableView and type(t) == "table" then
+    -- the cart's own tables tell a swarm's entry (kept as is) from the map's usual one
+    local ok, view = pcall(tableView, t, world.encounters)
+    if ok and type(view) == "table" then return view end
+  end
+  return t
+end
+
+-- ------------------------------------------------------------------ roaming beasts
+local Roam = V.require("gb/roamers")
+local function roamers() return load("src.core.gen2.Roamers") end
+
+--- Beast `index` as it is NOW when it is still on this map ({ species, level, dvs, hp, roamer }), else nil.
+function Gen2.roamerNow(world, index)
+  local save = Gen2.save(world)
+  local slot = Roam.onMap(roamers(), save, index, world and world.map and world.map.id)
+  if not slot then return nil end
+  local met = (tonumber(slot.hp) or 0) > 0
+  return { species = slot.species, level = tonumber(slot.level) or 40, roamer = index,
+    dvs = met and slot.dvs or nil, hp = met and tonumber(slot.hp) or nil }
+end
+
+--- Is `species` a roaming beast still out there (Modern Spawns never offers a second one)?
+function Gen2.isRoamingSpecies(world, species)
+  return Roam.isRoaming(roamers(), Gen2.save(world), species)
+end
+
+--- With Classic Enc off no beast jumps the player on a step either (lib/gb/roamers.lua).
+function Gen2.installRoamerGate(shouldBlock)
+  return Roam.installStepGate(roamers(), shouldBlock)
+end
+
+--- Which Unown letter these DVs make (1 = A .. 26 = Z), or nil for any other species.
+function Gen2.unownLetter(species, dvs)
+  local Unown = load("src.core.gen2.Unown")
+  if not (Unown and species == Unown.SPECIES and type(dvs) == "table") then return nil end
+  local ok, letter = pcall(Unown.letterFromDVs, dvs)
+  return ok and tonumber(letter) or nil
 end
 
 --- { land = bool, water = bool } for the map's encounter table.
@@ -133,6 +175,11 @@ function Gen2.roll(world, mapId, terrain, _rng)
   local Mon = load("src.battle.gen2.Mon")
   local t = wildTables(world)
   if not (Encounter and Mon and t) then return nil end
+  -- CheckEncounterRoamMon comes first: on its route a beast replaces the map's pick
+  local beast = Roam.pickForSpawn(roamers(), Gen2.save(world), mapId, terrain)
+  if beast then
+    return { species = beast.species, level = beast.level, dvs = beast.dvs, hp = beast.hp, roamer = beast.index }
+  end
   local ok, hit
   if terrain == "water" then
     ok, hit = pcall(Encounter.waterSlot, t, mapId, nil)
@@ -172,6 +219,8 @@ function Gen2.startWild(world, enc, done)
   local Mon = load("src.battle.gen2.Mon")
   local game = world and world.game
   if not (Mon and game and world.startBattle) then return nil, "Gen 2 battle unavailable" end
+  -- a roaming beast: the engine's own roaming battle (its saved HP and DVs, banked afterwards)
+  if enc.roamer then return Roam.startBattle(roamers(), world, enc.roamer, done) end
   local dvs
   if type(enc.dvs) == "table" then
     dvs = { attack = enc.dvs.attack, defense = enc.dvs.defense, speed = enc.dvs.speed, special = enc.dvs.special }

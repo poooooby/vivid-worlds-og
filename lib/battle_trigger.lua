@@ -204,7 +204,7 @@ function BattleTrigger:onPlayerBumped(entity)
     -- the roaming legendary battles as the engine has it NOW: its current HP and status
     -- (the battle reads them from the encounter; the copy rolled at spawn time would heal
     -- it), and if it has been caught or defeated meanwhile, it is simply gone
-    local now = EnginePatch.roamerNow and EnginePatch.roamerNow()
+    local now = EnginePatch.roamerNow and EnginePatch.roamerNow(entity.roamer)
     if not (now and now.species == entity.species) then
       self.spawnManager:despawn(entity.id, { animate = true })
       return

@@ -12,9 +12,10 @@ author): its spawning, partner, Battler, Forager, effects and Game Boy engine la
 
 `lib/json_decode.lua`, `lib/HGSS_scale.lua` (the per-species overworld size table), the 3D world
 adapters under `lib/compat/`, the Shiny Rate (`lib/shiny.lua`) and the battle sparkle
-(`lib/battle_sparkle.lua`), `tools/generate_sprite_atlases.py` and
-`tools/validate_sprite_atlases.py` are copied or adapted from
-**Wilds of Kanto Revival** (`poooooby/wilds-of-kanto-gen-3`), which is
+(`lib/battle_sparkle.lua`), the roaming beasts (`lib/gb/roamers.lua`), the Modern Spawns bridge
+(`lib/modern_spawns_bridge.lua`), the Pokemon Tower ghost and Safari Zone rules,
+`tools/generate_sprite_atlases.py` and `tools/validate_sprite_atlases.py` are copied or adapted
+from **Wilds of Kanto Revival** (`poooooby/wilds-of-kanto-gen-3`), which is
 released under the MIT License:
 
 > Copyright (c) 2026 YoDrehDenSwagAuf

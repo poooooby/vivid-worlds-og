@@ -60,7 +60,7 @@ folders (`red/`, `gold/`, `crystal/` ...), a `portable.txt`, and this repo junct
 python3 tools/check_modkitignore.py --write   # after adding a file under tests/, tools/, scripts/, docs/
 python3 tools/validate_option_labels.py       # option labels <= 14 chars, ASCII
 python3 tools/validate_release_version.py     # manifest.json and main.lua agree
-python3 tools/line_budget.py                  # the shipped Lua stays within 20,000 lines
+python3 tools/line_budget.py                  # the shipped Lua stays within 25,000 lines
 python3 scripts/build-mod.py                  # -> dist/vivid-worlds-og-v<ver>.zip (<= 4 MB)
 ```
 

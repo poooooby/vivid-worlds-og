@@ -21,8 +21,9 @@
 -- Whether it reacts at all is one roll as the player comes in range (chance()): a near
 -- match only sometimes (Config.REACT.minChance), a lopsided one always (past weakSure /
 -- strongSure); a miss leaves it be for missCooldown ticks.
--- A Pokemon then rests (cooldown) before it can react again. Nothing reacts while the
--- field is busy (a cutscene, a trainer, a message), in a battle, or in the Safari Zone,
+-- A Pokemon then rests (cooldown) before it can react again. In the Safari Zone (Red / Blue /
+-- Yellow) none of that: its Pokemon are skittish instead -- see safariStart. Nothing reacts while the
+-- field is busy (a cutscene, a trainer, a message) or in a battle,
 -- and Sweet Scent's lured Pokemon, ones in a Battler skirmish, arriving / leaving ones and
 -- the roaming legendary are left alone. Movement goes through Behavior.tryStep: the same
 -- legality as wandering (its own encounter terrain, the engine's collision), widened to
@@ -143,6 +144,22 @@ function WildReactions.start(e, px, py, ctx, dist, aggroAt)
   return cls
 end
 
+--- The Safari Zone: a Pokemon the player walks near (Config.REACT.safari.radius, no need to
+--- run) rolls the game's own odds of running from a Safari battle once (`ctx.fleeChance`:
+--- 2 x Speed of 256, lib/gb/gen1.lua) and on a hit startles and runs off; none ever chases.
+function WildReactions.safariStart(e, px, py, ctx)
+  local cfg, rng = Config.REACT, ctx.rng or math.random
+  local chance = ctx.fleeChance and tonumber(ctx.fleeChance(e.species, e.level, e.dvs)) or 0
+  if rng(1, 100) > chance then
+    e.reactUntil = (ctx.now or 0) + (cfg.missCooldown or cfg.cooldown)
+    return nil
+  end
+  e.facing = faceToward(e.cellX, e.cellY, px, py) or e.facing
+  e.react = { t = 0, emoteAge = 0, mode = "alert", next = "flee", emote = "!", n = cfg.alertTicks,
+    hop = true, kind = "weak", safari = true }
+  return "weak"
+end
+
 -- done reacting: back to wandering, resting `cooldown` ticks before reacting again
 local function finish(e, now, cooldown, rng)
   e.react = nil
@@ -244,7 +261,7 @@ function WildReactions.tick(e, ctx)
       finish(e, ctx.now, cfg.cooldown, rng)
       if ctx.takeoff then ctx.takeoff(e) end
     elseif r.next == "flee" then
-      r.mode, r.steps, r.blocked = "flee", rngRange(rng, cfg.flee.steps), 0
+      r.mode, r.steps, r.blocked = "flee", rngRange(rng, r.safari and cfg.safari.steps or cfg.flee.steps), 0
     elseif r.next == "chase" then
       local leash = rngRange(rng, cfg.chase.leash)
       r.mode, r.leash, r.limit = "chase", leash, math.floor(leash * cfg.chase.secondsPerTile * 60)
@@ -261,7 +278,8 @@ function WildReactions.tick(e, ctx)
     if r.steps <= 0 or not p then
       finish(e, ctx.now, cfg.cooldown, rng)
       -- at the end of its run some of them disappear into the grass / the cave's dark
-      if r.steps <= 0 and ctx.fleeVanish and rng(1, 100) <= cfg.flee.vanishChance then ctx.fleeVanish(e) end
+      local vanish = r.safari and cfg.safari.vanishChance or cfg.flee.vanishChance
+      if r.steps <= 0 and ctx.fleeVanish and rng(1, 100) <= vanish then ctx.fleeVanish(e) end
       return
     end
     local dir = WildReactions.fleeDir(e.cellX, e.cellY, p.x, p.y, function(d)
@@ -341,10 +359,18 @@ end
 function WildReactions.scan(entities, ctx)
   local p = ctx.player
   if not (p and p.moving) then return end
+  local cfg = Config.REACT
+  if ctx.safari then
+    local started = 0
+    for _, e in ipairs(entities) do
+      local d = WildReactions.eligible(e, ctx.now) and e.terrain ~= "water" and manhattan(e.cellX, e.cellY, p.x, p.y)
+      if d and d <= cfg.safari.radius and WildReactions.safariStart(e, p.x, p.y, ctx) then started = started + 1 end
+    end
+    return started
+  end
   local biking = EnginePatch.playerBiking and EnginePatch.playerBiking() or false
   local running = biking or (EnginePatch.playerIsRunning and EnginePatch.playerIsRunning()) or false
   if not running then return end
-  local cfg = Config.REACT
   local radius = biking and cfg.bikeRadius or cfg.radius
   local aggroAt = biking and cfg.bikeAggroRadius or cfg.aggroRadius
   local started = 0

@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUDGET = 20_000
+BUDGET = 25_000
 
 
 def count(path: Path) -> int:

@@ -425,6 +425,34 @@ do
   for k, v in pairs(saved) do fake[k] = v end
 end
 
+-- ------- the Safari Zone: walking near is enough, the game's flee odds decide, nobody chases
+do
+  running, biking = false, false
+  local function safariCtx(player, chance, roll)
+    return ctxFor(player, 5, { safari = true, fleeChance = function() return chance end,
+      rng = function(a, b) if a == 1 and b == 100 then return roll end return a end })
+  end
+  local walking = { x = 10, y = 13, moving = true }
+  local e = entity(10, 10, 60) -- far stronger than the lead: outside Safari it would chase
+  eq(WR.scan({ e }, safariCtx(walking, 40, 41)), 0, "Safari: a roll above its flee odds stays put")
+  check(e.react == nil and (e.reactUntil or 0) > 0, "...and is left be for a while")
+  e.reactUntil = nil
+  eq(WR.scan({ e }, safariCtx(walking, 40, 40)), 1, "Safari: walking (not running) within 3 tiles startles it")
+  eq(e.react.next, "flee", "...it runs, even a strong one (no Safari Pokemon chases)")
+  eq(e.react.emote, "!", "...with a '!'")
+  local far = entity(10, 6, 60)
+  eq(WR.scan({ far }, safariCtx(walking, 100, 1)), 0, "Safari: 7 tiles off nobody notices")
+  local still = entity(10, 10, 60)
+  eq(WR.scan({ still }, safariCtx({ x = 10, y = 12, moving = false }, 100, 1)), nil,
+    "Safari: a player standing still disturbs nobody")
+  local ctx = safariCtx(walking, 100, 1)
+  ctx.rng = function(a, b) if a == 1 and b == 100 then return 1 end return b end
+  run(e, ctx, 400)
+  check(e.react == nil, "Safari: the runner finishes its run")
+  check(math.abs(e.cellY - 10) + math.abs(e.cellX - 10) >= cfg.safari.steps[1], "...a few tiles off")
+  running = true
+end
+
 if failures > 0 then
   io.stderr:write(failures .. " failure(s)\n")
   os.exit(1)

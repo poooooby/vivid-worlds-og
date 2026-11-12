@@ -85,7 +85,9 @@ function BattleSparkle.step(battle, deps)
     local isEnemy = side == "enemy"
     local battler = battle[side]
     local mon = type(battler) == "table" and battler.mon or nil
-    local hidden = (not isEnemy) and (battle.safari or battle.demo)
+    -- the player's side has no Pokemon out in a Safari / demo battle; a Pokemon Tower GHOST
+    -- (battle:makeGhost) shows no Pokemon at all, so nothing tells it is shiny
+    local hidden = ((not isEnemy) and (battle.safari or battle.demo)) or (isEnemy and battle.ghost)
     if mon and not hidden and not battler.fainted and isShinyMon(mon) then
       local entry = seen[mon]
       if not entry and BattleSparkle.ready(battle, isEnemy) then

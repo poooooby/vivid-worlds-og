@@ -1,161 +1,134 @@
--- Modern Spawns bridge: visible spawns use the species Modern Spawns
--- generated for a map, when that mod is installed and active.
+-- Modern Spawns bridge: visible spawns pick from the tables Modern Spawns generated, when that
+-- mod is installed and active (ported from Wilds of Kanto Revival's lib/modern_spawns_bridge.lua).
 --
--- This mod gets its encounters from EnginePatch.rollSweetScent, which calls
--- the engine's rules directly -- the `encounter.roll` / `encounter.species`
--- hooks Modern Spawns uses for step encounters never run for it. Modern
--- Spawns never rewrites the game's tables either; it publishes them through
--- mod.exports (drawFor / legendaryFor / profileOf, apiVersion >= 1). So after
--- the engine rolls a slot, this module swaps that slot's species for the one
--- Modern Spawns generated in the same slot -- the same "keep the rolled slot,
--- level and personality, replace only the species" step Modern Spawns itself
--- applies on Gen 3 (adapter substituteAfterRoll).
+-- The visible spawns pick their species straight from the encounter tables (lib/gb/gen1.lua,
+-- lib/gb/gen2.lua roll), so Modern Spawns' encounter hooks never run for them. Modern Spawns
+-- never rewrites the game's tables either; it publishes its own in each game's shape
+-- (mod.exports.drawFor / tableFor, apiVersion >= 1). The adapters' rolls read through the views
+-- below (EnginePatch.setTableView), so a map's visible Pokemon are the species Modern Spawns
+-- would roll there. After the roll, apply() adds its LEGENDARIES roll and the shiny chain's
+-- species, the same "keep the level, replace the species" Modern Spawns applies to a step.
 --
--- Shiny chains (Modern Spawns' src/chain.lua) ride along: the chained species
--- may take the slot's place (chainSpeciesFor), and chainBonus says how likely an
--- encounter of it is to be shiny and how many perfect stats it gets -- this mod
--- applies those (lib/shiny.lua), since a Gen 3 shiny is engine-specific.
---
--- Soft integration, same as Wilds of Kanto Revival: no dependency. Absent,
--- OFF, GEN 1, not a Gen 3 table shape, or no table for the map -> the engine's
--- own encounter passes through untouched.
+-- Soft integration, no dependency: absent, OFF, another generation's tables or no table for a
+-- map -> the game's own table passes through untouched.
 local V = ...
 local EnginePatch = V.require("engine_patch")
 
 local Bridge = {}
 
--- Modern Spawns' exports when installed and active, else nil.
+-- Modern Spawns' exports when installed, active and answering for this generation, else nil.
 function Bridge.api()
   local mod = V.mod
   if not (mod and type(mod.find) == "function") then return nil end
   local ok, other = pcall(mod.find, mod, "modern_spawns")
   local api = ok and other and other.exports
   if type(api) ~= "table" or (tonumber(api.apiVersion) or 0) < 1 then return nil end
-  if type(api.drawFor) ~= "function" or type(api.profileOf) ~= "function" then return nil end
   local okActive, active = pcall(api.isActive)
   if not (okActive and active) then return nil end
-  -- Gen 3 table shape: { rate, slots = { { species, minLevel, maxLevel } } }
   local okGen, gen = pcall(api.generation)
-  if not (okGen and gen == 3) then return nil end
+  if not (okGen and gen ~= nil and gen == EnginePatch.generation()) then return nil end
   return api
 end
 
-local function kindOf(terrain)
-  return terrain == "water" and "water" or "grass"
+-- One generated table for a map / terrain in the game's own shape, or nil. drawFor (Modern
+-- Spawns 0.7.0+) answers RANDOM with a fresh draw per call: one call per pick.
+function Bridge.table(mapId, terrain)
+  local api = mapId ~= nil and Bridge.api() or nil
+  if not api then return nil end
+  local fn = api.drawFor or api.tableFor
+  if type(fn) ~= "function" then return nil end
+  local ok, t = pcall(fn, mapId, terrain)
+  if ok and type(t) == "table" and type(t.slots) == "table" then return t end
+  return nil
 end
 
--- Modern Spawns' species id ("PIDGEY") -> this engine's internal species id,
--- through the national dex number its profile carries. nil for a species the
--- running engine has no slot for (the caller then keeps the engine's own).
-local function internalFor(api, id)
-  if type(id) ~= "string" then return nil end
-  local ok, profile = pcall(api.profileOf, id)
-  local dex = ok and type(profile) == "table" and tonumber(profile.dex) or nil
-  return dex and EnginePatch.speciesForNational(dex) or nil
+--- Red / Blue / Yellow: the map's definition { grass, water, ... } with Modern Spawns' tables
+--- in place of the game's. The game's own table is never modified.
+function Bridge.gen1Def(mapId, raw)
+  if type(raw) ~= "table" then return raw end
+  local grass = raw.grass and Bridge.table(mapId, "grass")
+  local water = raw.water and Bridge.table(mapId, "water")
+  if not (grass or water) then return raw end
+  local def = {}
+  for k, v in pairs(raw) do def[k] = v end
+  if grass then def.grass = grass end
+  if water then def.water = water end
+  return def
 end
 
--- The cart's odds per slot (pokefirered / pokeemerald wild_encounter.c), the same
--- Modern Spawns uses to pick among several candidate slots.
-Bridge.LAND_WEIGHTS = { 20, 20, 10, 10, 10, 10, 5, 5, 4, 4, 1, 1 }
-Bridge.WATER_WEIGHTS = { 60, 30, 5, 4, 1 }
--- math.random-shaped: (lo, hi) -> integer in [lo, hi]. Tests replace it.
-Bridge.random = math.random
+-- Gold's kind-first tables, per map answered from Modern Spawns first: a read-only view the
+-- engine's own Encounter.grassSlot / waterSlot index unchanged. An entry that differs from the
+-- cart's (a swarm swapped in) is kept, as Modern Spawns does for steps.
+local function kindView(rawKind, cartKind, terrain)
+  return setmetatable({}, {
+    __index = function(_, mapId)
+      local base = rawKind and rawKind[mapId]
+      if base == nil then return nil end
+      if cartKind and cartKind[mapId] ~= base then return base end
+      return Bridge.table(mapId, terrain) or base
+    end,
+  })
+end
 
--- The slot of the engine's own table that `enc` was rolled from: same species, level
--- inside the slot's range. The engine does not say which slot it rolled, and one species
--- often fills several (FireRed's Route 1: Pidgey / Rattata in all twelve; Modern Spawns'
--- live sync writes each slot's primary species, so a few species again), each with its
--- own Modern Spawns pool -- so every matching slot is a candidate, picked by the cart's
--- own slot odds (the first match alone sent every roll to one slot's pool, and the other
--- slots' species never spawned). Slot order matches Modern Spawns' generated table,
--- which keeps the game's slot order. nil when it matches no slot (an outbreak or other
--- special encounter).
-local function slotIndexOf(mapId, terrain, enc)
-  local t = EnginePatch.tableFor(mapId)
-  if type(t) ~= "table" then return nil end
-  local area = terrain == "water" and t.water or (t.land or t.grass)
-  local slots = type(area) == "table" and (area.slots or area.mons or area) or nil
-  if type(slots) ~= "table" then return nil end
-  local weights = terrain == "water" and Bridge.WATER_WEIGHTS or Bridge.LAND_WEIGHTS
-  local level = tonumber(enc.level)
-  local found, total = {}, 0
-  for i, s in ipairs(slots) do
-    if type(s) == "table" and tonumber(s.species or s[1]) == tonumber(enc.species) then
-      local lo = tonumber(s.minLevel or s.level or s[2])
-      local hi = tonumber(s.maxLevel or s.level or s[2]) or lo
-      if lo and hi and lo > hi then lo, hi = hi, lo end
-      if not (level and lo) or (level >= lo and level <= hi) then
-        local w = weights[i] or 1
-        found[#found + 1], total = { i, w }, total + w
-      end
-    end
-  end
-  if #found <= 1 then return found[1] and found[1][1] or nil end
-  local roll = Bridge.random(1, total)
-  for _, c in ipairs(found) do
-    roll = roll - c[2]
-    if roll <= 0 then return c[1] end
-  end
-  return found[#found][1]
+--- Gold / Silver / Crystal: `raw` (the live tables, swarms included) seen through Modern
+--- Spawns; `cart` = the game's own. `raw` itself when Modern Spawns is not in play.
+function Bridge.gen2Tables(raw, cart)
+  if type(raw) ~= "table" or not Bridge.api() then return raw end
+  cart = type(cart) == "table" and cart or raw
+  return setmetatable({
+    grass = kindView(raw.grass, cart.grass, "grass"),
+    water = kindView(raw.water, cart.water, "water"),
+  }, { __index = raw })
+end
+
+--- The view each generation's roll reads its tables through (EnginePatch.setTableView).
+function Bridge.install()
+  local gen = EnginePatch.generation()
+  if gen == 1 then return EnginePatch.setTableView(Bridge.gen1Def) end
+  if gen == 2 then return EnginePatch.setTableView(Bridge.gen2Tables) end
+  return false
 end
 
 local function withSpecies(enc, species)
   local copy = {}
   for k, v in pairs(enc) do copy[k] = v end
   copy.species = species
-  if copy.speciesId ~= nil then copy.speciesId = species end
+  -- the DVs were drawn for the slot's species (Gold: an Unown's letter); the new one's
+  -- come from the Shiny Rate when it is placed
+  copy.dvs = nil
   return copy
 end
 
---- Whether engine species `species` is the roaming legendary while it is still out
---- (EnginePatch.roamerNow: active, not caught or defeated). Never throws.
-function Bridge.isRoamingSpecies(species)
-  local ok, now = pcall(function() return EnginePatch.roamerNow and EnginePatch.roamerNow() end)
-  return ok and type(now) == "table" and tonumber(now.species) == tonumber(species)
+-- a species id Modern Spawns names, when this game has it
+local function known(id)
+  return type(id) == "string" and EnginePatch.nationalFor(id) ~= nil and id or nil
 end
 
---- `enc` (from EnginePatch.rollSweetScent) with its species replaced by the
---- one Modern Spawns generated for that slot, or `enc` itself when there is
---- nothing to change. Roamers are never touched. Never throws.
+--- `enc` (one visible spawn's roll) with Modern Spawns' LEGENDARIES roll or the shiny chain's
+--- species in its place, or `enc` itself. A roaming beast is never replaced, and never offered
+--- a second time while it is still out (caught, the Pokedex marks it owned and Modern Spawns
+--- stops offering it). Never throws.
 function Bridge.apply(mapId, terrain, enc)
   if type(enc) ~= "table" or enc.roamer or mapId == nil then return enc end
   local api = Bridge.api()
   if not api then return enc end
-  local kind = kindOf(terrain)
-
-  -- the LEGENDARIES roll: a rare hosted legendary/mythical in place of the slot --
-  -- except the species of a roaming legendary that is still out (Raikou / Entei / Suicune,
-  -- Latias / Latios): that one exists once, as the roamer. Caught, the Pokedex marks it
-  -- owned and Modern Spawns stops offering it; defeated, it stays on offer (a second chance)
+  local kind = terrain == "water" and "water" or "grass"
   if type(api.legendaryFor) == "function" then
     local ok, id = pcall(api.legendaryFor, mapId, kind)
-    local species = ok and internalFor(api, id) or nil
-    if species and not Bridge.isRoamingSpecies(species) then return withSpecies(enc, species) end
+    local species = ok and known(id) or nil
+    if species and not EnginePatch.isRoamingSpecies(species) then return withSpecies(enc, species) end
   end
-
-  -- a shiny chain: the chained species, when the chain makes this encounter it
   if type(api.chainSpeciesFor) == "function" then
     local ok, id = pcall(api.chainSpeciesFor, mapId, kind)
-    local species = ok and internalFor(api, id) or nil
+    local species = ok and known(id) or nil
     if species then return withSpecies(enc, species) end
   end
-
-  local ok, generated = pcall(api.drawFor, mapId, kind)
-  if not (ok and type(generated) == "table" and type(generated.slots) == "table") then
-    return enc
-  end
-  local index = slotIndexOf(mapId, terrain, enc)
-  local slot = index and generated.slots[index]
-  local species = slot and internalFor(api, slot.species)
-  if not species then return enc end
-  return withSpecies(enc, species)
+  return enc
 end
 
 -- ------- shiny chains (Modern Spawns counts them; this mod makes the shinies)
 
---- What a shiny chain gives an encounter of engine species `species`:
---- { shiny = chance, perfectIvs = n }, or nil (no chain, another species, no
---- Modern Spawns or one without chains). Never throws.
+--- What a shiny chain gives an encounter of `species`: { shiny = chance, perfectIvs = n }, or nil.
 function Bridge.chainBonus(species)
   local api = Bridge.api()
   if not (api and type(api.chainBonus) == "function") then return nil end
@@ -163,8 +136,7 @@ function Bridge.chainBonus(species)
   return (ok and type(bonus) == "table") and bonus or nil
 end
 
---- A wild Pokemon fought outside a real battle (the Battler's overworld fights)
---- counts toward the chain like a battle won.
+--- A wild Pokemon beaten outside a real battle (the Battler's fights) counts like a battle won.
 function Bridge.chainRecord(species, result)
   local api = Bridge.api()
   if api and type(api.chainRecord) == "function" then pcall(api.chainRecord, species, result) end

@@ -361,6 +361,22 @@ return function(mod)
   mod.events:on("battle.started", function() EnginePatch.noteBattle(true) end)
   mod.events:on("battle.ended", function() EnginePatch.noteBattle(false) end)
 
+  -- Modern Spawns (optional): the visible spawns roll from its tables (lib/modern_spawns_bridge.lua)
+  ModernSpawns.install()
+
+  -- Gold / Silver / Crystal's roaming beasts (lib/gb/roamers.lua): a visible one leaves with the
+  -- beast (roamer.moved is no event on Red / Blue / Yellow: subscribing there errors), and with
+  -- Classic Enc off none jumps the player on a step either
+  if EnginePatch.generation() == 2 then
+    pcall(function()
+      mod.events:on("roamer.moved", function(ev)
+        pcall(function() spawnManager:roamerMoved(ev and ev.index) end)
+      end)
+    end)
+    local undo, why = EnginePatch.installRoamerGate(function() return not Config.classicEncEnabled(mod) end)
+    if not undo then mod.log:warn("[vivid_worlds_og] roaming beasts' step gate unavailable: %s", tostring(why)) end
+  end
+
   -- the ROLE row in the party menu: the engine's own `ui.party.submenu` hook hands the
   -- A-list over (lib/party_roles.lua gbRows)
   if supported("roles") then

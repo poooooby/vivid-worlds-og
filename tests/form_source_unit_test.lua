@@ -60,6 +60,23 @@ local broken = fakeMod(2)
 broken.find = function() error("boom") end
 eq(FormSource.artKeyFor(broken, 1100), 413, "a failing lookup falls back quietly")
 
+-- ------- the Game Boy games: an Unown's letter by its DVs, the Pokemon Tower ghost
+do
+  Engine.nationalFor = function(slot) if slot == "UNOWN" then return 201 end if slot == "GASTLY" then return 92 end end
+  Engine.unownLetter = function(species, dvs)
+    if species ~= "UNOWN" or type(dvs) ~= "table" then return nil end
+    return dvs.letter
+  end
+  FormSource._reset()
+  eq(FormSource.artKeyFor({}, "UNOWN", { dvs = { letter = 2 } }), "201-b", "Unown B: its letter's sheet")
+  eq(FormSource.artKeyFor({}, "UNOWN", { dvs = { letter = 26 } }), "201-z", "Unown Z")
+  eq(FormSource.artKeyFor({}, "UNOWN", { dvs = { letter = 1 } }), 201, "Unown A: Unown's own sheet")
+  eq(FormSource.artKeyFor({}, "UNOWN"), 201, "no DVs: Unown's own sheet")
+  eq(FormSource.artKeyFor({}, "GASTLY", { dvs = { letter = 3 } }), 92, "any other species ignores the letter")
+  eq(FormSource.artKeyFor({}, "GASTLY", { masked = true }), FormSource.GHOST_KEY, "a Pokemon Tower ghost: the ghost sheet")
+  eq(FormSource.artKeyFor({}, "UNOWN", { masked = true, dvs = { letter = 5 } }), "092-ghost", "...whatever it is")
+end
+
 if failures > 0 then
   io.stderr:write(failures .. " failure(s)\n")
   os.exit(1)

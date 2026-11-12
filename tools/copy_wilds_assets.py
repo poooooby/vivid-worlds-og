@@ -59,6 +59,10 @@ def copy_followsprites(source_root, dest_root, max_dex):
     for src_file in sorted(src_dir.glob("*.png")):
         m = DEX_PREFIX_RE.search(src_file.name)
         if not m:
+            # the Pokemon Tower's ghost is no species (tools/form_art_map.py GB_FORM_ART)
+            if src_file.name in EXTRA_GRIDS:
+                shutil.copy2(src_file, dst_dir / src_file.name)
+                copied += 1
             continue
         dex = int(m.group(1))
         if dex > max_dex:
@@ -67,6 +71,9 @@ def copy_followsprites(source_root, dest_root, max_dex):
         shutil.copy2(src_file, dst_dir / src_file.name)
         copied += 1
     return copied, skipped_over_cap
+
+
+EXTRA_GRIDS = ("TOWER_GHOST.png",)
 
 
 def copy_water_sprites(source_root, dest_root, max_dex):
@@ -104,6 +111,12 @@ def copy_water_sprites(source_root, dest_root, max_dex):
 # runtime (lib/sprite_source.lua), so nothing is synthesized here.
 GSC_SOURCES = ("poke_followers", "Pokewilds")  # first one that has a file wins
 GSC_RE = re.compile(r"^follower_(\d+)_(normal|shiny)\.png$")
+# Poke Followers' Unown letters: follower_201-b-n-<n>.png (normal) and follower_201-<nn>_shiny.png,
+# n = 1 for B .. 25 for Z (26 / 27 are "!" / "?", which the Game Boy games do not have)
+GSC_UNOWN = {}
+for _n, _letter in enumerate("bcdefghijklmnopqrstuvwxyz", start=1):
+    GSC_UNOWN[f"follower_201-b-n-{_n}.png"] = (_letter, "normal")
+    GSC_UNOWN[f"follower_201-{_n:02d}_shiny.png"] = (_letter, "shiny")
 
 
 def copy_gsc(source_root, dest_root, max_dex):
@@ -117,8 +130,17 @@ def copy_gsc(source_root, dest_root, max_dex):
             continue
         for src_file in sorted(src_dir.glob("follower_*.png")):
             m = GSC_RE.match(src_file.name)
+            letter = GSC_UNOWN.get(src_file.name)
+            if letter:
+                # Unown's letters B..Z, under the HGSS sheets' form keys ("201-b-normal.png")
+                name = f"201-{letter[0]}-{letter[1]}.png"
+                if name not in taken:
+                    taken.add(name)
+                    shutil.copy2(src_file, dst_dir / name)
+                    copied += 1
+                continue
             if not m:
-                continue  # forms (Unown letters, Castform ...) are not mapped yet
+                continue  # other forms (Castform ...) are not mapped
             dex, variant = int(m.group(1)), m.group(2)
             if dex > max_dex:
                 skipped_over_cap += 1

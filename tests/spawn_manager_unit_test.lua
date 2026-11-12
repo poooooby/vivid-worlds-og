@@ -581,22 +581,54 @@ do
   fakeEngine.grassRustle, fakeEngine.startRipple = nil, nil
 end
 
--- ------- the roaming legendary is one Pokemon: never more than one copy out
+-- ------- a roaming beast is one Pokemon: never more than one copy of each out
 do
   local realRoll, realBounds = fakeEngine.rollSweetScent, fakeEngine.mapBounds
   fakeEngine.mapBounds = function() return 40, 5 end -- room for 8
-  -- every roll wins the roamer (a FireRed player on Suicune's map got five of it)
+  -- every roll wins a beast, Raikou (1) and Entei (2) by turns; Entei was met before, shiny
+  local n = 0
+  fakeEngine.shinyDvs = function(dvs) return dvs.shinyMark == true end
   fakeEngine.rollSweetScent = function()
-    return { species = 999, level = 50, personality = 77, roamer = true, hp = 40 }
+    n = n + 1
+    if n % 2 == 1 then return { species = 999, level = 40, roamer = 1 } end
+    return { species = 999, level = 40, roamer = 2, dvs = { shinyMark = true }, hp = 90 }
   end
   local smR = SpawnManager.new(mod)
   smR:onMapEntered("ROUTE_1", { world = { player = { cellX = -1, cellY = -1 } } })
-  local roamers = 0
-  for _, e in pairs(smR.entities) do if e.roamer then roamers = roamers + 1 end end
-  eq(roamers, 1, "every roll wins the roamer: still only one out")
-  local targets = smR:fightTargets()
-  eq(#targets, 0, "the companion Battler never targets the roamer")
-  fakeEngine.rollSweetScent, fakeEngine.mapBounds = realRoll, realBounds
+  local byIndex = {}
+  for _, e in pairs(smR.entities) do if e.roamer then byIndex[e.roamer] = (byIndex[e.roamer] or 0) + 1 end end
+  eq(byIndex[1], 1, "every roll wins a beast: still one Raikou out")
+  eq(byIndex[2], 1, "...and one Entei")
+  local entei
+  for _, e in pairs(smR.entities) do if e.roamer == 2 then entei = e end end
+  eq(entei and entei.shiny, true, "a beast met before shows the shininess its kept DVs give it")
+  eq(#smR:fightTargets(), 0, "the companion Battler never targets a beast")
+  smR:roamerMoved(2)
+  for _ = 1, V.require("config").SPAWN_FX.leaveTicks + 1 do
+    fakeEngine.rollSweetScent = function() return nil end
+    smR:tick(smR.game)
+  end
+  local left = 0
+  for _, e in pairs(smR.entities) do if e.roamer == 2 then left = left + 1 end end
+  eq(left, 0, "Entei moved to another route: its visible self leaves too")
+  fakeEngine.rollSweetScent, fakeEngine.mapBounds, fakeEngine.shinyDvs = realRoll, realBounds, nil
+end
+
+-- ------- the Pokemon Tower without the Silph Scope: every wild Pokemon wears the ghost sheet
+do
+  fakeEngine.wildMasked = function() return true end
+  optionStore.shiny_rate = "always"
+  local smG = SpawnManager.new(mod)
+  smG:onMapEntered("ROUTE_1", { world = { player = { cellX = -1, cellY = -1 } } })
+  local any
+  for _, e in pairs(smG.entities) do any = e end
+  check(any ~= nil, "the Tower: wild Pokemon show")
+  eq(any and any.dex, "092-ghost", "...as the ghost")
+  eq(any and any.shiny, false, "...with no shine to give a shiny away")
+  eq(any and any.masked, true, "...marked masked")
+  check(any and type(any.dvs) == "table", "...while its battle keeps the DVs it rolled")
+  eq(#smG:fightTargets(), 0, "the Battler leaves a ghost alone")
+  fakeEngine.wildMasked, optionStore.shiny_rate = nil, nil
 end
 
 -- ------- the Safari Zone: wild Pokemon show, but the companion Battler never fights them

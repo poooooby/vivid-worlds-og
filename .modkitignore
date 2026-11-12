@@ -27,6 +27,7 @@ tests/drivers/p2_shiny.lua
 tests/drivers/p2_talk.lua
 tests/drivers/p2_voxel_fx.lua
 tests/drivers/p3_roles.lua
+tests/drivers/p4_extras.lua
 tests/drivers/smoke.lua
 tests/emote_art_unit_test.lua
 tests/encounter_source_unit_test.lua
@@ -65,6 +66,7 @@ tests/popup_text_unit_test.lua
 tests/reach_mover_unit_test.lua
 tests/reachability_unit_test.lua
 tests/renderer_factory_unit_test.lua
+tests/roamers_unit_test.lua
 tests/role_hotkey_unit_test.lua
 tests/shiny_sparkle_unit_test.lua
 tests/shiny_unit_test.lua

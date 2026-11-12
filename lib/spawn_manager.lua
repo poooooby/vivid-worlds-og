@@ -241,10 +241,10 @@ function SpawnManager:_spawnOne(terrain, cell)
   if not self:_cellFree(cell.x, cell.y) then return false end
   local enc = EnginePatch.rollSweetScent(self.mapId, terrain)
   if not enc then return false end
-  -- The roaming legendary (Suicune / Entei / Raikou, Latias / Latios) is ONE Pokemon:
-  -- the roll returns it on every encounter it wins on the roamer's map (roamer.lua,
-  -- 1 in encounterOdds), so without this a busy map filled up with copies of it.
-  if enc.roamer and self:_roamerOut() then return false end
+  -- A roaming beast (Raikou / Entei / Suicune) is ONE Pokemon: the roll returns it on
+  -- every pick it wins on its route (lib/gb/roamers.lua), so without this a busy map
+  -- filled up with copies of it.
+  if enc.roamer and self:_roamerOut(enc.roamer) then return false end
   -- FireRed / LeafGreen's rules roll no personality: draw it now so the sprite
   -- (shiny, gender) and the battle Pokemon are the same one
   if enc.personality == nil then enc.personality = EnginePatch.randomPersonality() end
@@ -256,45 +256,63 @@ function SpawnManager:_spawnOne(terrain, cell)
   return self:_place(terrain, cell, enc)
 end
 
---- Whether the roaming legendary is already out on this map (live, or its battle starting).
-function SpawnManager:_roamerOut()
+--- Whether roaming beast `index` is already out on this map (live, or its battle starting).
+function SpawnManager:_roamerOut(index)
   for _, e in pairs(self.entities) do
-    if e.roamer and e.state ~= Config.STATE.DESPAWNED then return true end
+    if e.roamer and e.roamer == index and e.state ~= Config.STATE.DESPAWNED then return true end
   end
   return false
+end
+
+--- Roaming beast `index` left for another route (the engine's roamer.moved, Gen 2): its
+--- visible self goes with it.
+function SpawnManager:roamerMoved(index)
+  for id, e in pairs(self.entities) do
+    if e.roamer and e.roamer == index and e.state == Config.STATE.AVAILABLE then
+      self:despawn(id, { animate = true })
+    end
+  end
 end
 
 -- Puts an already rolled encounter on `cell` as a visible wild Pokemon.
 -- `keepShiny` skips the shiny roll (the encounter's own `shiny` stands).
 function SpawnManager:_place(terrain, cell, enc, keepShiny)
-  local dex = FormSource.artKeyFor(self.mod, enc.species)
-  if not dex then return false end
+  if not EnginePatch.nationalFor(enc.species) then return false end
   -- the Shiny Rate, plus a shiny chain's bonus (Modern Spawns), settled in the DVs its battle
-  -- is built with; never for the roamer, whose DVs are the engine's saved ones
-  if not keepShiny and not enc.roamer then
+  -- is built with; never for a roaming beast, whose DVs are the engine's saved ones (shiny
+  -- by them once met; its first battle rolls them)
+  if enc.roamer then
+    enc.shiny = type(enc.dvs) == "table" and EnginePatch.shinyDvs(enc.dvs) or false
+  elseif not keepShiny then
     enc = Shiny.rollForEncounter(self.mod, enc, ModernSpawns.chainBonus(enc.species))
   end
+  -- the Pokemon Tower without the Silph Scope: it shows as the ghost (no shine, no silhouette)
+  local masked = EnginePatch.wildMasked and EnginePatch.wildMasked() or false
+  -- the art: after the DVs settle (an Unown's letter is in them)
+  local dex = FormSource.artKeyFor(self.mod, enc.species, { dvs = enc.dvs, masked = masked })
+  if not dex then return false end
+  local shiny = enc.shiny and not masked
 
   local id = self.nextId
   self.nextId = id + 1
 
   local presentation = (terrain == "water" and not self.underwater) and SpriteSource.DEFAULT_WATER_PRESENTATION
     or SpriteSource.PRESENTATION_LAND
-  local renderer = RendererFactory.new(self.mod, dex, enc.shiny, Config.spriteStyle(self.mod), presentation)
+  local renderer = RendererFactory.new(self.mod, dex, shiny, Config.spriteStyle(self.mod), presentation)
   -- PMDCollab: start each Pokemon at its own point in the Idle loop so a
   -- group of them doesn't breathe in unison.
   if renderer.isPmd then
     renderer.clock = math.random(0, 239)
     renderer.idleSpeed = Config.PMD_WILD_IDLE_SPEED
   end
-  renderer.silhouette = self:_silhouetteFor(enc.species)
+  renderer.silhouette = not masked and self:_silhouetteFor(enc.species)
 
   local facings = { "up", "down", "left", "right" }
   self.entities[id] = {
     id = id,
     species = enc.species, dex = dex, level = enc.level,
     personality = enc.personality, ivs = enc.ivs, roamer = enc.roamer,
-    moves = enc.moves, shiny = enc.shiny,
+    moves = enc.moves, shiny = shiny, masked = masked or nil,
     dvs = enc.dvs, -- Gen 2 (lib/engine_patch.lua): the DVs the battle Pokemon is built with
     terrain = terrain, elevation = 3,
     cellX = cell.x, cellY = cell.y, px = cell.x * 16, py = cell.y * 16,
@@ -394,12 +412,13 @@ end
 --- piggybacked on Follower.update so this mod needs no extra tick seam).
 --- What lib/wild_reactions.lua needs this tick (the player, the lead's strength, ways to
 --- take off / start a battle / tell an occupied cell), or nil when nobody may react now:
---- the option off, the field busy (a cutscene, a trainer, a message), a battle, Safari.
+--- the option off, the field busy (a cutscene, a trainer, a message), a battle.
 function SpawnManager:_reactContext()
   if not Config.wildReacts(self.mod) then return nil end
   if EnginePatch.fieldBusy and EnginePatch.fieldBusy() then return nil end
   if EnginePatch.battleActive and EnginePatch.battleActive() then return nil end
-  if EnginePatch.safariActive and EnginePatch.safariActive() then return nil end
+  -- the Safari Zone: no chases, but its Pokemon run at the game's own Safari odds
+  local safari = EnginePatch.safariActive and EnginePatch.safariActive() or false
   local lead = EnginePatch.leadPartyMon and EnginePatch.leadPartyMon()
   local bst = EnginePatch.baseStatTotal
   local ctx = self._reactCtx or {}
@@ -408,6 +427,7 @@ function SpawnManager:_reactContext()
   ctx.player = EnginePatch.playerCell and EnginePatch.playerCell()
   ctx.lead = lead and { level = tonumber(lead.level), bst = bst and bst(tonumber(lead.species or lead.speciesId)) } or nil
   ctx.bst = bst
+  ctx.safari, ctx.fleeChance = safari, EnginePatch.safariFleeChance
   ctx.canFly = ctx.canFly or function() return false end -- no sky to take off into
   ctx.occupied = ctx.occupied or function(x, y, me)
     for _, o in pairs(self.entities) do
@@ -768,7 +788,9 @@ function SpawnManager:fightTargets()
     local e = self.entities[id]
     -- never the roaming legendary: it is met only in a real battle, which keeps its saved state
     -- nor one fleeing / chasing / looking at the player (lib/wild_reactions.lua)
+    -- nor a Pokemon Tower ghost (unidentifiable until the Silph Scope)
     if e and e.state == Config.STATE.AVAILABLE and not e.engaged and not e.noFight and not e.roamer and not e.fx
+      and not e.masked
       and not e.react and not e.runAway and not e.defeated then
       out[#out + 1] = e
     end

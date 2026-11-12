@@ -14,229 +14,116 @@ local function eq(a, b, msg)
   check(a == b, string.format("%s (got %s expected %s)", msg, tostring(a), tostring(b)))
 end
 
-local fakeEngine = {}
-local modules = {}
+local gen = 1
+local roaming = {}
+local views = {}
+local DEX = { PIDGEY = 16, RATTATA = 19, MEWTWO = 150, SUICUNE = 245, UNOWN = 201, HOOTHOOT = 163 }
+local fakeEngine = {
+  generation = function() return gen end,
+  nationalFor = function(id) return DEX[id] end,
+  isRoamingSpecies = function(id) return roaming[id] == true end,
+  setTableView = function(view) views[#views + 1] = view return true end,
+}
 local other -- what mod:find("modern_spawns") answers
 local mod = { find = function(_, id) if id == "modern_spawns" then return other end end }
 local V = { path = ".", mod = mod }
+local modules = {}
 function V.require(name)
   if modules[name] ~= nil then return modules[name] end
-  if name == "engine_patch" then modules[name] = fakeEngine return fakeEngine end
+  if name == "engine_patch" then return fakeEngine end
   local value = assert(loadfile("lib/" .. name .. ".lua"))(V)
   modules[name] = value
   return value
 end
 
--- engine: national dex n -> internal 1000 + n; ROUTE_101's land table
-fakeEngine.speciesForNational = function(n) if n == 9999 then return nil end return 1000 + n end
-local tables = {
-  ROUTE_101 = {
-    land = { rate = 10, slots = {
-      { species = 261, minLevel = 2, maxLevel = 3 },
-      { species = 261, minLevel = 4, maxLevel = 5 },
-      { species = 263, minLevel = 2, maxLevel = 3 },
-    } },
-    water = { rate = 5, slots = { { species = 129, minLevel = 5, maxLevel = 10 } } },
-  },
-  FR_ROUTE_1 = {
-    land = { rate = 21, slots = {
-      { species = 161, minLevel = 2, maxLevel = 5 },
-      { species = 13, minLevel = 2, maxLevel = 5 },
-      { species = 161, minLevel = 2, maxLevel = 5 },
-      { species = 13, minLevel = 2, maxLevel = 5 },
-    } },
-  },
-}
-fakeEngine.tableFor = function(mapId) return tables[mapId] end
-
-local calls = {}
+local active, generation = true, 1
+local legendary, chained
+local draws = 0
 local generated = {
-  grass = { rate = 10, slots = {
-    { species = "RATTATA", minLevel = 2, maxLevel = 3 },
-    { species = "PIDGEY", minLevel = 4, maxLevel = 5 },
-    { species = "NOPE", minLevel = 2, maxLevel = 3 },
-  } },
-  water = { rate = 5, slots = { { species = "WOOPER", minLevel = 5, maxLevel = 10 } } },
+  ROUTE_1 = { grass = { rate = 25, slots = { { species = "HOOTHOOT", level = 3 } } } },
 }
--- FireRed's Route 1 after Modern Spawns' live sync: one primary species in several slots,
--- each slot with its own generated species
-local generatedByMap = {
-  FR_ROUTE_1 = { grass = { rate = 21, slots = {
-    { species = "PIDGEY", minLevel = 2, maxLevel = 5 },
-    { species = "RATTATA", minLevel = 2, maxLevel = 5 },
-    { species = "SENTRET", minLevel = 2, maxLevel = 5 },
-    { species = "WEEDLE", minLevel = 2, maxLevel = 5 },
-  } } },
+local api = {
+  apiVersion = 2,
+  isActive = function() return active end,
+  generation = function() return generation end,
+  drawFor = function(mapId, terrain)
+    draws = draws + 1
+    return (generated[mapId] or {})[terrain]
+  end,
+  legendaryFor = function() return legendary end,
+  chainSpeciesFor = function() return chained end,
+  chainBonus = function(species) if species == "PIDGEY" then return { shiny = 0.5 } end end,
 }
-local dexOf = { SENTRET = 161, WEEDLE = 13, RATTATA = 19, PIDGEY = 16, WOOPER = 194, NOPE = 9999, SNORLAX = 143 }
-local legendary
-local active, generation = true, 3
-local function makeOther()
-  return { exports = {
-    apiVersion = 1,
-    isActive = function() return active end,
-    generation = function() return generation end,
-    drawFor = function(mapId, terrain)
-      calls[#calls + 1] = terrain
-      return (generatedByMap[mapId] or {})[terrain] or generated[terrain]
-    end,
-    legendaryFor = function() return legendary end,
-    profileOf = function(id) return dexOf[id] and { dex = dexOf[id] } or nil end,
-  } }
-end
-other = makeOther()
-
+other = { exports = api }
 local Bridge = V.require("modern_spawns_bridge")
-local function enc(species, level, extra)
-  local e = { species = species, level = level, personality = 77 }
-  for k, v in pairs(extra or {}) do e[k] = v end
-  return e
-end
 
--- the rolled slot's generated species replaces the engine's, level/personality kept
-local out = Bridge.apply("ROUTE_101", "land", enc(261, 2))
-eq(out.species, 1019, "slot 1 -> Rattata (national 19 -> internal)")
-eq(out.level, 2, "rolled level is kept")
-eq(out.personality, 77, "personality is kept")
-
--- same engine species in two slots: the level picks the slot
-eq(Bridge.apply("ROUTE_101", "land", enc(261, 5)).species, 1016, "level 5 -> slot 2 -> Pidgey")
-
--- one species in several slots at the same levels: each of them is a candidate, picked
--- by the cart's slot odds (slot 1 20 : slot 3 10), so every slot's species can spawn
+-- ------- Gen 1: the map's definition with Modern Spawns' tables in place of the game's
 do
-  local realRandom = Bridge.random
-  local asked
-  Bridge.random = function(lo, hi) asked = { lo, hi } return 1 end
-  eq(Bridge.apply("FR_ROUTE_1", "land", enc(161, 3)).species, 1016, "roll 1 of 30 -> slot 1 -> Pidgey")
-  eq(asked and asked[2], 30, "...rolled over the two slots' odds (20 + 10)")
-  Bridge.random = function() return 21 end
-  eq(Bridge.apply("FR_ROUTE_1", "land", enc(161, 3)).species, 1161, "roll 21 of 30 -> slot 3 -> Sentret")
-  Bridge.random = function() return 20 end
-  eq(Bridge.apply("FR_ROUTE_1", "land", enc(13, 3)).species, 1019, "roll 20 of 30 -> slot 2 -> Rattata")
-  Bridge.random = function() return 30 end
-  eq(Bridge.apply("FR_ROUTE_1", "land", enc(13, 3)).species, 1013, "roll 30 of 30 -> slot 4 -> Weedle")
-  Bridge.random = realRandom
-  local seen = {}
-  for _ = 1, 400 do seen[Bridge.apply("FR_ROUTE_1", "land", enc(161, 3)).species] = true end
-  check(seen[1016] and seen[1161], "with the real random both slots' species turn up")
-  -- a single matching slot never rolls
-  Bridge.random = function() error("no roll for one candidate") end
-  eq(Bridge.apply("ROUTE_101", "land", enc(261, 5)).species, 1016, "one candidate: no roll")
-  Bridge.random = realRandom
-end
-
--- water uses the water table
-eq(Bridge.apply("ROUTE_101", "water", enc(129, 7)).species, 1194, "water slot -> Wooper")
-eq(calls[#calls], "water", "water asks drawFor for the water table")
-
--- the caller's encounter is never mutated
-local original = enc(261, 2)
-Bridge.apply("ROUTE_101", "land", original)
-eq(original.species, 261, "input encounter is not mutated")
-
--- speciesId follows when present
-eq(Bridge.apply("ROUTE_101", "land", enc(261, 2, { speciesId = 261 })).speciesId, 1019,
-  "speciesId is swapped alongside species")
-
--- passthrough cases return the very same table
-local e = enc(263, 2)
-eq(Bridge.apply("ROUTE_101", "land", e).species, 263,
-  "a generated species the engine has no slot for keeps the engine's own")
-e = enc(999, 2)
-check(Bridge.apply("ROUTE_101", "land", e) == e, "an encounter matching no slot passes through")
-e = enc(261, 2, { roamer = true })
-check(Bridge.apply("ROUTE_101", "land", e) == e, "roamers are never touched")
-e = enc(261, 2)
-check(Bridge.apply("ROUTE_999", "land", e) == e, "a map with no engine table passes through")
-
--- legendary roll wins over the slot
-legendary = "SNORLAX"
-eq(Bridge.apply("ROUTE_101", "land", enc(261, 2)).species, 1143, "LEGENDARIES roll replaces the slot")
--- ...but never with the roaming legendary's species while it is still out: it exists once
-fakeEngine.roamerNow = function() return { species = 1143, roamer = true } end
-check(Bridge.apply("ROUTE_101", "land", enc(261, 2)).species ~= 1143,
-  "the roamer's species is not placed by the LEGENDARIES roll while it roams")
-fakeEngine.roamerNow = function() return { species = 1245, roamer = true } end
-eq(Bridge.apply("ROUTE_101", "land", enc(261, 2)).species, 1143, "another species roaming: no effect")
-fakeEngine.roamerNow = function() return nil end
-eq(Bridge.apply("ROUTE_101", "land", enc(261, 2)).species, 1143,
-  "roamer defeated (no longer active): the species is on offer again")
-fakeEngine.roamerNow = nil
-legendary = nil
-
--- inactive / wrong generation / absent / old api -> untouched
-active = false
-e = enc(261, 2)
-check(Bridge.apply("ROUTE_101", "land", e) == e, "inactive Modern Spawns passes through")
-active = true
-generation = 1
-check(Bridge.apply("ROUTE_101", "land", e) == e, "a non-Gen-3 table shape passes through")
-generation = 3
-other = nil
-check(Bridge.apply("ROUTE_101", "land", e) == e, "Modern Spawns not installed passes through")
-other = makeOther()
-other.exports.apiVersion = 0
-check(Bridge.apply("ROUTE_101", "land", e) == e, "apiVersion < 1 passes through")
-other = makeOther()
-other.exports.drawFor = function() error("boom") end
-check(Bridge.apply("ROUTE_101", "land", e) == e, "an erroring API falls through to the engine's encounter")
-
--- ------- shiny chains
-do
-  active, generation = true, 3
-  legendary = nil
-  other = makeOther()
-  -- an older Modern Spawns without chains: nothing changes, nothing breaks
-  eq(Bridge.chainBonus(1019), nil, "no chain exports: no bonus")
-  check(pcall(Bridge.chainRecord, 1019, "win"), "no chain exports: recording is a harmless no-op")
-  eq(Bridge.apply("ROUTE_101", "land", enc(261, 2)).species, 1019, "...and spawns are as before")
-
-  local forced, recorded, asked = nil, {}, {}
-  other.exports.chainSpeciesFor = function(mapId, terrain) asked[#asked + 1] = terrain return forced end
-  other.exports.chainBonus = function(species)
-    if species == 1143 then return { shiny = 0.25, perfectIvs = 2 } end
-    return nil
-  end
-  other.exports.chainRecord = function(species, result) recorded[#recorded + 1] = { species, result } end
-
-  forced = "SNORLAX"
-  local out = Bridge.apply("ROUTE_101", "land", enc(261, 4))
-  eq(out.species, 1143, "the chained species takes the slot's place (national 143)")
-  eq(out.level, 4, "...at the rolled level")
-  eq(out.personality, 77, "...same personality")
-  eq(asked[#asked], "grass", "it is asked with the bridge's terrain name")
-  legendary = "PIDGEY"
-  eq(Bridge.apply("ROUTE_101", "land", enc(261, 4)).species, 1016, "a legendary roll still comes first")
-  legendary = nil
-  forced = nil
-  eq(Bridge.apply("ROUTE_101", "land", enc(261, 4)).species, 1016, "no forced species: the slot swap as usual")
-  forced = "NOPE"
-  eq(Bridge.apply("ROUTE_101", "land", enc(261, 4)).species, 1016, "a forced species the engine lacks is skipped")
-  forced = nil
-  local roamer = enc(380, 40, { roamer = true })
-  forced = "SNORLAX"
-  eq(Bridge.apply("ROUTE_101", "land", roamer).species, 380, "a roamer is never chained away")
-  forced = nil
-
-  local b = Bridge.chainBonus(1143)
-  check(b and b.shiny == 0.25 and b.perfectIvs == 2, "chainBonus passes Modern Spawns' answer through")
-  eq(Bridge.chainBonus(1019), nil, "...nil for another species")
-  Bridge.chainRecord(1143, "win")
-  check(recorded[1] and recorded[1][1] == 1143 and recorded[1][2] == "win", "chainRecord reaches Modern Spawns")
-  other.exports.chainBonus = function() error("boom") end
-  eq(Bridge.chainBonus(1143), nil, "a failing export answers nil, never throws")
+  local raw = { grass = { rate = 25, slots = { { species = "PIDGEY", level = 3 } } }, music = "X" }
+  local def = Bridge.gen1Def("ROUTE_1", raw)
+  eq(def.grass.slots[1].species, "HOOTHOOT", "Gen 1: the grass table is Modern Spawns'")
+  eq(def.music, "X", "...the rest of the definition is the game's")
+  eq(raw.grass.slots[1].species, "PIDGEY", "...and the game's own table is untouched")
+  check(Bridge.gen1Def("ROUTE_2", raw) == raw, "no generated table for the map: the game's")
   active = false
-  other.exports.chainBonus = function() return { shiny = 1 } end
-  eq(Bridge.chainBonus(1143), nil, "Modern Spawns inactive: no chain")
-  other = nil
-  eq(Bridge.chainBonus(1143), nil, "not installed: no chain")
+  check(Bridge.gen1Def("ROUTE_1", raw) == raw, "Modern Spawns OFF: the game's")
   active = true
-  other = makeOther()
+  generation = 2
+  check(Bridge.gen1Def("ROUTE_1", raw) == raw, "tables for another generation are never used")
+  generation = 1
+  other = nil
+  check(Bridge.gen1Def("ROUTE_1", raw) == raw, "Modern Spawns absent: the game's")
+  other = { exports = api }
+  check(Bridge.install() == true and views[#views] == Bridge.gen1Def, "install hands Red / Blue / Yellow's roll the Gen 1 view")
+end
+
+-- ------- Gen 2: a read-only view over the kind-first tables, swarms kept
+do
+  gen, generation = 2, 2
+  local route29 = { slots = { MORN = {}, DAY = {}, NITE = {} } }
+  local swarm = { slots = { MORN = {}, DAY = {}, NITE = {} }, swarm = true }
+  generated.ROUTE_29 = { grass = { slots = { DAY = { { species = "HOOTHOOT", level = 3 } } } } }
+  generated.ROUTE_32 = { grass = { slots = { DAY = { { species = "RATTATA", level = 3 } } } } }
+  local cart = { grass = { ROUTE_29 = route29, ROUTE_32 = route29 }, water = {} }
+  local live = { grass = { ROUTE_29 = route29, ROUTE_32 = swarm }, water = {}, other = 7 }
+  local view = Bridge.gen2Tables(live, cart)
+  eq(view.grass.ROUTE_29.slots.DAY[1].species, "HOOTHOOT", "Gen 2: a map's grass list is Modern Spawns'")
+  check(view.grass.ROUTE_32 == swarm, "...a swarm in progress is kept as it is")
+  eq(view.grass.ROUTE_99, nil, "...a map with no table has none")
+  eq(view.other, 7, "...everything else reads through")
+  active = false
+  check(Bridge.gen2Tables(live, cart) == live, "Modern Spawns OFF: the live tables themselves")
+  active = true
+  check(Bridge.install() == true and views[#views] == Bridge.gen2Tables, "install hands Gold's roll the Gen 2 view")
+end
+
+-- ------- after the roll: LEGENDARIES and the shiny chain replace the species, level kept
+do
+  local enc = { species = "PIDGEY", level = 7, dvs = { attack = 1 } }
+  check(Bridge.apply("ROUTE_1", "land", enc) == enc, "nothing rolled: the encounter itself")
+  legendary = "MEWTWO"
+  local out = Bridge.apply("ROUTE_1", "land", enc)
+  eq(out.species, "MEWTWO", "a LEGENDARIES roll takes the spawn")
+  eq(out.level, 7, "...at the rolled level")
+  eq(out.dvs, nil, "...its DVs drawn afresh (the Shiny Rate, when it is placed)")
+  eq(enc.species, "PIDGEY", "...the roll itself is untouched")
+  roaming.SUICUNE, legendary = true, "SUICUNE"
+  eq(Bridge.apply("ROUTE_1", "land", enc).species, "PIDGEY", "a roaming beast still out is never offered twice")
+  legendary = "MISSINGNO"
+  eq(Bridge.apply("ROUTE_1", "land", enc).species, "PIDGEY", "a species this game lacks is ignored")
+  legendary, chained = nil, "RATTATA"
+  eq(Bridge.apply("ROUTE_1", "land", enc).species, "RATTATA", "the shiny chain's species takes the spawn")
+  local beast = { species = "SUICUNE", level = 40, roamer = 3 }
+  check(Bridge.apply("ROUTE_1", "land", beast) == beast, "a roaming beast is never replaced")
+  chained = nil
+  eq(Bridge.chainBonus("PIDGEY").shiny, 0.5, "chainBonus passes through")
+  eq(Bridge.chainBonus("RATTATA"), nil, "...nil for a species not chained")
+  active = false
+  eq(Bridge.chainBonus("PIDGEY"), nil, "...and with Modern Spawns OFF")
 end
 
 if failures > 0 then
   io.stderr:write(failures .. " failure(s)\n")
   os.exit(1)
 end
-print("all passed")
+print("modern_spawns_bridge_unit_test: all passed")

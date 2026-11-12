@@ -865,6 +865,69 @@ function EngineGb.safariActive()
   return ok and yes == true
 end
 
+--- How likely (%) a Safari Pokemon is to run from the player (lib/gb/gen1.lua: the battle's own
+--- flee check); 0 outside Red / Blue / Yellow.
+function EngineGb.safariFleeChance(species, level, dvs)
+  local a = A()
+  if not (a and a.safariFleeChance) then return 0 end
+  local ok, pct = pcall(a.safariFleeChance, species, level, dvs)
+  return ok and tonumber(pct) or 0
+end
+
+--- Every wild Pokemon here is an unidentifiable ghost (Gen 1's Pokemon Tower without the
+--- Silph Scope): shown as one on the field, never fought by the Battler.
+function EngineGb.wildMasked()
+  local a = A()
+  if not (a and a.wildMasked) then return false end
+  local ok, yes = pcall(a.wildMasked, EngineGb._world)
+  return ok and yes == true
+end
+
+--- Which Unown letter (1 = A .. 26 = Z) these DVs make, or nil (not Unown, or Gen 1).
+function EngineGb.unownLetter(species, dvs)
+  local a = A()
+  if not (a and a.unownLetter) then return nil end
+  local ok, letter = pcall(a.unownLetter, species, dvs)
+  return ok and tonumber(letter) or nil
+end
+
+-- ------------------------------------------------------------------ roaming beasts (Gen 2)
+
+--- Roaming beast `index` as it is now, when it is still on this map ({ species, level, dvs,
+--- hp, roamer }), else nil (caught, beaten, moved on; always nil on Gen 1).
+function EngineGb.roamerNow(index)
+  local a = A()
+  if not (a and a.roamerNow) then return nil end
+  local ok, now = pcall(a.roamerNow, EngineGb._world, index)
+  return ok and type(now) == "table" and now or nil
+end
+
+--- Is `species` a roaming beast still out there?
+function EngineGb.isRoamingSpecies(species)
+  local a = A()
+  if not (a and a.isRoamingSpecies) then return false end
+  local ok, yes = pcall(a.isRoamingSpecies, EngineGb._world, species)
+  return ok and yes == true
+end
+
+--- `shouldBlock()` true -> no beast is rolled on a step (Classic Enc off). Returns an undo
+--- function, or nil plus a reason.
+function EngineGb.installRoamerGate(shouldBlock)
+  local a = A()
+  if not (a and a.installRoamerGate) then return nil, "no roamers in this game" end
+  local ok, undo, err = pcall(a.installRoamerGate, shouldBlock)
+  if not ok then return nil, tostring(undo) end
+  return undo, err
+end
+
+--- Modern Spawns' tables in place of the game's for the visible spawns'
+--- picks (lib/modern_spawns_bridge.lua): Gen 1 `view(mapId, def)`, Gen 2 `view(tables, cart)`.
+function EngineGb.setTableView(view)
+  local a = A()
+  if a and a.setTableView then a.setTableView(view) return true end
+  return false
+end
+
 --- A type's plain name ("WATER", "PSYCHIC") for lib/finisher_fx.lua and the type effects. The
 --- Game Boy data spells two types with a suffix (PSYCHIC_TYPE, CURSE_TYPE: pokered / pokecrystal
 --- constants); a non-string (no type) is nil, which reads as NORMAL.

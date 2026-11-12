@@ -95,6 +95,9 @@ Config.REACT = {
             -- planning up to `homeSearch` cells, or leaves with the fade if it can't
             anyGround = true, homeSearch = 24 },
   cooldown = 600, chaseCooldown = 900, -- before the same Pokemon reacts again
+  -- the Safari Zone (Red / Blue / Yellow): walking this close is enough; a runner goes further,
+  -- and more of them are gone at the end of it (lib/wild_reactions.lua safariStart)
+  safari = { radius = 3, steps = { 2, 4 }, vanishChance = 50 },
 }
 
 -- A wild Pokemon whose fight with the Battler is broken off (its job changed: lib/

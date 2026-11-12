@@ -75,7 +75,7 @@ from PIL import Image, ImageChops, ImageStat
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from form_art_map import EMERALD_FORM_ART, FORM_ART, GEN9_FOLLOWERS, POKEEMERALD  # noqa: E402
+from form_art_map import EMERALD_FORM_ART, FORM_ART, GB_FORM_ART, GEN9_FOLLOWERS, POKEEMERALD  # noqa: E402
 
 FORM_PREFERENCE = ("b", "f", "m")  # "both" gender art preferred; gendered-only species fall back
 DIRECTION_ROW = {"down": 0, "left": 1, "up": 3}  # row 2 ("right") is never read
@@ -685,6 +685,30 @@ def main() -> int:
                     else:
                         result["image"] = recolored
                         print(f"{dex:03d}-{form}: shiny recoloured from SpriteCollab")
+                out_dir.mkdir(parents=True, exist_ok=True)
+                out_path = out_dir / f"{dex:03d}-{form}-{variant}.png"
+                if out_path.exists() and not args.force:
+                    stats["skipped_existing"] += 1
+                    continue
+                result["image"].save(out_path, "PNG", optimize=True)
+                stats["written"] += 1
+
+    # The Game Boy games' looks (form_art_map.GB_FORM_ART): Unown's letters, the Tower ghost
+    if "hgss" in kinds:
+        out_dir = out_root / "hgss"
+        for dex, form, normal_file, shiny_file in GB_FORM_ART:
+            if species_filter is not None and dex not in species_filter:
+                continue
+            for variant, name in (("normal", normal_file), ("shiny", shiny_file)):
+                if name is None:
+                    continue
+                src = source_dir("hgss", variant) / name
+                if not src.is_file():
+                    stats["missing_source"] += 1
+                    continue
+                result = bake_species("hgss", dex, variant, None, args.report, out_root, src=src)
+                if result is None or args.report:
+                    continue
                 out_dir.mkdir(parents=True, exist_ok=True)
                 out_path = out_dir / f"{dex:03d}-{form}-{variant}.png"
                 if out_path.exists() and not args.force:

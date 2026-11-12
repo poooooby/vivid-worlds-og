@@ -102,10 +102,19 @@ function Gen1.terrainAt(ow, x, y)
   return nil
 end
 
+-- Modern Spawns' tables in place of the game's (lib/modern_spawns_bridge.lua gen1Def), or nil
+local tableView = nil
+function Gen1.setTableView(view) tableView = view end
+
 local function encDef(mapId)
   local data = Gen1.data()
   local all = data and data.encounters
-  return type(all) == "table" and all[mapId] or nil
+  local def = type(all) == "table" and all[mapId] or nil
+  if tableView and def then
+    local ok, view = pcall(tableView, mapId, def)
+    if ok and type(view) == "table" then return view end
+  end
+  return def
 end
 
 local function hasSlots(t)
@@ -311,11 +320,7 @@ function Gen1.startWild(ow, enc, done)
   local Map = load("src.world.Map")
   local def = ow.map and ow.map.def
   if Map and def then
-    local okG, ghost = pcall(Map.ghostBattles, def)
-    local inv = Game.save and Game.save.inventory
-    if okG and ghost and not (ghost.unlessItem and inv and inv[ghost.unlessItem]) and battle.makeGhost then
-      pcall(battle.makeGhost, battle)
-    end
+    if Gen1.wildMasked(ow) and battle.makeGhost then pcall(battle.makeGhost, battle) end
     local okS, safari = pcall(Map.inRegion, def, "SAFARI", "SAFARI_ZONE")
     if Game.save and Game.save.safari and okS and safari and battle.makeSafari then
       pcall(battle.makeSafari, battle, Game.save.safari)
@@ -328,6 +333,19 @@ function Gen1.startWild(ow, enc, done)
   local okP, err = pcall(ow.pushBattle, ow, battle)
   if not okP then return nil, "pushBattle failed: " .. tostring(err) end
   return true
+end
+
+--- The Pokemon Tower's rule (Map.ghostBattles, read fresh): without the Silph Scope every wild
+--- Pokemon here is an unidentifiable GHOST -- on the field too (lib/form_source.lua's ghost art).
+function Gen1.wildMasked(ow)
+  local Map, Game = load("src.world.Map"), Gen1.game()
+  local def = ow and ow.map and ow.map.def
+  if not (Map and Map.ghostBattles and def) then return false end
+  local ok, ghost = pcall(Map.ghostBattles, def)
+  if not (ok and ghost) then return false end
+  local item = type(ghost) == "table" and ghost.unlessItem or nil
+  local inv = Game and Game.save and Game.save.inventory
+  return not (item and type(inv) == "table" and inv[item])
 end
 
 function Gen1.isSurfing(ow)
@@ -970,6 +988,21 @@ function Gen1.safariActive(ow)
   if not (Game and Game.save and Game.save.safari and Map and Map.inRegion and def) then return false end
   local ok, inside = pcall(Map.inRegion, def, "SAFARI", "SAFARI_ZONE")
   return ok and inside == true
+end
+
+--- How likely (%) this Safari Pokemon is to run: the battle's own turn check
+--- (BattleState:safariEnemyTurn, engine/battle/core.asm) -- always past Speed 127, else
+--- 2 x Speed in 256 -- on the Speed it will have in its battle (its DVs, no stat exp).
+function Gen1.safariFleeChance(species, level, dvs)
+  local Stats, def = load("src.pokemon.Stats"), Gen1.speciesDef(species)
+  if not (Stats and Stats.calc and def) then return 0 end
+  dvs = type(dvs) == "table" and dvs or { attack = 8, defense = 8, speed = 8, special = 8 }
+  local ok, stats = pcall(Stats.calc, def, tonumber(level) or 5, dvs, {})
+  local speed = ok and type(stats) == "table" and tonumber(stats.speed)
+  if not speed then return 0 end
+  speed = speed % 256
+  if speed > 127 then return 100 end
+  return speed * 2 / 256 * 100
 end
 
 -- ------------------------------------------------------------------ reachable area

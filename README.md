@@ -12,8 +12,7 @@ A mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp), for its Gener
 games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 > [!NOTE]
-> **Early preview.** Red, Blue and Yellow have every feature below. In Gold, Silver and Crystal
-> your partner's Battler and Forager roles are still on the way.
+> **Early preview.** Every feature below is in all six games; expect a few rough edges.
 
 ## ✨ Features
 
@@ -31,12 +30,28 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   and on Surf alongside the visible ones, or only meet what you can see. Fishing, the
   Bug-Catching Contest and Sweet Scent work as always.
 - 😮 **They react to you:** Bike past and weaker Pokémon get startled and run off, while
-  stronger ones get angry and chase you down. Walking disturbs nobody.
+  stronger ones get angry and chase you down. Walking disturbs nobody, except in the Safari
+  Zone.
 - ✨ **Shinies you can spot:** Set how often wild Pokémon are shiny, from the original 1 in 8192
   up to always. A shiny out in the grass shows its shiny colours with a twinkle, is the same
   shiny when you battle it, and stays shiny once caught. Red, Blue and Yellow battles greet a
   shiny with a sparkle and a chime; Gold, Silver and Crystal flash it the way they always have.
   The rate covers every wild Pokémon, including random encounters, fishing and Headbutt.
+
+### True to the Games
+
+- 🐺 **Roaming legends:** In Gold, Silver and Crystal, Raikou, Entei and Suicune can turn up
+  among the wild Pokémon on whichever route they are roaming, as often as the game would send
+  them at you. Walk into one for the real roaming battle: it keeps its HP, flees and moves on
+  just like in the game, and once caught it is gone for good.
+- 🔤 **Unown letters:** In the Ruins of Alph each Unown shows its own letter, the one you then
+  battle and catch, and only letters you have unlocked turn up.
+- 👻 **Pokémon Tower ghosts:** Until you have the Silph Scope, every wild Pokémon in the Tower
+  is a ghost you can't make out, out in the corridors and in battle. With the scope you see
+  what they really are.
+- 🦓 **Skittish Safari Pokémon:** In Red, Blue and Yellow's Safari Zone wild Pokémon may bolt
+  when you walk near, as readily as they run from a Safari battle: the faster the species, the
+  jumpier. None of them ever chase you.
 
 ### Your Partner
 
@@ -74,7 +89,7 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 | **Show Wild Mons** | On / Off | On | Visible wild Pokémon in encounter areas. |
 | **Spawn Amount** | Low / Normal / High | Normal | How many wild Pokémon are out at once. |
 | **Sprite Style** | HGSS / GSC | HGSS | HGSS sprites at true size, or one-tile GSC sprites (HGSS for any species GSC lacks). |
-| **Wild Reacts** | On / Off | On | Biking close by startles or angers them. |
+| **Wild Reacts** | On / Off | On | Biking close by startles or angers them; Safari Pokémon may run as you walk near. |
 | **Follower** | On / Off | On | Your partner walks behind you, or stays in its Poké Ball. |
 | **Battler: Pad** | R / L / Off | Off | A controller button that sends your partner into battle and back. |
 | **Battler: Key** | E (R) / Q (L) / R / Off | Off | The same on the keyboard. |
@@ -95,14 +110,18 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 ## 🔗 Works With
 
-- [Modern Spawns](https://github.com/poooooby/g1r_modern_spawns): its generated encounter tables
-  fill the overworld too.
+- [Modern Spawns](https://github.com/poooooby/g1r_modern_spawns): its generated encounter tables,
+  its rare legendaries and its shiny chains fill the overworld too.
 - 3D world mods: TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2.
 - **Wilds of Kanto Revival** does the same job, so only one of the two can be on at a time.
 
 ## 📌 Good to Know
 
 - In the Safari Zone, wild Pokémon battle as Safari Pokémon, and your Battler leaves them be.
+  It also leaves roaming legends and Pokémon Tower ghosts alone.
+- A roaming legend you have never battled shows in its usual colours: whether it is shiny is
+  decided the first time you meet it, as in the game.
+- With Classic Enc off, a roaming legend only turns up where you can see it.
 - During the Bug-Catching Contest, the National Park has no visible wild Pokémon: the contest's
   own encounters run as in the game.
 - Red, Blue and Yellow have no shiny Pokémon of their own, so a shiny there follows Gold and

@@ -180,3 +180,18 @@ POKEEMERALD = _Path(_os.environ.get("POKEEMERALD") or
 EMERALD_FORM_ART = {
     (718, "complete"): "zygarde/complete",  # Zygarde 100% (Complete Forme)
 }
+
+# The Game Boy games' own looks, baked from raw grids in followsprites/ like a form:
+#   (dex, form key, normal grid, shiny grid or None)
+#   * Unown's letters B..Z (Gold / Silver / Crystal pick the letter from the DVs,
+#     lib/form_source.lua): 201-b-n-01.png is B .. -25 is Z (no suffix is A, Unown's own
+#     sheet; -26 / -27 are "!" and "?", which those games do not have).
+#   * The Pokemon Tower's GHOST (Red / Blue / Yellow without the Silph Scope): one
+#     sheet for every species, keyed as a form of Gastly, no shiny (nothing shows through).
+# Both copied from Wilds of Kanto Revival by tools/copy_wilds_assets.py.
+GB_FORM_ART = [
+    (201, letter, f"201-b-n-{n:02d}.png", f"201-b-s-{n:02d}.png")
+    for n, letter in enumerate("bcdefghijklmnopqrstuvwxyz", start=1)
+] + [
+    (92, "ghost", "TOWER_GHOST.png", None),
+]

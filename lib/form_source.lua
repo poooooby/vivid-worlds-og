@@ -19,6 +19,10 @@ local EnginePatch = V.require("engine_patch")
 
 local FormSource = {}
 
+-- The Pokemon Tower's GHOST (Red / Blue / Yellow without the Silph Scope): one sheet for every
+-- species, keyed as a "form" of Gastly so it is sized like one (tools/form_art_map.py bakes it)
+FormSource.GHOST_KEY = "092-ghost"
+
 local cache = {} -- [mod] = { byId = { [id] = form row } } | false
 
 local function formsFor(mod)
@@ -55,9 +59,15 @@ end
 --- The art key for an engine species id (slot): a form key when the slot is a
 --- registered alternate form, else the national dex number. nil when the engine
 --- has no dex number for the slot (egg placeholder ...).
-function FormSource.artKeyFor(mod, slot)
+--- `look` (optional, a visible spawn's): { dvs, masked }. On the Game Boy games the DVs pick
+--- an Unown's letter ("201-b" .. "201-z"; A is Unown's own sheet), and a Pokemon Tower ghost
+--- (`masked`) wears the ghost sheet whatever it is.
+function FormSource.artKeyFor(mod, slot, look)
+  if type(look) == "table" and look.masked then return FormSource.GHOST_KEY end
   local dex = EnginePatch.nationalFor(slot)
   if not dex then return nil end
+  local letter = type(look) == "table" and EnginePatch.unownLetter and EnginePatch.unownLetter(slot, look.dvs)
+  if letter and letter >= 2 and letter <= 26 then return FormSource.keyOf(dex, string.char(96 + letter)) end
   local state = formsFor(mod)
   if not state then return dex end
   local okId, id = pcall(state.api.idOfSlot, slot)
