@@ -1,0 +1,377 @@
+-- Run: lua tests/battle_trigger_unit_test.lua
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
+local failures = 0
+local function check(cond, msg)
+  if not cond then
+    failures = failures + 1
+    io.stderr:write("FAIL: " .. tostring(msg) .. "\n")
+  else
+    print("ok  " .. tostring(msg))
+  end
+end
+local function eq(a, b, msg)
+  check(a == b, string.format("%s (got %s expected %s)", msg, tostring(a), tostring(b)))
+end
+
+local fakeEngine = {}
+local modules = {}
+local V = { path = "." }
+function V.require(name)
+  if modules[name] ~= nil then return modules[name] end
+  if name == "engine_patch" then
+    modules[name] = fakeEngine
+    return fakeEngine
+  end
+  local chunk = assert(loadfile("lib/" .. name .. ".lua"))
+  local value = chunk(V)
+  modules[name] = value
+  return value
+end
+local Config = V.require("config")
+
+-- ------- fake spawn manager: just enough surface for BattleTrigger
+local function fakeSpawnManager()
+  return {
+    game = { tag = "game" },
+    entities = {
+      [1] = {
+        id = 1, species = 999, level = 12, personality = 42, ivs = { hp = 1 },
+        roamer = false, moves = nil, state = Config.STATE.AVAILABLE,
+      },
+    },
+    markEncounterStarting = function(self, id)
+      if self.entities[id] then self.entities[id].state = Config.STATE.ENCOUNTER_STARTING end
+    end,
+    despawn = function(self, id) self.entities[id] = nil end,
+  }
+end
+
+local BattleTrigger = V.require("battle_trigger")
+
+-- ------- a successful start: marks the entity, calls startWild with the
+-- EXACT mon (species/level/personality/ivs/roamer/moves), and only on
+-- battle end does the entity get despawned.
+local startCalls = {}
+fakeEngine.startWild = function(game, enc, opts)
+  startCalls[#startCalls + 1] = { game = game, enc = enc, opts = opts }
+  return true
+end
+
+local sm = fakeSpawnManager()
+local bt = BattleTrigger.new({}, sm, { warn = function() end })
+check(not bt:isPending(), "not pending before any contact")
+bt:onPlayerBumped(sm.entities[1])
+check(bt:isPending(), "pending immediately after a successful start")
+eq(sm.entities[1].state, Config.STATE.ENCOUNTER_STARTING, "entity marked encounter_starting")
+eq(#startCalls, 1, "startWild called exactly once")
+eq(startCalls[1].game, sm.game, "startWild got the spawn manager's live game reference")
+eq(startCalls[1].enc.species, 999, "startWild got the entity's species")
+eq(startCalls[1].enc.level, 12, "startWild got the entity's level")
+eq(startCalls[1].enc.personality, 42, "startWild got the entity's personality")
+check(startCalls[1].enc.ivs ~= nil, "startWild got the entity's ivs")
+check(sm.entities[1] ~= nil, "entity is not despawned until the battle actually ends")
+
+-- A second bump while pending must not start a second battle.
+bt:onPlayerBumped(sm.entities[1])
+eq(#startCalls, 1, "a second bump while pending starts no second battle")
+
+-- The battle ends -> done() fires -> entity despawns, no longer pending.
+startCalls[1].opts.done("win")
+check(not bt:isPending(), "no longer pending once the battle's done callback fires")
+check(sm.entities[1] == nil, "entity despawned once the battle actually ended")
+
+-- ------- startWild failing (already in battle, mid-warp, ...): the
+-- entity is NOT despawned and goes back to available so it can be bumped
+-- again later; pending clears so a future contact can retry.
+fakeEngine.startWild = function(_game, _enc, _opts) return false, "a battle is already running" end
+sm = fakeSpawnManager()
+bt = BattleTrigger.new({}, sm, { warn = function() end })
+bt:onPlayerBumped(sm.entities[1])
+check(not bt:isPending(), "a failed start never leaves pending set")
+eq(sm.entities[1].state, Config.STATE.AVAILABLE, "a failed start reverts the entity to available")
+check(sm.entities[1] ~= nil, "a failed start never despawns the entity")
+
+-- ------- onPlayerStepped: the engine's world.stepped event. Holding a
+-- direction starts the next step in the same update that finished the last, so
+-- the player is never "standing" on a tile they walk through -- arriving is
+-- what counts.
+do
+  local started2 = 0
+  fakeEngine.startWild = function() started2 = started2 + 1 return true end
+  local sm2 = fakeSpawnManager()
+  sm2.entityAt = function(self, x, y)
+    local e = self.entities[1]
+    if e and x == 5 and y == 7 then return e end
+  end
+  local bt2 = BattleTrigger.new({}, sm2, { warn = function() end })
+  bt2:onPlayerStepped(5, 6)
+  eq(started2, 0, "a step that finishes NEXT to the mon starts no battle")
+  bt2:onPlayerStepped(nil, nil)
+  bt2:onPlayerStepped("x", 7)
+  eq(started2, 0, "garbage coordinates are ignored")
+  bt2:onPlayerStepped(5, 7)
+  eq(started2, 0, "a step that finishes ON the mon's tile notes the contact: never a battle mid-step")
+  check(bt2:holdsPlayer(), "...and holds the player on that tile")
+  bt2:tick()
+  eq(started2, 1, "the next field tick starts the battle (even while walking on)")
+  check(bt2:holdsPlayer(), "...still holding the player while the battle opens")
+  bt2:onPlayerStepped(5, 7)
+  bt2:tick()
+  eq(started2, 1, "no second battle while one is pending")
+  eq(sm2.entities[1].state, Config.STATE.ENCOUNTER_STARTING, "the entity is marked as starting")
+end
+
+-- ------- checkContact: only while the player STANDS on the mon's tile
+local started = 0
+fakeEngine.startWild = function() started = started + 1 return true end
+sm = fakeSpawnManager()
+sm.entityAt = function(self, x, y)
+  local e = self.entities[1]
+  if e and x == 5 and y == 7 then return e end
+end
+bt = BattleTrigger.new({}, sm, { warn = function() end })
+local pc
+fakeEngine.playerCell = function() return pc end
+
+pc = nil
+bt:checkContact()
+eq(started, 0, "no player module -> no battle")
+pc = { x = 5, y = 6, moving = false }
+bt:checkContact()
+eq(started, 0, "standing ADJACENT to the mon starts no battle")
+pc = { x = 4, y = 7, moving = false }
+bt:checkContact()
+eq(started, 0, "standing beside the mon starts no battle")
+pc = { x = 5, y = 7, moving = true, targetX = 5, targetY = 7 }
+bt:checkContact()
+eq(started, 0, "a step still in progress onto the tile starts no battle")
+pc = { x = 5, y = 7, moving = false }
+bt:checkContact()
+eq(started, 1, "standing ON the mon's tile starts the battle")
+bt:checkContact()
+eq(started, 1, "no second battle while one is pending")
+
+-- ------- the roaming legendary battles with its CURRENT state, and is gone if caught meanwhile
+do
+  local got
+  fakeEngine.fieldBusy = nil
+  fakeEngine.startWild = function(_game, enc) got = enc return true end
+  local smR = fakeSpawnManager()
+  local e = smR.entities[1]
+  e.roamer, e.species, e.level, e.personality = true, 245, 50, 77
+  local despawned
+  smR.despawn = function(_, id) despawned = id end
+  local btR = BattleTrigger.new({}, smR, { warn = function() end })
+  fakeEngine.roamerNow = function()
+    return { species = 245, level = 51, personality = 77, roamer = true, hp = 12, status = "PAR" }
+  end
+  btR:onPlayerBumped(e)
+  check(got and got.hp == 12 and got.status == "PAR" and got.level == 51,
+    "the battle gets the roamer's live HP / status / level, not the copy from spawn time")
+  -- caught or defeated since it appeared: no battle, the sprite just goes
+  got, despawned = nil, nil
+  local btR2 = BattleTrigger.new({}, smR, { warn = function() end })
+  smR.entities[1].state = Config.STATE.AVAILABLE
+  fakeEngine.roamerNow = function() return nil end
+  btR2:onPlayerBumped(smR.entities[1])
+  check(got == nil and despawned == smR.entities[1].id, "a roamer no longer active is removed, no battle")
+  fakeEngine.roamerNow = nil
+end
+
+-- ------- worn down by the Battler: the real battle starts with the HP it has left
+do
+  local got
+  fakeEngine.fieldBusy = nil
+  fakeEngine.startWild = function(_game, enc) got = enc return true end
+  local smC = fakeSpawnManager()
+  local e = smC.entities[1]
+  e.species, e.level, e.personality = 263, 6, 1234
+  local ivs = { hp = 31, atk = 3, def = 4, spe = 5, spa = 6, spd = 7 }
+  e.owWild = { hp = 7, maxHp = 22, ivs = ivs }
+  local btC = BattleTrigger.new({}, smC, { warn = function() end })
+  btC:onPlayerBumped(e)
+  eq(got and got.hp, 7, "the battle starts with the HP the Battler left it")
+  check(got and got.ivs == ivs, "...and the overworld fighter's IVs (the same max HP the damage was dealt against)")
+  eq(got and got.personality, 1234, "...the same Pokemon")
+  -- untouched by the Battler: a full-HP battle as ever
+  got = nil
+  local smF = fakeSpawnManager()
+  local f = smF.entities[1]
+  local btF = BattleTrigger.new({}, smF, { warn = function() end })
+  btF:onPlayerBumped(f)
+  eq(got and got.hp, nil, "never fought: no HP given (the battle rolls it full)")
+  fakeEngine.startWild = function() return true end
+end
+
+-- ------- a Pokemon Sweet Scent called over: its battle is flagged for the evasion drop
+do
+  fakeEngine.startWild = function() return true end
+  local smL = fakeSpawnManager()
+  smL.entities[1].lured = { ticks = 100, age = 0 }
+  local btL = BattleTrigger.new({}, smL, { warn = function() end })
+  btL:onPlayerBumped(smL.entities[1])
+  check(btL.pendingLured == true, "a lured Pokemon's battle is flagged (main.lua lowers its evasion)")
+  btL:_onBattleEnded(smL.entities[1].id, "win")
+  check(btL.pendingLured == false, "the flag clears when the battle ends")
+  local smN = fakeSpawnManager()
+  local btN = BattleTrigger.new({}, smN, { warn = function() end })
+  btN:onPlayerBumped(smN.entities[1])
+  check(btN.pendingLured == false, "an ordinary wild Pokemon's battle is not flagged")
+end
+
+-- ------- never while something else owns the field (a cutscene, a trainer's approach)
+do
+  local busy = true
+  fakeEngine.fieldBusy = function() return busy end
+  local n = 0
+  fakeEngine.startWild = function() n = n + 1 return true end
+  local smB = fakeSpawnManager()
+  smB.entityAt = function(self, x, y)
+    local e = self.entities[1]
+    if e and x == 5 and y == 7 then return e end
+  end
+  local btB = BattleTrigger.new({}, smB, { warn = function() end })
+  btB:onPlayerStepped(5, 7)
+  eq(n, 0, "a cutscene walking the player onto a wild Pokemon starts no battle")
+  pc = { x = 5, y = 7, moving = false }
+  btB:checkContact()
+  eq(n, 0, "nor resting on it while a trainer approaches (field locked)")
+  busy = false
+  btB:checkContact()
+  eq(n, 0, "once the field is free, still standing there starts nothing (grace cell)")
+  pc = { x = 5, y = 8, moving = false }
+  btB:checkContact()
+  btB:onPlayerStepped(5, 7)
+  btB:tick()
+  eq(n, 1, "stepping off and back on starts the battle as usual")
+  fakeEngine.fieldBusy = nil
+end
+
+-- ------- an egg hatches on the very step that lands on a wild Pokemon: the battle waits
+-- for the hatch (its message, the scene, the "Nickname?" Yes / No) and comes right after.
+-- A battle started mid-step ran under the hatch scene and swallowed every button: softlock.
+do
+  local hatching, message = false, false
+  fakeEngine.gameFree = function() return not hatching and not message end
+  local n = 0
+  fakeEngine.startWild = function() n = n + 1 return true end
+  local smH = fakeSpawnManager()
+  smH.entityAt = function(self, x, y)
+    local e = self.entities[1]
+    if e and x == 5 and y == 7 then return e end
+  end
+  local btH = BattleTrigger.new({}, smH, { warn = function() end })
+  btH:onPlayerStepped(5, 7)   -- world.stepped: before the engine runs the step's events
+  hatching = true             -- ...which hatch the egg (StepEvents queues it)
+  for _ = 1, 300 do btH:tick() end
+  eq(n, 0, "no battle while the egg hatches")
+  check(btH:holdsPlayer(), "...the player waits on the wild Pokemon's tile")
+  hatching, message = false, true -- "Nickname?" answered; a last message still up
+  btH:tick()
+  eq(n, 0, "...nor while a message is open")
+  message = false
+  btH:tick()
+  eq(n, 1, "the hatch done, the battle with that same Pokemon starts")
+  eq(smH.entities[1].state, Config.STATE.ENCOUNTER_STARTING, "...it is the one the player stepped on")
+
+  -- the Pokemon went away meanwhile (despawned): the waiting contact is dropped
+  local smG = fakeSpawnManager()
+  smG.entityAt = smH.entityAt
+  local btG = BattleTrigger.new({}, smG, { warn = function() end })
+  hatching = true
+  btG:onPlayerStepped(5, 7)
+  smG.entities[1] = nil
+  btG:tick()
+  check(not btG:holdsPlayer(), "a Pokemon gone meanwhile: the contact is dropped, the player let go")
+
+  -- resting on one (checkContact) waits for a free game the same way
+  local smR = fakeSpawnManager()
+  smR.entityAt = smH.entityAt
+  local btR = BattleTrigger.new({}, smR, { warn = function() end })
+  local before = n
+  pc = { x = 5, y = 7, moving = false }
+  hatching = true
+  btR:checkContact()
+  eq(n, before, "standing on one while an egg hatches: no battle yet")
+  hatching = false
+  btR:checkContact()
+  eq(n, before + 1, "...then the battle, the moment the game is free")
+  fakeEngine.gameFree = nil
+end
+
+-- ------- a battle that never opens (another mod in the way) is given up: the player is let go
+do
+  local smG = fakeSpawnManager()
+  local locks = {}
+  fakeEngine.lockField = function(tag) locks[tag] = true return true end
+  fakeEngine.unlockField = function(tag) locks[tag] = nil return true end
+  fakeEngine.startWild = function() return true end
+  local active = false
+  fakeEngine.battleActive = function() return active end
+  fakeEngine.playerCell = function() return { x = 4, y = 5 } end
+  local warned = 0
+  local btG = BattleTrigger.new({}, smG, { warn = function() warned = warned + 1 end })
+  btG:_noteContact(smG.entities[1], 4, 5)
+  btG:tick() -- the game is free: the battle starts, the player held until it opens
+  check(btG:isPending() and btG:holdsPlayer(), "contact: battle pending, player held")
+  for _ = 1, BattleTrigger.PENDING_GIVE_UP - 2 do btG:tick() end
+  check(btG:isPending() and btG:holdsPlayer(), "still waiting for it to open just before the limit")
+  btG:tick() btG:tick()
+  check(not btG:isPending(), "it never opened: given up")
+  check(not btG:holdsPlayer() and next(locks) == nil, "...the player let go (no field lock left)")
+  eq(smG.entities[1].state, Config.STATE.AVAILABLE, "...the wild Pokemon back to normal")
+  eq(btG.graceX, 4, "...the tile they stand on a grace tile (no instant retry)")
+  check(warned >= 1, "...and it is logged")
+
+  -- a slow opening that does open is never given up
+  local smS = fakeSpawnManager()
+  local btS = BattleTrigger.new({}, smS, { warn = function() end })
+  btS:_noteContact(smS.entities[1], 4, 5)
+  btS:tick()
+  for _ = 1, 100 do btS:tick() end
+  active = true
+  for _ = 1, BattleTrigger.PENDING_GIVE_UP * 2 do btS:tick() end
+  check(btS:isPending(), "a battle on screen stays pending however long it lasts")
+
+  -- with the engine reporting its transition: a transition that plays (89-124 ticks) is waited
+  -- for; nothing playing and no battle for PENDING_IDLE ticks -> given up at once
+  active = false
+  local transition = true
+  fakeEngine.battleTransitionActive = function() return transition end
+  local smT = fakeSpawnManager()
+  local btT = BattleTrigger.new({}, smT, { warn = function() end })
+  btT:_noteContact(smT.entities[1], 4, 5)
+  btT:tick()
+  for _ = 1, 124 do btT:tick() end
+  check(btT:isPending() and btT:holdsPlayer(), "a cave transition (124 ticks) is waited out")
+  active = true
+  btT:tick()
+  check(btT:isPending(), "...and the battle opens")
+  active = false
+  local smN = fakeSpawnManager()
+  local btN = BattleTrigger.new({}, smN, { warn = function() end })
+  transition = false
+  btN:_noteContact(smN.entities[1], 4, 5)
+  btN:tick()
+  for _ = 1, BattleTrigger.PENDING_IDLE - 1 do btN:tick() end
+  check(btN:isPending(), "no transition yet: waits PENDING_IDLE ticks")
+  btN:tick() btN:tick()
+  check(not btN:isPending() and not btN:holdsPlayer(), "...then gives up: nothing is coming (" .. BattleTrigger.PENDING_IDLE .. " ticks, not seconds)")
+  local smC = fakeSpawnManager()
+  local btC = BattleTrigger.new({}, smC, { warn = function() end })
+  transition = true -- a transition that never ends
+  btC:_noteContact(smC.entities[1], 4, 5)
+  btC:tick()
+  for _ = 1, BattleTrigger.PENDING_GIVE_UP + 1 do btC:tick() end
+  check(not btC:isPending(), "a transition that never ends: given up at PENDING_GIVE_UP")
+  fakeEngine.battleTransitionActive = nil
+  fakeEngine.lockField, fakeEngine.unlockField, fakeEngine.battleActive, fakeEngine.playerCell = nil, nil, nil, nil
+end
+
+print("")
+if failures > 0 then
+  io.stderr:write(failures .. " failure(s)\n")
+  os.exit(1)
+end
+print("battle_trigger_unit_test: all passed")

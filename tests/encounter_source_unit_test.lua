@@ -1,0 +1,166 @@
+-- Run: lua tests/encounter_source_unit_test.lua
+package.path = "./?.lua;./?/init.lua;" .. package.path
+
+local failures = 0
+local function check(cond, msg)
+  if not cond then
+    failures = failures + 1
+    io.stderr:write("FAIL: " .. tostring(msg) .. "\n")
+  else
+    print("ok  " .. tostring(msg))
+  end
+end
+local function eq(a, b, msg)
+  check(a == b, string.format("%s (got %s expected %s)", msg, tostring(a), tostring(b)))
+end
+
+local fakeEngine = {}
+local modules = {}
+local V = { path = "." }
+function V.require(name)
+  if modules[name] ~= nil then return modules[name] end
+  if name == "engine_patch" then
+    modules[name] = fakeEngine
+    return fakeEngine
+  end
+  local chunk = assert(loadfile("lib/" .. name .. ".lua"))
+  local value = chunk(V)
+  modules[name] = value
+  return value
+end
+
+local sweetScentFacilityMaps = {}
+local tables = {}
+local terrainGrid = {}
+
+fakeEngine.isSweetScentFacility = function(mapId) return sweetScentFacilityMaps[mapId] == true end
+fakeEngine.safariActive = function() return false end
+fakeEngine.ensureEncountersLoaded = function() return true end
+fakeEngine.tableFor = function(mapId) return tables[mapId] end
+fakeEngine.mapBounds = function() return 4, 4 end
+fakeEngine.terrainAt = function(x, y) return terrainGrid[y] and terrainGrid[y][x] end
+
+local EncounterSource = V.require("encounter_source")
+
+-- ------- a 4x4 map: a 2x2 water pool in the corner, land everywhere else
+for y = 0, 3 do
+  terrainGrid[y] = {}
+  for x = 0, 3 do
+    terrainGrid[y][x] = (x < 2 and y < 2) and "water" or "land"
+  end
+end
+tables.ROUTE_1 = { land = { rate = 10, slots = {} }, water = { rate = 5, slots = {} } }
+
+local src = EncounterSource.new({})
+src:loadMap("ROUTE_1")
+check(src:isEligible(), "ROUTE_1 is eligible (has both areas)")
+local land = src:eligibleCells("land")
+local water = src:eligibleCells("water")
+eq(#land, 12, "12 land cells (4x4 minus the 2x2 pool)")
+eq(#water, 4, "4 water cells (the 2x2 pool)")
+
+-- eligibleCells returns a fresh copy each call (copy-on-read contract)
+local land2 = src:eligibleCells("land")
+check(land2 ~= land, "eligibleCells returns a new table each call")
+land2[1].x = -999
+eq(src:eligibleCells("land")[1].x, land[1].x, "mutating a returned cell doesn't affect the source")
+
+-- ------- a map with only a land table never reports water cells, even
+-- though the terrain grid has water tiles (defensive: no water TABLE means
+-- no water spawns regardless of tile flags)
+tables.LAND_ONLY = { land = { rate = 10, slots = {} } }
+local srcLandOnly = EncounterSource.new({})
+srcLandOnly:loadMap("LAND_ONLY")
+eq(#srcLandOnly:eligibleCells("water"), 0, "no water table -> no water cells even over water tiles")
+eq(#srcLandOnly:eligibleCells("land"), 12, "land table still finds its cells")
+
+-- ------- a map with no table at all is not eligible, and the cell scan
+-- is skipped entirely (no wasted work)
+tables.EMPTY = nil
+local srcEmpty = EncounterSource.new({})
+srcEmpty:loadMap("EMPTY")
+check(not srcEmpty:isEligible(), "a map with no wild table is not eligible")
+eq(#srcEmpty:eligibleCells("land"), 0, "no cells scanned for an ineligible map")
+
+-- ------- Battle Pike / Battle Pyramid maps are skipped outright
+sweetScentFacilityMaps.WILD_ROOM = true
+tables.WILD_ROOM = { land = { rate = 10, slots = {} } } -- even with a table present
+local srcFacility = EncounterSource.new({})
+srcFacility:loadMap("WILD_ROOM")
+check(not srcFacility:isEligible(), "a sweet-scent-facility map is never eligible")
+eq(#srcFacility:eligibleCells("land"), 0, "facility map cell scan is skipped")
+
+-- ------- Safari Zone: visible spawns there too (touching one starts the engine's Safari battle)
+do
+  local safari = true
+  fakeEngine.safariActive = function() return safari end
+  local srcS = EncounterSource.new({})
+  srcS:loadMap("ROUTE_1")
+  check(srcS:isEligible(), "visible spawns during a Safari Zone visit")
+  check(#srcS:eligibleCells("land") > 0, "...on its grass")
+  safari = false
+  fakeEngine.safariActive = function() return false end
+end
+
+-- ------- setReachable restricts eligibleCells (a view; nothing is rescanned)
+do
+  local Reach = V.require("reachability")
+  local src = EncounterSource.new({})
+  src:loadMap("ROUTE_1")
+  local all = src:eligibleCells("land")
+  check(#all > 2, "sanity: the fixture has several land cells")
+  local keep = {}
+  keep[Reach.key(all[1].x, all[1].y)] = true
+  keep[Reach.key(all[2].x, all[2].y)] = true
+  src:setReachable(keep)
+  eq(#src:eligibleCells("land"), 2, "only the reachable land cells are eligible")
+  eq(src:eligibleCount("land"), 2, "eligibleCount follows the restriction (no copy)")
+  local picked = src:randomCell("land", function(_, n) return n end)
+  check(picked and keep[Reach.key(picked.x, picked.y)], "randomCell picks from the reachable cells only")
+  eq(src:randomCell("water", function() return 1 end) ~= nil, src:eligibleCount("water") > 0,
+    "randomCell answers nil only when no cell is eligible")
+  src:setReachable(nil)
+  eq(#src:eligibleCells("land"), #all, "lifting the restriction restores them all")
+  eq(src:eligibleCount("land"), #all, "...and the count with it")
+  src:setReachable(keep)
+  src:loadMap("ROUTE_1")
+  eq(#src:eligibleCells("land"), #all, "a freshly loaded map starts unrestricted")
+end
+
+-- ------- water spawns everywhere, reachable or not (atmosphere; Surf plays no part)
+do
+  local Reach = V.require("reachability")
+  -- one row: reachable land, six water cells, unreachable land, a cut-off pond cell
+  local row = { "land", "water", "water", "water", "water", "water", "water", "land", "water" }
+  local saveGrid, saveBounds = terrainGrid, fakeEngine.mapBounds
+  terrainGrid = { [0] = {} }
+  for x = 0, #row - 1 do terrainGrid[0][x] = row[x + 1] end
+  fakeEngine.mapBounds = function() return #row, 1 end
+  local src = EncounterSource.new({})
+  src:loadMap("ROUTE_1")
+  src:setReachable({ [Reach.key(0, 0)] = true })
+  eq(src:eligibleCount("water"), 7, "every water cell is eligible, even far from the reachable area")
+  eq(src:eligibleCount("land"), 1, "land is still limited to the reachable area")
+  check(src:canStay(8, 0, "water"), "a water Pokemon is kept anywhere, even in a cut-off pond")
+  check(not src:canStay(7, 0, "land"), "unreachable land is not kept")
+  check(src:canStay(0, 0, "land"), "reachable land is kept")
+  terrainGrid, fakeEngine.mapBounds = saveGrid, saveBounds
+end
+
+-- ------- a swimmer never spawns on the last water row before a bank
+do
+  fakeEngine.isWater = function(x, y) return terrainGrid[y] ~= nil and terrainGrid[y][x] == "water" end
+  local src = EncounterSource.new({})
+  src:loadMap("ROUTE_1")
+  local water = src:eligibleCells("water")
+  eq(#water, 2, "the 2x2 pool: only its top row (water to the south) is eligible")
+  check(water[1].y == 0 and water[2].y == 0, "...the row above the bank is left out")
+  fakeEngine.isWater = nil
+end
+
+print("")
+if failures > 0 then
+  io.stderr:write(failures .. " failure(s)\n")
+  os.exit(1)
+end
+print("encounter_source_unit_test: all passed")

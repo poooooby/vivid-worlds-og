@@ -1,0 +1,29 @@
+{
+  "id": "vivid_worlds_og",
+  "name": "Vivid Worlds: OG",
+  "version": "0.0.1",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "content",
+  "category": "MECHANIC",
+  "game_version": ">=0.0.0-0",
+  "games": ["gen1", "gen2"],
+  "priority": 80,
+  "dependencies": [],
+  "optional_dependencies": [
+    "modern_spawns",
+    "national_dex"
+  ],
+  "conflicts": [
+    "wilds_of_kanto_gen3",
+    "overworld_wild_spawns",
+    "overworldmons",
+    "SHINY_POKEMON",
+    "wildfollowers"
+  ],
+  "permissions": ["engine_internals"],
+  "affects_link": false,
+  "options_schema": "options.lua",
+  "description": "Visible, reactive wild Pokemon for Red, Blue, Yellow, Gold, Silver and Crystal: HGSS-style overworld sprites at true size, a partner Pokemon that battles wild Pokemon on the field and forages for items, and emotes above their heads. A lightweight sister to Vivid Worlds (Wilds of Hoenn).",
+  "github": "poooooby/vivid-worlds-og"
+}

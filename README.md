@@ -1,0 +1,105 @@
+<div align="center">
+
+# Vivid Worlds: OG 🌿
+
+*Kanto and Johto come alive. Wild Pokémon roam the overworld of Red, Blue, Yellow, Gold,
+Silver and Crystal, and a partner Pokémon walks with you, battles at your side and digs up
+treasure.*
+
+</div>
+
+A mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp), for its Generation 1 and 2
+games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
+
+> [!NOTE]
+> **Early preview.** Red, Blue and Yellow have every feature below. Gold, Silver and Crystal
+> have the wild Pokémon, battles and your partner following you; their partner roles, Pet /
+> Play / Talk and the wild reactions are still on the way.
+
+## ✨ Features
+
+### Core Mechanics
+
+- 🦌 **Wild Pokémon in the overworld:** Areas with wild encounters fill with visible Pokémon
+  wandering the grass and swimming the water. Walk onto one to battle it, the very Pokémon you
+  saw.
+- 🌿 **They arrive, they don't pop in:** new Pokémon rise out of the grass, surface from the
+  water, or fade in on bare ground, and leave the same way.
+- 🎲 **Classic encounters, your call:** Keep the original step-based encounters in grass, caves
+  and on Surf alongside the visible ones, or only meet what you can see. Fishing, the
+  Bug-Catching Contest and Sweet Scent work as always.
+- 😮 **They react to you:** Bike past and weaker Pokémon get startled and run off, while
+  stronger ones get angry and chase you down. Walking disturbs nobody.
+
+### Your Partner
+
+- 🐾 **A partner at your side:** Your lead Pokémon walks behind you, spaced out by its size.
+- 🤝 **A partner with a job:** Give it a role from the party menu. It can **follow** you,
+  **forage** for items as you walk, or **battle** the wild Pokémon around you. A Battler button
+  sends it into battle and calls it back with one press.
+- ⚔️ **Overworld battles:** As a Battler it charges nearby wild Pokémon and fights them right
+  on the field with its real moves, with hit sparks, knockouts and EXP for its wins.
+- 💎 **Foraging:** As a Forager it spots a glint, dashes over, digs and brings back an item.
+  The fonder it is of you, the better its finds.
+- 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood shows as an emote above
+  its head.
+
+### A Living World
+
+- 🎨 **HGSS-style sprites at true size:** every species, all 1025 and their forms, at its own
+  size, so a Snorlax towers over a Rattata.
+- 🧊 **3D worlds:** In TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2's 3D worlds, wild
+  Pokémon and your partner stand as cards of their own size.
+- 🌑 **Silhouettes:** Optionally hide species you haven't caught as dark shapes.
+
+## ⚙️ Options
+
+| Option | Choices | Default | What it does |
+|---|---|---|---|
+| **Show Wild Mons** | On / Off | On | Visible wild Pokémon in encounter areas. |
+| **Spawn Amount** | Low / Normal / High | Normal | How many wild Pokémon are out at once. |
+| **Wild Reacts** | On / Off | On | Biking close by startles or angers them (Red, Blue, Yellow). |
+| **Follower** | On / Off | On | Your partner walks behind you, or stays in its Poké Ball. |
+| **Battler: Pad** | R / L / Off | Off | A controller button that sends your partner into battle and back. |
+| **Battler: Key** | E (R) / Q (L) / R / Off | Off | The same on the keyboard. |
+| **Smooth Follow** | On / Off | On | Your partner glides round when you turn, or snaps into place. |
+| **Type Aura** | On / Off | Off | Now and then a little puff of your partner's type. |
+| **Classic Enc** | On / Off | On | The original step-based encounters in grass, caves and on Surf. |
+| **Silhouette** | Off / Undiscovered / All | Off | Silhouettes for uncaught species, or for all of them. |
+| **Species Sizes** | On / Off | On | Each species at its own size in the 3D world mods. |
+
+## 💾 Installation
+
+1. Download `vivid-worlds-og-v*.zip` from the
+   [Releases](https://github.com/poooooby/vivid-worlds-og/releases) page (not the "Source code"
+   ZIP).
+2. Import it with the Gen1Recomp Mod Manager, or drop it in your mods folder.
+3. Enable **Vivid Worlds: OG**.
+
+## 🔗 Works With
+
+- [Modern Spawns](https://github.com/poooooby/g1r_modern_spawns): its generated encounter tables
+  fill the overworld too.
+- 3D world mods: TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2.
+- **Wilds of Kanto Revival** does the same job, so only one of the two can be on at a time.
+
+## 📌 Good to Know
+
+- In Gold, Silver and Crystal your partner follows you, but its roles, Pet / Play / Talk and
+  the wild reactions are not there yet.
+
+## 🪪 Credits
+
+- [poooooby](https://github.com/poooooby): Vivid Worlds: OG, built from Wilds of Hoenn with
+  pieces of Wilds of Kanto Revival.
+- [Gen 9 Resource Pack](https://eeveeexpo.com/resources/1101/) and its many artists: the
+  HGSS-style overworld sprites (full list in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
+- **Nuclear-Blizzard**: the Pokémon Tower ghost.
+- **TTiN** and **Untamed Tohjo**: the ideas behind the friendship-weighted foraging and the
+  shiny chain.
+
+---
+
+Licence: [LICENSE](LICENSE) · Art credits: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) ·
+Release history: [CHANGELOG.md](CHANGELOG.md) · Working on the mod? See
+[DEVELOPMENT.md](DEVELOPMENT.md).

@@ -1,0 +1,86 @@
+-- In-game smoke test for Vivid Worlds: OG on Red / Yellow / Gold / Crystal, run through the
+-- engine's frame driver on a throwaway portable engine export with this repo junctioned at
+-- mods/vivid_worlds_og (see DEVELOPMENT.md):
+--   POKEPORT_DRIVER=<this> POKEPORT_VERSION=red VWOG_SHOT_DIR=<dir> lovec .
+-- Checks: the mod loaded and installed; wild Pokemon spawn on the route; the partner is out;
+-- bumping a wild Pokemon starts the engine's battle against that same species.
+local U = require("tests.drivers.util")
+local GameVersion = require("src.core.GameVersion")
+
+local VERSION = tostring(GameVersion.get())
+local GEN = GameVersion.generation and GameVersion.generation() or 1
+local SHOT = (os.getenv("VWOG_SHOT_DIR") or "shots") .. "/" .. VERSION
+
+return function(game)
+  local fails = 0
+  local function say(line) print("[vwog] " .. line) end
+  local function ok(cond, line)
+    if not cond then fails = fails + 1 end
+    say((cond and "PASS " or "FAIL ") .. line)
+    return cond
+  end
+  local function finish()
+    say(fails == 0 and "ALL PASS" or (fails .. " FAILURES"))
+    love.event.quit(fails == 0 and 0 or 1)
+  end
+
+  U.wait(60)
+  local ex = game.mods and game.mods.exports and game.mods.exports.vivid_worlds_og
+  if not ok(ex ~= nil, VERSION .. ": Vivid Worlds: OG loaded (version " .. tostring(ex and ex.version) .. ")") then
+    return finish()
+  end
+  ok(ex.engineReady == true, "the engine layer installed (layout " .. tostring(ex.layout) .. ")")
+
+  local routeId
+  if GEN == 1 then
+    local Pokemon = require("src.pokemon.Pokemon")
+    game.save.party = { Pokemon.new(game.data, "PIKACHU", 15) }
+    routeId = "ROUTE_1"
+    U.teleport(game, routeId, 5, 5, "down")
+  else
+    local Mon = require("src.battle.gen2.Mon")
+    game.save.party = { Mon.new(game.data, "CYNDAQUIL", 15) }
+    routeId = "ROUTE_29"
+    game.world:warpToMapId(routeId, 20, 8, "down")
+  end
+  U.wait(360)
+
+  local sm = ex.spawnManager
+  local n = sm:count()
+  local names = {}
+  for _, id in ipairs(sm.order or {}) do
+    local e = sm.entities[id]
+    if e then names[#names + 1] = tostring(e.species) .. "@" .. tostring(e.cellX) .. "," .. tostring(e.cellY) end
+  end
+  say("spawns on " .. tostring(sm.mapId) .. ": " .. table.concat(names, " "))
+  ok(sm.mapId == routeId, "the spawn manager is on " .. routeId .. " (" .. tostring(sm.mapId) .. ")")
+  ok(n > 0, "wild Pokemon spawned (" .. n .. ")")
+  local fa = ex.followerAdapter
+  ok(fa and fa.renderer ~= nil, "the partner has its HGSS renderer (dex " .. tostring(fa and fa.renderer and fa.renderer.dex) .. ")")
+  U.still(game, SHOT .. "/1_route.png")
+
+  -- bump the first live wild Pokemon: the engine's battle, same species
+  local target
+  for _, id in ipairs(sm.order or {}) do
+    local e = sm.entities[id]
+    if e and e.state == "available" and e.terrain ~= "water" then target = e break end
+  end
+  if not ok(target ~= nil, "a wild Pokemon to bump") then return finish() end
+  local okBump, err = pcall(ex.battleTrigger.onPlayerBumped, ex.battleTrigger, target)
+  ok(okBump, "bumping it does not error (" .. tostring(err) .. ")")
+  local battle
+  for _ = 1, 600 do
+    local top = game.stack:top()
+    if top and (top.battle or top.kind) then battle = top break end
+    U.wait(1)
+  end
+  ok(battle ~= nil, "the engine's battle started")
+  if battle then
+    U.wait(200)
+    local foe = (battle.battle and (battle.battle.enemy or battle.battle.wild)) or battle.enemy
+      or (battle.enemyMon) or (battle.wild)
+    say("battle foe: " .. tostring(foe and (foe.species or foe.name)) .. " Lv" .. tostring(foe and foe.level))
+    U.still(game, SHOT .. "/2_battle.png")
+  end
+  finish()
+end

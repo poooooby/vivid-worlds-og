@@ -1,0 +1,654 @@
+-- Draws one wild Pokemon (or the follower) as a walker sheet via love
+-- quads. Gen 3's field already renders true-color (no DMG/GBC palette
+-- machinery to thread through, unlike Gen 1Recomp's SpriteRenderer) -- see
+-- lib/engine_patch.lua's `collectActors` wrap for the actor contract this
+-- implements: draw(x, y, camX, camY, facing, walkPhase, stepFlip).
+--
+-- One frame layout (HGSS / PokeMMO, SpriteSource.STYLE_POKEMMO):
+--   "True Size": 18 frames, matching the
+--   real Gen 3 player NPC's own layout (see tools/generate_true_size_18frame.py
+--   and lib/sprite_source.lua) -- stand x3, walk-A/walk-B x3 directions,
+--   run-base/run-A/run-B x3 directions. Frame size varies per species (e.g.
+--   Bulbasaur 24x24, Pikachu 18x18, not necessarily square) -- this renderer
+--   reads the real loaded image's dimensions rather than assuming a fixed
+--   size, and anchors every sprite the same way Gen 3's own native OW
+--   sprites anchor a variable-size OAM shape to a 16px cell
+--   (ow_sprites.lua: centered horizontally, feet aligned to the cell's
+--   bottom edge) -- so a bigger-than-one-tile HGSS sprite extends upward
+--   from its feet instead of being squashed into 16x16 or drawn off-center.
+--
+-- `walkPhase` (draw()'s 6th argument) is not the old binary flag -- it is
+-- one of the POSE_* enum values below, computed entirely by the caller
+-- (lib/spawn_manager.lua, lib/follower_adapter.lua). This mod can never
+-- rely on the engine's own `stepFlip` draw() parameter for A/B alternation:
+-- src/core/game3/field_view.lua hardcodes stepFlip=false for every actor
+-- that isn't the player itself, so A/B phase has to be tracked and carried
+-- through `walkPhase` by whoever owns the entity.
+local V = ...
+local SpriteSource = V.require("sprite_source")
+local SpriteAtlas = V.require("sprite_atlas")
+local Config = V.require("config")
+local RecallMath = V.require("recall_math")
+local HdField = V.require("hd_field")
+
+local ActorRenderer = {}
+ActorRenderer.__index = ActorRenderer
+
+local CELL = 16
+
+local FRAME_COUNT_POKEMMO = 18
+
+-- Pose enum: the caller computes one of these per draw() call.
+ActorRenderer.POSE_STAND = "stand"
+ActorRenderer.POSE_WALK_A = "walkA"
+ActorRenderer.POSE_WALK_B = "walkB"
+ActorRenderer.POSE_RUN_BASE = "runBase"
+ActorRenderer.POSE_RUN_A = "runA"
+ActorRenderer.POSE_RUN_B = "runB"
+
+-- facing -> { pose -> 0-based frame index (row in the sheet) }. "right"
+-- reuses "left"'s frames and is mirrored at draw time.
+--
+-- 18-frame styles (STYLE_POKEMMO): the full layout from
+-- tools/generate_true_size_18frame.py's OUTPUT_FRAMES order.
+local FRAME_INDEX_18 = {
+  down = {
+    stand = 0, walkA = 3, walkB = 4,
+    runBase = 9, runA = 10, runB = 11,
+  },
+  up = {
+    stand = 1, walkA = 5, walkB = 6,
+    runBase = 12, runA = 13, runB = 14,
+  },
+  left = {
+    stand = 2, walkA = 7, walkB = 8,
+    runBase = 15, runA = 16, runB = 17,
+  },
+}
+FRAME_INDEX_18.right = FRAME_INDEX_18.left
+
+local FRAME_COUNT_TO_TABLE = {
+  [FRAME_COUNT_POKEMMO] = FRAME_INDEX_18,
+}
+
+--- The opacity a renderer draws at: its `alpha` field (0..1), 1 when unset. Shared
+--- with lib/pmd_renderer.lua. Pure (tested).
+function ActorRenderer.alphaOf(r)
+  local a = r and tonumber(r.alpha)
+  if not a then return 1 end
+  return math.max(0, math.min(1, a))
+end
+
+--- Pure frame-index lookup, split out from draw() so it is testable without
+--- love.graphics. `pose` is one of the ActorRenderer.POSE_* constants (any
+--- other value, including nil/0 -- the engine's own `a.walkPhase or 0`
+--- fallback when an actor never set one -- resolves to POSE_STAND).
+--- `frameCount` picks the layout (18); anything else falls back to it too.
+function ActorRenderer.frameIndexFor(facing, pose, frameCount)
+  local table_ = FRAME_COUNT_TO_TABLE[frameCount] or FRAME_INDEX_18
+  local dir = table_[facing] or table_.down
+  return dir[pose] or dir[ActorRenderer.POSE_STAND]
+end
+
+local IDLE_FLAP_SEQUENCE = { "walkA", "stand", "walkB", "stand" }
+
+--- The pose a floating/flying species shows while standing still, `clock`
+--- being its own idle tick counter: walkA, stand, walkB, stand, each held
+--- `ticksPerPose` ticks. `stand` between the walk frames keeps the flap
+--- readable even for a species whose walkA and walkB are close.
+--- Pure, for testing without love.graphics.
+function ActorRenderer.idleFlapPose(clock, ticksPerPose)
+  ticksPerPose = ticksPerPose or 20
+  if ticksPerPose < 1 then ticksPerPose = 1 end
+  local i = math.floor((tonumber(clock) or 0) / ticksPerPose) % #IDLE_FLAP_SEQUENCE
+  return IDLE_FLAP_SEQUENCE[i + 1]
+end
+
+--- Pure screen-offset math for a `frameW x frameH` sprite anchored to a
+--- CELL-px tile the same way Gen 3's native OW sprites are (see header):
+--- centered horizontally, feet (bottom edge) flush with the cell's
+--- bottom. Split out for testing without love.graphics.
+function ActorRenderer.anchorOffset(frameW, frameH)
+  return (CELL - frameW) / 2, CELL - frameH
+end
+
+--- Pure draw-position math for love.graphics.draw(image, quad, drawX, drawY,
+--- 0, flipX, 1): the (drawX, drawY, flipX) to pass so a `frameW x frameH`
+--- frame lands centered-and-feet-anchored (anchorOffset above) REGARDLESS
+--- of facing, including when mirrored. Split out from draw() so the
+--- left/right mirror math is directly testable without love.graphics --
+--- this is exactly the formula that was wrong (frameW - anchorX instead
+--- of anchorX + frameW) until a reported snap on every left<->right turn
+--- caught it; see the comment on the return line for why.
+function ActorRenderer.drawOffset(facing, frameW, frameH)
+  local anchorX, anchorY = ActorRenderer.anchorOffset(frameW, frameH)
+  if facing ~= "right" then
+    return anchorX, anchorY, 1
+  end
+  -- love.graphics.draw with sx=-1 paints quad-local x in [0,frameW] onto
+  -- screen x in [drawX-frameW, drawX] -- it runs BACKWARDS from drawX, the
+  -- mirror of the unflipped [drawX, drawX+frameW] span -- so matching the
+  -- unflipped span's horizontal center needs drawX = anchorX + frameW,
+  -- not frameW - anchorX (those only happen to agree when frameW == CELL,
+  -- which is why this stayed invisible until non-16-wide frames exposed it).
+  return anchorX + frameW, anchorY, -1
+end
+
+--- Pure "push back along facing" math, in pixels -- the single-follower
+--- analog of Wilds of Kanto Revival's multi-trailer convoy spacing
+--- (ControlEngine's own `behindOffset`): moves a draw position AWAY from
+--- the direction currently faced, toward where the entity came from, so a
+--- wider-than-one-tile (True Size) sprite doesn't visually overlap
+--- whatever it's walking toward. `px` <= 0 is a no-op. Split out for
+--- testing without love.graphics, same as anchorOffset/drawOffset above.
+function ActorRenderer.behindOffset(facing, px)
+  if not px or px == 0 then return 0, 0 end
+  local dx = facing == "left" and 1 or facing == "right" and -1 or 0
+  local dy = facing == "up" and 1 or facing == "down" and -1 or 0
+  return dx * px, dy * px
+end
+
+--- Moves `cur` toward `target` by at most `maxStep` (never overshoots). Pure,
+--- for easing the follower's pushback offset one logic tick at a time.
+function ActorRenderer.approach(cur, target, maxStep)
+  if cur == nil then return target end
+  local d = target - cur
+  if d > maxStep then return cur + maxStep end
+  if d < -maxStep then return cur - maxStep end
+  return target
+end
+
+local imageCache = setmetatable({}, { __mode = "v" })
+local quadCache = {} -- [path] = { [frameIndex] = quad }
+
+--- A repo checkout (or any build before the atlas is generated) keeps the
+--- real per-file sheets, so those are always tried FIRST -- this mod's
+--- behaviour is identical with or without an atlas present as long as
+--- the real files are there. A release build strips the per-file sheets
+--- (scripts/build-mod.py, atlas mode) and ships assets/atlas/ instead, so
+--- when the real-file attempts fail, SpriteAtlas.image is the fallback
+--- that makes the game unaware anything changed.
+local function loadImage(mod, path)
+  local cached = imageCache[path]
+  if cached then return cached end
+  local img
+  if mod and mod.assets and type(mod.assets.image) == "function" then
+    local ok, loaded = pcall(mod.assets.image, mod, path)
+    if ok then img = loaded end
+  end
+  if not img and love and love.graphics and love.graphics.newImage then
+    local ok, loaded = pcall(love.graphics.newImage, path)
+    if ok then img = loaded end
+  end
+  if not img and mod and SpriteAtlas.installed() then
+    local ok, loaded = pcall(SpriteAtlas.image, mod, path)
+    if ok then img = loaded end
+  end
+  if img then
+    imageCache[path] = img
+    -- drawn at window resolution by gen3-hd-sprites when it is installed (lib/hd_field.lua);
+    -- an HGSS land sheet sized about its real feet (the frame's empty rows under them left out)
+    local pivot
+    if ActorRenderer.isLandSheet(path) and img.getDimensions then
+      local w, h = img:getDimensions()
+      local fh = math.floor(h / 18)
+      pivot = { w / 2, fh - (ActorRenderer.artBottomPadOf(mod, path, 18) or 0) }
+    end
+    HdField.tag(mod, img, path, pivot)
+  end
+  return img
+end
+
+ActorRenderer.loadImage = loadImage -- shared with lib/pmd_renderer.lua
+
+-- `rows` (optional): only the frame's top `rows` rows
+local function quadFor(path, image, frameIndex, frameCount, rows)
+  local perPath = quadCache[path]
+  if not perPath then
+    perPath = {}
+    quadCache[path] = perPath
+  end
+  local key = rows and (frameIndex + 1) * 4096 + rows or frameIndex
+  local q = perPath[key]
+  if q then return q end
+  if not (love and love.graphics and love.graphics.newQuad) then return nil end
+  local iw, ih = image:getDimensions()
+  local frameH = ih / frameCount
+  q = love.graphics.newQuad(0, frameIndex * frameH, iw, rows and math.min(rows, frameH) or frameH, iw, ih)
+  perPath[key] = q
+  return q
+end
+
+--- The frame count of the sheet layout (18 -- the only one left). Kept as a
+--- function of `style` for the callers that always pass one.
+function ActorRenderer.frameCountFor(_style)
+  return FRAME_COUNT_POKEMMO
+end
+
+--- `dex` = national dex number (never engine-internal species id or
+--- display name -- see lib/engine_patch.lua). `style` is
+--- SpriteSource.STYLE_POKEMMO (the default and only ActorRenderer style).
+--- `presentation` is SpriteSource.PRESENTATION_LAND (default), SWIMMING, or
+--- LEVITATES -- which terrain-specific art pack to draw from (see
+--- lib/sprite_source.lua).
+function ActorRenderer.new(mod, dex, shiny, style, presentation)
+  style = style or SpriteSource.DEFAULT_STYLE
+  return setmetatable({
+    mod = mod, dex = dex, shiny = shiny and true or false,
+    style = style, presentation = presentation or SpriteSource.DEFAULT_PRESENTATION,
+    silhouette = false,
+    frameCount = ActorRenderer.frameCountFor(style),
+    largePushback = 0,
+  }, ActorRenderer)
+end
+
+--- Resolved sheet path for this actor's current dex/shiny/style/presentation,
+--- or nil if no art is installed for it (draw() then skips silently -- a
+--- missing sheet never crashes the field renderer).
+function ActorRenderer:imagePath()
+  -- asked several times a frame: resolved again only when what it depends on changed
+  -- (no garbage per draw); a miss is never kept, so art that shows up later is found
+  local c = self._pathFor
+  if c and c[1] == self.dex and c[2] == self.shiny and c[3] == self.style and c[4] == self.presentation
+      and c[5] == self.mod then
+    return c[6]
+  end
+  local path = SpriteSource.pathFor(self.mod, self.dex, self.shiny, self.style, self.presentation)
+  if path then
+    if not c then c = {} self._pathFor = c end
+    c[1], c[2], c[3], c[4], c[5], c[6] = self.dex, self.shiny, self.style, self.presentation, self.mod, path
+  end
+  return path
+end
+
+--- The current frame's pixel WIDTH for this renderer's resolved art, or
+--- nil if nothing is loaded yet (no art installed, or no love context in
+--- a standalone test). Frames stack VERTICALLY in every sheet this
+--- renderer draws (see module header), so this is simply the whole loaded
+--- image's own width -- no frame-count division needed, unlike height.
+--- lib/follower_adapter.lua uses this to size `largePushback`.
+--- Visible height in px of one frame (for things floating above the sprite).
+function ActorRenderer:frameHeight()
+  local path = self:imagePath()
+  if not path then return nil end
+  local image = loadImage(self.mod, path)
+  if not image then return nil end
+  local _, h = image:getDimensions()
+  return h / (self.frameCount or 18)
+end
+
+function ActorRenderer:frameWidth()
+  local path = self:imagePath()
+  if not path then return nil end
+  local image = loadImage(self.mod, path)
+  if not image then return nil end
+  return (image:getDimensions())
+end
+
+--- The width the sprite is actually drawn at: the sheet's own width times the size
+--- gen3-hd-sprites draws it at (its Species Sizes factor; 1 without that mod).
+--- Spacing a follower out from the player goes by this, not by the sheet.
+function ActorRenderer:visualWidth()
+  local path = self:imagePath()
+  local w = self:frameWidth()
+  if not (path and w) then return w end
+  return w * HdField.scaleOfPath(self.mod, path)
+end
+
+--- A sheet's pixels (ImageData) for measuring its art: the per-file sheet first, then the
+--- atlas (lib/sprite_atlas.lua), like loadImage. nil when unreadable (no love context,
+--- missing sheet). Not cached: callers cache what they measure.
+function ActorRenderer.sheetData(mod, path)
+  if not (love and love.image and love.image.newImageData) then return nil end
+  local full = mod and mod.assets and type(mod.assets.path) == "function"
+    and select(2, pcall(mod.assets.path, mod.assets, path)) or path
+  local ok, d = pcall(love.image.newImageData, full)
+  if ok and d then return d end
+  if mod and SpriteAtlas.installed() then
+    local okA, a = pcall(SpriteAtlas.sheetData, mod, path)
+    if okA and a then return a end
+  end
+  return nil
+end
+
+--- The highest row (from a frame's top) that any frame of a sheet's art reaches, read
+--- from its pixels once and cached per sheet: `frameCount` frames stacked top to bottom.
+--- nil when the pixels cannot be read (no love context, missing sheet). Per-file sheet
+--- first, then the atlas (lib/sprite_atlas.lua), like loadImage.
+local artTopCache = {}
+function ActorRenderer.artTopOf(mod, path, frameCount)
+  local hit = artTopCache[path]
+  if hit ~= nil then return hit or nil end
+  artTopCache[path] = false
+  local data = ActorRenderer.sheetData(mod, path)
+  if not data then return nil end
+  local w, h = data:getDimensions()
+  local fh = math.floor(h / (frameCount or 18))
+  local bytes = data:getString()
+  local byte = string.byte
+  local best
+  for f = 0, (frameCount or 18) - 1 do
+    local limit = best or fh -- only rows above the best found so far can improve it
+    for y = 0, limit - 1 do
+      local row = ((f * fh + y) * w) * 4
+      local found = false
+      for x = 0, w - 1 do
+        if byte(bytes, row + x * 4 + 4) > 0 then found = true break end
+      end
+      if found then
+        if not best or y < best then best = y end
+        break
+      end
+    end
+  end
+  artTopCache[path] = best or false
+  return best
+end
+
+--- An HGSS / PokeMMO LAND sheet (true_size18/hgss): its frames carry empty rows under the
+--- feet, measured per sheet (artBottomPadOf). The water / levitating packs have their own
+--- fixed pad (SpriteSource.bottomPadFor). Pure; for testing.
+function ActorRenderer.isLandSheet(path)
+  return type(path) == "string" and path:find("/true_size18/hgss/", 1, true) ~= nil
+end
+
+--- The empty rows under the art at the bottom of a sheet's frames -- the fewest over every
+--- frame, so the lowest pose still touches the ground -- read from its pixels once and
+--- cached per sheet; nil when unreadable. Revival's sheets are cropped to the art and
+--- anchored at the feet; ours keep a 32 px frame, so without this they float 3-4 px.
+local artBottomCache = {}
+function ActorRenderer.artBottomPadOf(mod, path, frameCount)
+  local hit = artBottomCache[path]
+  if hit ~= nil then return hit or nil end
+  artBottomCache[path] = false
+  local data = ActorRenderer.sheetData(mod, path)
+  if not data then return nil end
+  local w, h = data:getDimensions()
+  local n = frameCount or 18
+  local fh = math.floor(h / n)
+  local bytes = data:getString()
+  local byte = string.byte
+  local best
+  for f = 0, n - 1 do
+    for y = fh - 1, 0, -1 do
+      if best and (fh - 1 - y) >= best then break end -- cannot beat what another frame found
+      local row = ((f * fh + y) * w) * 4
+      local found = false
+      for x = 0, w - 1 do
+        if byte(bytes, row + x * 4 + 4) > 0 then found = true break end
+      end
+      if found then
+        local pad = fh - 1 - y
+        if not best or pad < best then best = pad end
+        break
+      end
+    end
+  end
+  artBottomCache[path] = best or false
+  return best
+end
+
+--- The art's own size per facing ("down" / "up" / "left"; "right" is "left" mirrored): the
+--- union of the opaque pixels of every frame that facing shows (stand, walk, run), as
+--- { w, h, front, standFront } in sheet px, h from the art's top to its bottom, `front` how
+--- far the art reaches ahead of the frame's centre the way it faces over every frame (side
+--- views are seldom centred: a head sticks out further than a tail; the sheet faces left,
+--- right mirrors it), `standFront` the same for the stand frame alone (a walk can lunge
+--- further: Kyurem's walk 32, its stand 25). `bytes` = RGBA rows of a
+--- `w` x `h` sheet of `frameCount` frames stacked top to bottom. Pure (tested).
+function ActorRenderer.artBoxesFrom(bytes, w, h, frameCount)
+  local n = frameCount or 18
+  local fh = math.floor(h / n)
+  local layout = FRAME_COUNT_TO_TABLE[n] or FRAME_INDEX_18
+  local byte = string.byte
+  local out = {}
+  for _, facing in ipairs({ "down", "up", "left" }) do
+    local seen, x0, x1, y0, y1, standX0 = {}, nil, nil, nil, nil, nil
+    local stand = layout[facing].stand
+    for _, f in pairs(layout[facing]) do
+      if not seen[f] then
+        seen[f] = true
+        for y = 0, fh - 1 do
+          local row = ((f * fh + y) * w) * 4
+          for x = 0, w - 1 do
+            if byte(bytes, row + x * 4 + 4) > 0 then
+              if not x0 or x < x0 then x0 = x end
+              if not x1 or x > x1 then x1 = x end
+              if not y0 or y < y0 then y0 = y end
+              if not y1 or y > y1 then y1 = y end
+              if f == stand and (not standX0 or x < standX0) then standX0 = x end
+            end
+          end
+        end
+      end
+    end
+    if x0 then
+      out[facing] = { w = x1 - x0 + 1, h = y1 - y0 + 1, front = w / 2 - x0,
+        standFront = w / 2 - (standX0 or x0) }
+    end
+  end
+  out.right = out.left
+  return out
+end
+
+-- read from a sheet's pixels once and cached per sheet (false: unreadable)
+local artBoxCache = {}
+function ActorRenderer.artBoxesOf(mod, path, frameCount)
+  local hit = artBoxCache[path]
+  if hit ~= nil then return hit or nil end
+  artBoxCache[path] = false
+  local data = ActorRenderer.sheetData(mod, path)
+  if not data then return nil end
+  local w, h = data:getDimensions()
+  local boxes = ActorRenderer.artBoxesFrom(data:getString(), w, h, frameCount)
+  artBoxCache[path] = boxes
+  return boxes
+end
+
+--- The art's width, height and front reach (see artBoxesFrom) facing `facing`, as drawn
+--- (gen3-hd-sprites' size included): what a follower is spaced out by; `standing` = the
+--- reach of its stand frame (at rest), else of every frame. nil when the pixels cannot be
+--- read.
+function ActorRenderer:artSize(facing, standing)
+  local path = self:imagePath()
+  if not path then return nil, nil, nil end
+  local boxes = ActorRenderer.artBoxesOf(self.mod, path, self.frameCount or 18)
+  local b = boxes and boxes[facing or "down"]
+  if not b then return nil, nil, nil end
+  local k = HdField.scaleOfPath(self.mod, path) or 1
+  local front = (standing and b.standFront) or b.front or b.w / 2
+  return b.w * k, b.h * k, front * k
+end
+
+--- How far (px) a follower is kept back behind the player along `facing`, for art `artW` x
+--- `artH` reaching `front` ahead of its centre (as drawn) that way: Config.HGSS_FOLLOWER.
+--- Sideways it is the front that reaches toward the player. Pure (tested).
+function ActorRenderer.followerPush(facing, artW, artH, front, cfg)
+  cfg = cfg or Config.HGSS_FOLLOWER or {}
+  if facing == "down" then return cfg.down or 0 end
+  if facing == "up" then return math.max(0, (artH or 0) - CELL - (cfg.upOverlap or 0)) end
+  local reach = front or (artW or 0) / 2
+  return math.max(0, reach - CELL / 2) + (cfg.side or 0)
+end
+
+--- The rows a frame of `path` is drawn lower so its art stands on the ground: the water /
+--- levitating packs' fixed pad, else a land sheet's measured empty rows.
+function ActorRenderer.feetPadFor(mod, path, frameCount)
+  local pad = SpriteSource.bottomPadFor(path) or 0
+  if pad > 0 then return pad end
+  if ActorRenderer.isLandSheet(path) then return ActorRenderer.artBottomPadOf(mod, path, frameCount) or 0 end
+  return 0
+end
+
+--- How far above the tile's bottom edge the art reaches at its highest over every frame
+--- (px, as drawn, gen3-hd-sprites' size included): where things floating over it (the
+--- Sweet Scent hearts) start, so no pose covers them. A frame stands on the tile's bottom
+--- (anchorOffset), lowered by its baked bottom pad and, swimming, SWIM_DROP; the size
+--- grows about the feet. Falls back to the frame height when the pixels are unreadable.
+function ActorRenderer:headLift()
+  local path = self:imagePath()
+  local fh = self:frameHeight()
+  if not (path and fh) then return fh end
+  local top = ActorRenderer.artTopOf(self.mod, path, self.frameCount or 18) or 0
+  local k = HdField.scaleOfPath(self.mod, path) or 1
+  return (fh - top) * k - ActorRenderer.feetPadFor(self.mod, path, self.frameCount or 18) * k - ActorRenderer.swimDropFor(path)
+end
+
+--- The frame this sprite would draw at world (x, y), for its water reflection
+--- (lib/reflection.lua): mirrored about its feet (the frame's bottom, above any baked
+--- water padding), at the size it is shown at (gen3-hd-sprites grows it about the same
+--- point). nil while it is shrunk, sinking or a silhouette.
+--- How far a swimming sheet is drawn below its usual spot: Config.SWIM_DROP (the same
+--- lower-in-the-water look as PMDCollab's Config.PMD_SWIM_Y). Only the swimming pack;
+--- levitating art hovers and keeps its place. Pure; for testing.
+function ActorRenderer.swimDropFor(path)
+  if type(path) == "string" and path:find("/true_size18/swimming/", 1, true) then
+    return Config.SWIM_DROP or 0
+  end
+  return 0
+end
+
+function ActorRenderer:reflectionGeometry(x, y, facing, walkPhase)
+  if self.silhouette or (self.recall or 1) < 1 then return nil end
+  local act = self.act
+  if act and act.facing then facing = act.facing end
+  if act and (tonumber(act.sink) or 0) > 0 then return nil end
+  local path = self:imagePath()
+  local image = path and loadImage(self.mod, path)
+  if not image then return nil end
+  local frameIndex = ActorRenderer.frameIndexFor(facing, self.poseOverride or walkPhase, self.frameCount)
+  local quad = quadFor(path, image, frameIndex, self.frameCount)
+  if not quad then return nil end
+  local qx, qy, frameW, frameH = quad:getViewport()
+  local drawX, drawY, flipX = ActorRenderer.drawOffset(facing, frameW, frameH)
+  local pad = ActorRenderer.feetPadFor(self.mod, path, self.frameCount or 18)
+  drawY = drawY + pad + ActorRenderer.swimDropFor(path)
+  local pushX, pushY = self.pushX, self.pushY
+  if pushX == nil or pushY == nil then
+    pushX, pushY = ActorRenderer.behindOffset(facing, self.largePushback)
+  end
+  if act then pushX, pushY = pushX + (act.dx or 0), pushY + (act.dy or 0) end
+  local boxLeft = x + (flipX < 0 and drawX - frameW or drawX) + pushX
+  local bottom = y + drawY + pushY + frameH
+  local k = HdField.scaleOfPath(self.mod, path) or 1
+  return {
+    mod = self.mod, image = image,
+    qx = qx, qy = qy, qw = frameW, rows = frameH - pad,
+    left = boxLeft + frameW / 2 - frameW * k / 2, mirror = bottom - pad * k,
+    sx = flipX * k, sy = k,
+    alpha = ActorRenderer.alphaOf(self),
+  }
+end
+
+function ActorRenderer:draw(x, y, camX, camY, facing, walkPhase, _stepFlip)
+  -- a follower action scene (lib/follower_actions.lua) overrides the facing
+  -- and slides the sprite by a cosmetic pixel offset
+  local act = self.act
+  if act and act.facing then facing = act.facing end
+  local path = self:imagePath()
+  if not path then return end
+  local image = loadImage(self.mod, path)
+  if not image then return end
+  -- The follower's renderer is drawn through a path this mod does not
+  -- control the arguments of (src/world/game3/Follower.lua's `actor()`
+  -- computes a fresh `walkPhase` of plain 0/1 every frame, and that's what
+  -- reaches here) -- lib/follower_adapter.lua tracks its own A/B parity and
+  -- running state and hands the real pose through `poseOverride` instead,
+  -- since it owns this renderer instance directly. Wild-mon callers
+  -- (lib/spawn_manager.lua) never set this, so they're unaffected and
+  -- `walkPhase` there is already one of the POSE_* strings.
+  local pose = self.poseOverride or walkPhase
+  local frameIndex = ActorRenderer.frameIndexFor(facing, pose, self.frameCount)
+  local quad = quadFor(path, image, frameIndex, self.frameCount)
+  if not quad then return end
+
+  local _qx, _qy, frameW, frameH = quad:getViewport()
+  local drawX, drawY, flipX = ActorRenderer.drawOffset(facing, frameW, frameH)
+  drawY = drawY + ActorRenderer.feetPadFor(self.mod, path, self.frameCount or 18) -- the art's feet on the ground
+  drawY = drawY + ActorRenderer.swimDropFor(path) -- sits lower in the water
+  -- only the top of it showing, cut off at its feet' line (a Tropius's head above the
+  -- trees, lib/local_scenes.lua): `act.reveal` = how much of the art, top down
+  local reveal = act and tonumber(act.reveal)
+  if reveal then
+    if reveal <= 0 then return end
+    local pad = SpriteSource.bottomPadFor(path) or 0
+    local top = ActorRenderer.artTopOf(self.mod, path, self.frameCount or 18) or 0
+    local feet = frameH - pad
+    local rows = math.max(1, math.min(feet, math.floor(top + math.min(1, reveal) * (feet - top) + 0.5)))
+    local cut = quadFor(path, image, frameIndex, self.frameCount, rows)
+    if cut then
+      quad = cut
+      drawY = drawY + (feet - rows) -- the cut edge where its feet were
+      frameH = rows
+    end
+  end
+  -- A follower's offset is eased tick-by-tick by lib/follower_adapter.lua
+  -- (pushX/pushY) so a turn glides instead of snapping; anything that never
+  -- sets those falls back to the instantaneous per-facing value.
+  local pushX, pushY = self.pushX, self.pushY
+  if pushX == nil or pushY == nil then
+    pushX, pushY = ActorRenderer.behindOffset(facing, self.largePushback)
+  end
+
+  if act then pushX, pushY = pushX + (act.dx or 0), pushY + (act.dy or 0) end
+  -- ducking under an eave (a follower, lib/eave_duck.lua): moved down a little
+  pushY = pushY + (self.duckDy or 0) + (self.bobDy or 0) -- (bobDy: a swimmer bobbing)
+
+  -- recalled into the player (a Battler out of strength): shrink and slide
+  -- toward them; sinking into the ground: squash toward the feet
+  local mul, tint = 1, nil
+  local recall = self.recall
+  if recall ~= nil and recall < 1 then
+    if recall <= 0.02 then return end -- fully inside
+    if self.recallX and self.recallY then
+      x, y, mul = RecallMath.blend(recall, x, y, self.recallX, self.recallY, Config.PMD_RECALL_LIFT)
+    else
+      mul = RecallMath.ease(recall)
+    end
+    tint = 0.55 + 0.45 * mul
+  end
+  -- a flying Pokemon high up is drawn bigger (lib/sky_draw.lua), grown about its feet
+  local grow = act and tonumber(act.scale)
+  if grow and grow > 0 then mul = mul * grow end
+  local sink = act and tonumber(act.sink) or 0
+  -- ...and squashed toward its feet, a little wider
+  local duck = tonumber(self.duck) or 0
+  local wide = 1
+  if duck > 0 then
+    sink = 1 - (1 - sink) * (1 - duck)
+    wide = 1 + duck * (Config.FOLLOWER_DUCK and Config.FOLLOWER_DUCK.widen or 0)
+  end
+  if sink >= 1 then return end
+  local flash = act and tonumber(act.flash) or 0
+  if flash > 0 then tint = math.min(tint or 1, 1 - 0.6 * math.min(1, flash)) end
+
+  -- fading in (a follower walking out of a doorway, lib/follower_adapter.lua)
+  local alpha = ActorRenderer.alphaOf(self)
+  if alpha <= 0 then return end
+  local shade = self.shade -- a colour it is drawn through (a ghost's dusk tint, lib/local_scenes.lua)
+  if self.silhouette then
+    -- Multiply-tint to black, keeping the sheet's own alpha -- no pixel
+    -- remap needed: Gen 3's world already draws true-color, unshaded.
+    love.graphics.setColor(0, 0, 0, alpha)
+  elseif shade then
+    love.graphics.setColor(shade[1], shade[2], shade[3], alpha)
+  elseif tint then
+    love.graphics.setColor(1, tint, tint, alpha)
+  elseif alpha < 1 then
+    love.graphics.setColor(1, 1, 1, alpha)
+  end
+  if mul == 1 and sink <= 0 then
+    love.graphics.draw(image, quad, (x - camX) + drawX + pushX, (y - camY) + drawY + pushY, 0, flipX, 1)
+  else
+    -- scale about the bottom centre of the frame's box (its feet)
+    local boxLeft = (x - camX) + (flipX < 0 and drawX - frameW or drawX) + pushX
+    local boxTop = (y - camY) + drawY + pushY
+    love.graphics.draw(image, quad, boxLeft + frameW / 2, boxTop + frameH, 0,
+      flipX * mul * wide, mul * (1 - sink), frameW / 2, frameH)
+  end
+  if self.silhouette or shade or tint or alpha < 1 then
+    love.graphics.setColor(1, 1, 1, 1)
+  end
+end
+
+return ActorRenderer
