@@ -485,7 +485,10 @@ function EngineGb.install(hooks, log)
     originals.messageTick = Mod[field]
     Mod[field] = function(box, ...)
       local r1, r2 = originals.messageTick(box, ...)
-      safeCall(log, "followerTick", hooks.followerTick, a.game and a.game(EngineGb._world) or nil)
+      -- (a battle's text box too: nothing of the field runs under a battle)
+      if not EngineGb._battle then
+        safeCall(log, "followerTick", hooks.followerTick, a.game and a.game(EngineGb._world) or nil)
+      end
       return r1, r2
     end
   end
@@ -624,14 +627,16 @@ local function player()
   return w and w.player
 end
 
+-- one table, refilled on every call (called several times a tick: no garbage). Read it, do
+-- not keep it or write to it.
+local cell = {}
 function EngineGb.playerCell()
   local p = player()
   if not p or type(p.cellX) ~= "number" or type(p.cellY) ~= "number" then return nil end
-  return {
-    x = p.cellX, y = p.cellY, moving = p.moving == true,
-    targetX = p.targetX, targetY = p.targetY,
-    facing = type(p.facing) == "string" and p.facing or nil,
-  }
+  cell.x, cell.y, cell.moving = p.cellX, p.cellY, p.moving == true
+  cell.targetX, cell.targetY = p.targetX, p.targetY
+  cell.facing = type(p.facing) == "string" and p.facing or nil
+  return cell
 end
 
 function EngineGb.playerFacing()
@@ -672,9 +677,11 @@ function EngineGb.reachMover(_game)
   return nil
 end
 
+local surfState = { surfing = false, dismounting = false } -- (as playerCell: read, never kept)
 function EngineGb.playerSurfState()
   local a = A()
-  return { surfing = a ~= nil and a.isSurfing(EngineGb._world) == true, dismounting = false }
+  surfState.surfing = a ~= nil and a.isSurfing(EngineGb._world) == true
+  return surfState
 end
 
 function EngineGb.playerElevation() return 3 end

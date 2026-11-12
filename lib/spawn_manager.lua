@@ -425,7 +425,14 @@ function SpawnManager:_reactContext()
   self._reactCtx = ctx
   ctx.now, ctx.game, ctx.rng = self.ticks, self.game, math.random
   ctx.player = EnginePatch.playerCell and EnginePatch.playerCell()
-  ctx.lead = lead and { level = tonumber(lead.level), bst = bst and bst(tonumber(lead.species or lead.speciesId)) } or nil
+  if lead then
+    local l = ctx._lead or {}
+    ctx._lead = l
+    l.level, l.bst = tonumber(lead.level), bst and bst(tonumber(lead.species or lead.speciesId)) or nil
+    ctx.lead = l
+  else
+    ctx.lead = nil
+  end
   ctx.bst = bst
   ctx.safari, ctx.fleeChance = safari, EnginePatch.safariFleeChance
   ctx.canFly = ctx.canFly or function() return false end -- no sky to take off into
@@ -713,15 +720,18 @@ function SpawnManager:collectActors(actors, camX, camY)
       local pose = poseOf(e)
       -- a voxel card's stride (lib/voxel_sheets.lua): the step's own A / B
       if e.renderer then e.renderer.voxelStride = e.stepParity and "a" or "b" end
-      actors[#actors + 1] = {
-        kind = "wild_mon", i = id,
-        x = e.px, y = e.py, sortY = e.py, elevation = e.elevation,
-        facing = e.facing, walkPhase = pose,
-        renderer = e.renderer,
-        -- its step, for the engine's own grass rustle under it (Gen 2, lib/engine_patch.lua)
-        moving = e.moving == true, progress = e.progress, stepFrames = e.stepFrames,
-        targetX = e.targetX, targetY = e.targetY,
-      }
+      -- its actor: one table per Pokemon, refilled every frame (the draw lets go of it after)
+      local act = e._actor
+      if not act then
+        act = { kind = "wild_mon" }
+        e._actor = act
+      end
+      act.i, act.x, act.y, act.sortY, act.elevation = id, e.px, e.py, e.py, e.elevation
+      act.facing, act.walkPhase, act.renderer = e.facing, pose, e.renderer
+      -- its step, for the engine's own grass rustle under it (Gen 2, lib/engine_patch.lua)
+      act.moving, act.progress, act.stepFrames = e.moving == true, e.progress, e.stepFrames
+      act.targetX, act.targetY = e.targetX, e.targetY
+      actors[#actors + 1] = act
       if e.rings then
         local a = SpawnFx.ringsActor(e.rings.age, e.cellX * 16, e.cellY * 16, e.py, e.elevation, id)
         if a then actors[#actors + 1] = a end

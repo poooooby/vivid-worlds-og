@@ -11,9 +11,6 @@ treasure.*
 A mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp), for its Generation 1 and 2
 games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
-> [!NOTE]
-> **Early preview.** Every feature below is in all six games; expect a few rough edges.
-
 ## ✨ Features
 
 ### Core Mechanics

@@ -34,6 +34,12 @@ throwaway portable export of the engine: `git archive HEAD` without `mods/`, plu
 folders (`red/`, `gold/`, `crystal/` ...), a `portable.txt`, and this repo junctioned into
 `mods/vivid_worlds_og`. That keeps your real saves and mod settings untouched.
 
+Per-frame cost: `tests/drivers/p5_perf.lua` (`red` / `crystal`) walks a route with the partner out
+and the garbage collector stopped, and prints KB allocated and ms spent a frame per hook
+(`VWOG_PERF_DEEP=1`: per EnginePatch function and class method). At 1.0.0 the mod's hooks made
+about 0.8-0.9 KB and 0.05 ms a frame, most of it spawn / partner effects and the reachable
+area's one-off build on a map change.
+
 ## Layout
 
 - `lib/engine_patch.lua`: the only module that touches the engine's world internals. One API in

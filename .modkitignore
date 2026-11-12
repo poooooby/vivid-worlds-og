@@ -28,6 +28,7 @@ tests/drivers/p2_talk.lua
 tests/drivers/p2_voxel_fx.lua
 tests/drivers/p3_roles.lua
 tests/drivers/p4_extras.lua
+tests/drivers/p5_perf.lua
 tests/drivers/smoke.lua
 tests/emote_art_unit_test.lua
 tests/encounter_source_unit_test.lua
