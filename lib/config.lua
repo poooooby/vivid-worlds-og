@@ -60,14 +60,6 @@ Config.SPAWN_AMOUNT = {
   high = { min = 2, max = 12, tilesPer = 13 },   -- about one and a half times
 }
 
--- Sweet Scent used in the field while Show Wild Mons is on: instead of the engine's
--- instant wild battle, `min`..`max` wild Pokemon are called to free spawn cells
--- `minDist`..`maxDist` tiles from the player (the greater of the x / y distances). They
--- stay put, with rising hearts, for `lureTicks` (60 per second), then wander as usual;
--- a battle with one starts with the foe's evasion at `evasion` stages (-1 = 75%, like the
--- in-battle move). They come on top of the Spawn Amount target.
-Config.SWEET_SCENT = { min = 2, max = 3, minDist = 1, maxDist = 4, lureTicks = 3600, evasion = -1 }
-
 -- Wild Pokemon reacting to a player who runs or bikes close by (the Wild Reacts option,
 -- lib/wild_reactions.lua). 60 Hz ticks; distances in steps (tiles across + tiles up / down,
 -- so a diagonal counts as the steps it takes). Strength is level x base-stat total against the lead Pokemon's: under
@@ -224,54 +216,16 @@ Config.FORAGE = {
   blocklist = {},        -- extra item names to never find
 }
 
--- PMDCollab style (lib/pmd_renderer.lua). A PMD frame stands on the ground like
--- the player: centred on the 16px tile, its feet (the bake's `foot` line: where the
--- art rests most of the time) PMD_FEET_Y px below the tile's top edge -- 15, the
--- player's own feet, 1 px above the tile's bottom edge
--- (PmdRenderer.groundOf: a flyer hovering above its shadow keeps the hover). A non-flyer
--- whose art hovers over its shadow point is grounded on its art first
--- (SpriteSource.groundPmd). PMD_SCALE multiplies the art, and
--- PMD_WALK_SPEED multiplies the Walk animation clock (1 = the durations in
--- AnimData.xml). All three are meant to be tuned by eye in game.
-Config.PMD_SCALE = 1
--- The bake records a per-species upscale (HGSS true size / PMD height) in
--- index.json. It made big species look oversized, so it is OFF: every PMD
--- sprite draws at PMD_SCALE x 1. Set true to apply the baked scales again.
-Config.PMD_TRUE_SIZE = false
-Config.PMD_FEET_Y = 15
--- A swimming PMD sprite (lib/pmd_renderer.lua) stands on its WATERLINE, the bottom of
--- its foam bowl, instead of its feet: this many px below the tile's top edge.
+-- The HGSS / PokeMMO swimming sheets are drawn SWIM_DROP px lower than usual, so they sit in
+-- the water, not on it; PMD_SWIM_Y is the waterline a swimmer's effects (wakes, the recall)
+-- measure from, PMD_SWIM_Y px below the tile's top edge.
 Config.PMD_SWIM_Y = 18
--- The HGSS / PokeMMO swimming sheets are drawn this many px lower than usual, so they
--- sit as low in the water as a PMD swimmer (PMD_SWIM_Y).
 Config.SWIM_DROP = 4
-
--- Water reflections of wild Pokemon and the follower (lib/reflection.lua). The engine
--- recolours an NPC's reflection with a paler, bluer reflection palette; our art has
--- none, so each pixel is blended REFLECTION_MIX of the way toward REFLECTION_TINT.
--- OVERLAP: how far up the feet the mirrored image starts, like the engine's (2 px).
-Config.REFLECTION_TINT = { 0.78, 0.86, 1.0 }
-Config.REFLECTION_MIX = 0.45
-Config.REFLECTION_OVERLAP = 2
-Config.PMD_WALK_SPEED = 1
--- The PMDCollab follower's Walk plays this much faster while the player runs: its steps
--- take half the time then, and at the walking pace its legs looked slow for the ground it
--- covers. (HGSS / PokeMMO needs nothing: its frames follow each step, and run poses.)
-Config.PMD_FOLLOWER_RUN_ANIM = 2
--- Ticks the Walk animation keeps playing after movement stops, so the one-tick
--- gaps between chained steps do not flick the sprite to the Idle pose and back.
+-- Ticks a walk keeps playing after movement stops, so the one-tick gaps between chained steps
+-- do not flick the sprite to standing and back; PMD_WILD_IDLE_SPEED: how fast a wild
+-- Pokemon's idle loop plays (0.75 = slowed down by 25%).
 Config.PMD_WALK_LINGER = 8
--- The PMDCollab follower: extra px of space kept behind the player on top of
--- the sprite's own overhang (a sprite wider/taller than the 16px tile would
--- otherwise overlap the player), and how many ticks it rests on the Idle
--- loop's first frame after stopping before the loop starts (300 ticks = 5 s
--- of no movement at 60 Hz), and how fast that Idle loop then plays (0.5 =
--- half speed). Wild Pokemon have no delay but play Idle at PMD_WILD_IDLE_SPEED
--- (0.75 = slowed down by 25%).
--- Fastest the follower's offset may slide when the player changes direction,
--- in px per tick (small sprites turn slower than this anyway; a big one takes
--- longer instead of snapping)
-Config.PMD_FOLLOWER_TURN_SPEED = 1
+Config.PMD_WILD_IDLE_SPEED = 0.75
 -- Follower spacing (both sprite styles), from the art it shows the way it walks (px, as
 -- drawn; lib/actor_renderer.lua followerPush). Walking down it trails ABOVE the player and its art
 -- rises away from them: `down` px only. Walking up it trails below, drawn in front, its art
@@ -279,20 +233,10 @@ Config.PMD_FOLLOWER_TURN_SPEED = 1
 -- player's feet (it may cover their legs, never their head). Sideways: its overhang past
 -- the tile, plus `side`.
 Config.HGSS_FOLLOWER = { down = 0, upOverlap = 10, side = 0 }
--- A tall follower in front of a house ducks under its eave (lib/eave_duck.lua): down by up
--- to `nudge` px first, then squashed toward its feet for the rest, never below `minScale`
--- of its height (anything still over is cut by the eave as before); a little wider while
--- squashed (`widen` x the squash), easing in and out by `ease` of the way each tick.
--- While it crouches more than `sweatFrom` it sweats (lib/sweat_drop.lua): one drop for a light
--- crouch, up to `sweatMax` drops, cycling faster, the harder it is squashed.
+-- Crouching (lib/follower_adapter.lua _tickDuck, never triggered on the Game Boy field, which
+-- draws no eaves over characters): `ease` of the way each tick; while it crouches more than
+-- `sweatFrom` it sweats (lib/sweat_drop.lua), up to `sweatMax` drops.
 Config.FOLLOWER_DUCK = { nudge = 4, minScale = 0.5, widen = 0.15, ease = 0.2, sweatFrom = 0.03, sweatMax = 3 }
-Config.PMD_FOLLOWER_IDLE_DELAY = 300
-Config.PMD_FOLLOWER_IDLE_SPEED = 0.5
--- Resting on Idle's first frame, the follower is nudged so that frame's feet sit on its
--- ground line (PmdRenderer.restLift); once the loop plays the nudge eases out over this
--- many ticks instead of snapping.
-Config.PMD_REST_EASE_TICKS = 12
-Config.PMD_WILD_IDLE_SPEED = 0.75
 
 -- Follower interaction (lib/follower_interaction.lua, lib/interaction_limiter.lua).
 -- All times are real seconds.

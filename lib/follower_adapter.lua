@@ -358,30 +358,10 @@ function FollowerAdapter:_drawnOnWater(npc)
   return EnginePatch.isWater(cx, cy) == true
 end
 
---- PMDCollab has no swim art of its own: on a water tile the follower is drawn
---- swimming (cut off at its baked waterline with foam, lib/pmd_renderer.lua) and
---- trails the surfing player like the HGSS swim sprites do; a true flyer
---- (lib/pmd_water.lua) is drawn whole. Only art without waterline data (an old
---- bake) falls back to the recall: while the player surfs the follower shrinks
---- into them and grows back out once they walk on land. It stays in until the
---- FOLLOWER itself is off the water too (it trails a step or two behind, so it
---- would otherwise reappear standing on a water tile).
+--- When the partner shrinks into the player (its ball): on a bike, in a cutscene, through a
+--- doorway ... (each reason below). On the water it swims with its own HGSS swim sprite.
 function FollowerAdapter:_tickRecall(npc, r)
-  local recalled = false
-  local swims = r.isPmd and r.canSwim and r:canSwim()
-  if swims then
-    local onWater = self:_drawnOnWater(npc)
-    r.swimming = onWater and not SpriteSource.pmdFlies(r.dex)
-  elseif r.isPmd then
-    -- only PMD needs it while surfing: the HGSS art has its own swim sprites
-    local surf = EnginePatch.playerSurfState and EnginePatch.playerSurfState()
-    recalled = surf ~= nil and surf.surfing and not surf.dismounting
-    if not recalled and self.wasRecalled then
-      local overWater = EnginePatch.isWater(npc.cellX, npc.cellY)
-        or (npc.moving and npc.targetX ~= nil and EnginePatch.isWater(npc.targetX, npc.targetY))
-      recalled = overWater == true
-    end
-  end
+  local recalled = false -- the HGSS art has its own swim sprites: nothing shrinks in for the water
   self.wasRecalled = recalled
   -- on a bike the companion rides in its ball (any art style) until the player gets off;
   -- its role (Forage, Battle) pauses meanwhile, like while surfing
@@ -423,11 +403,6 @@ end
 
 -- the art's width as drawn (px), for which columns of tiles it spans
 local function drawnWidth(r)
-  if r.isPmd then
-    local PmdRenderer = V.require("pmd_renderer")
-    local w = PmdRenderer.contentSize(r.info, r.hdScale and r:hdScale() or 1)
-    return (w and w > 0) and w or CELL
-  end
   return (r.visualWidth and r:visualWidth()) or CELL
 end
 
@@ -700,69 +675,6 @@ function FollowerAdapter:tick()
   if not emerging then scene = self:_tickAction() or self:_tickBehavior(npc) end
   self.sceneNow = scene
 
-  -- PMDCollab: the renderer animates itself from a tick clock (Walk while
-  -- the follower steps, Idle while it stands) -- none of the pose, grass
-  -- pushback or glide handling below applies to it.
-  if self.renderer.isPmd then
-    local r = self.renderer
-    if r.idleDelay ~= Config.PMD_FOLLOWER_IDLE_DELAY then
-      -- first tick of a new sprite: it waits the full delay before idling too
-      r.idleDelay = Config.PMD_FOLLOWER_IDLE_DELAY
-      if r.anim == "idle" then r.idleHold, r.restEase = r.idleDelay, 1 end
-    end
-    r.idleSpeed = Config.PMD_FOLLOWER_IDLE_SPEED
-    local moving = npc.moving or false
-    if scene then
-      -- a scene drives the animation: Walk while it runs, a quick Idle for Pet
-      moving = scene.moving == true
-      if scene.bounce then
-        r.idleHold, r.idleSpeed = 0, scene.idleSpeed or 1
-      end
-    end
-    -- running: the Walk at double pace, as fast as its steps -- the one-tick "not moving"
-    -- gaps between chained steps included, where the Walk lingers (a scene sets its own)
-    local walking = moving or r.anim == "walk"
-    local runMul = (walking and EnginePatch.playerIsRunning()) and (Config.PMD_FOLLOWER_RUN_ANIM or 1) or 1
-    if scene then r.walkMul = scene.walkMul or 1 else r.walkMul = runMul end
-    if scene and scene.anim and scene.anim ~= "idle" then
-      r:advanceAs(scene.anim, scene.animSpeed)
-    else
-      r:advance(moving)
-    end
-    -- Space it out by the art it shows the way it walks, the same rule as the HGSS
-    -- style below (ActorRenderer.followerPush): none walking down (it trails above, its
-    -- art rising away from the player), its height above the tile walking up (it trails
-    -- below, drawn in front), sideways how far its head reaches ahead of its tile
-    -- (measured: side views are seldom centred). Eased so a turn glides.
-    local PmdRenderer = V.require("pmd_renderer")
-    local cw = PmdRenderer.contentSize(r.info, r:hdScale())
-    local push = ActorRenderer.followerPush(npc.facing, cw, r:headLift(), r:frontReach(npc.facing))
-    local tx, ty = ActorRenderer.behindOffset(npc.facing, push)
-    if not Config.smoothFollow(self.mod) then
-      -- Smooth Follow off: spaced out the same, but no glide -- it snaps to its place
-      -- behind the player on a turn, step for step like the original games
-      r.pushX, r.pushY, r.pushPlaced = tx, ty, true
-      self:_tickRecall(npc, r)
-      return
-    end
-    -- a turn takes the same time for every sprite, which makes a big one's
-    -- offset race across the screen: cap the speed so it glides instead
-    -- (the speed goes by the larger of the new push and the offset it is leaving, never
-    -- by the new push alone: a small sprite facing down has a push of 0, which would
-    -- make the speed 0 and leave it stuck off to the side after a sideways turn)
-    local travel = math.max(push, math.abs(r.pushX or 0), math.abs(r.pushY or 0))
-    -- (with a floor, so it lands exactly instead of easing toward the target forever)
-    local maxStep = math.min(math.max((travel * 2) / FollowerAdapter.STEP_TICKS, 0.25), Config.PMD_FOLLOWER_TURN_SPEED)
-    if r.pushPlaced then
-      r.pushX = ActorRenderer.approach(r.pushX, tx, maxStep)
-      r.pushY = ActorRenderer.approach(r.pushY, ty, maxStep)
-    else
-      r.pushX, r.pushY, r.pushPlaced = tx, ty, true -- a new sprite starts in place
-    end
-    self:_tickRecall(npc, r)
-    return
-  end
-
   -- Alternates walkA/walkB (or runA/runB) once per STEP, on the
   -- not-moving -> moving edge -- not every tick -- mirroring
   -- lib/behavior.lua's own entity.stepParity toggle for wild Pokemon.
@@ -883,22 +795,6 @@ function FollowerAdapter:_tickRipple(npc)
   self.rippleX, self.rippleY = cx, cy
   if npc.hidden or self:isRecalled() then return end
   if EnginePatch.ripplesAt and EnginePatch.ripplesAt(cx, cy) then EnginePatch.startRipple(cx, cy) end
-end
-
---- The follower's water reflection, for lib/reflection.lua (the drawBehind hook).
-function FollowerAdapter:reflections(list)
-  local npc = EnginePatch.followerCurrent()
-  local r = self.renderer
-  if not (npc and r and r.reflectionGeometry) or npc.hidden then return end
-  local geo = r:reflectionGeometry(npc.px or npc.cellX * CELL, npc.py or npc.cellY * CELL,
-    npc.facing, ActorRenderer.POSE_STAND)
-  if not geo then return end
-  local moving = npc.moving and npc.targetX ~= nil
-  list[#list + 1] = {
-    geo = geo,
-    cell = { cx = moving and npc.targetX or npc.cellX, cy = moving and npc.targetY or npc.cellY,
-             pcx = npc.cellX, pcy = npc.cellY },
-  }
 end
 
 function FollowerAdapter:collectActors(actors)

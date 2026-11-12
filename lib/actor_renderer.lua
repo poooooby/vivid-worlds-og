@@ -537,39 +537,6 @@ function ActorRenderer.swimDropFor(path)
   return 0
 end
 
-function ActorRenderer:reflectionGeometry(x, y, facing, walkPhase)
-  if self.silhouette or (self.recall or 1) < 1 then return nil end
-  local act = self.act
-  if act and act.facing then facing = act.facing end
-  if act and (tonumber(act.sink) or 0) > 0 then return nil end
-  local path = self:imagePath()
-  local image = path and loadImage(self.mod, path)
-  if not image then return nil end
-  local pose = self.poseOverride or walkPhase
-  local frameIndex = ActorRenderer.frameIndexFor(facing, pose, self.frameCount)
-  local quad = quadFor(path, image, frameIndex, self.frameCount)
-  if not quad then return nil end
-  local qx, qy, frameW, frameH = quad:getViewport()
-  local drawX, drawY, flipX = ActorRenderer.drawOffset(offsetFacing(self.frameCount, facing, pose), frameW, frameH)
-  local pad = ActorRenderer.feetPadFor(self.mod, path, self.frameCount or 18)
-  drawY = drawY + pad + ActorRenderer.swimDropFor(path)
-  local pushX, pushY = self.pushX, self.pushY
-  if pushX == nil or pushY == nil then
-    pushX, pushY = ActorRenderer.behindOffset(facing, self.largePushback)
-  end
-  if act then pushX, pushY = pushX + (act.dx or 0), pushY + (act.dy or 0) end
-  local boxLeft = x + (flipX < 0 and drawX - frameW or drawX) + pushX
-  local bottom = y + drawY + pushY + frameH
-  local k = HdField.scaleOfPath(self.mod, path) or 1
-  return {
-    mod = self.mod, image = image,
-    qx = qx, qy = qy, qw = frameW, rows = frameH - pad,
-    left = boxLeft + frameW / 2 - frameW * k / 2, mirror = bottom - pad * k,
-    sx = flipX * k, sy = k,
-    alpha = ActorRenderer.alphaOf(self),
-  }
-end
-
 function ActorRenderer:draw(x, y, camX, camY, facing, walkPhase, _stepFlip)
   -- a follower action scene (lib/follower_actions.lua) overrides the facing
   -- and slides the sprite by a cosmetic pixel offset
@@ -596,22 +563,6 @@ function ActorRenderer:draw(x, y, camX, camY, facing, walkPhase, _stepFlip)
   local drawX, drawY, flipX = ActorRenderer.drawOffset(offsetFacing(self.frameCount, facing, pose), frameW, frameH)
   drawY = drawY + ActorRenderer.feetPadFor(self.mod, path, self.frameCount or 18) -- the art's feet on the ground
   drawY = drawY + ActorRenderer.swimDropFor(path) -- sits lower in the water
-  -- only the top of it showing, cut off at its feet' line (a Tropius's head above the
-  -- trees, lib/local_scenes.lua): `act.reveal` = how much of the art, top down
-  local reveal = act and tonumber(act.reveal)
-  if reveal then
-    if reveal <= 0 then return end
-    local pad = SpriteSource.bottomPadFor(path) or 0
-    local top = ActorRenderer.artTopOf(self.mod, path, self.frameCount or 18) or 0
-    local feet = frameH - pad
-    local rows = math.max(1, math.min(feet, math.floor(top + math.min(1, reveal) * (feet - top) + 0.5)))
-    local cut = quadFor(path, image, frameIndex, self.frameCount, rows)
-    if cut then
-      quad = cut
-      drawY = drawY + (feet - rows) -- the cut edge where its feet were
-      frameH = rows
-    end
-  end
   -- A follower's offset is eased tick-by-tick by lib/follower_adapter.lua
   -- (pushX/pushY) so a turn glides instead of snapping; anything that never
   -- sets those falls back to the instantaneous per-facing value.

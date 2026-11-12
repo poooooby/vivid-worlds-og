@@ -634,9 +634,6 @@ do
   check(I({ px = 240 + 127, py = 0 }, 0, 0, 240, 160), "just inside the margin past the right edge: drawn")
   check(not I({ px = 240 + 128, py = 0 }, 0, 0, 240, 160), "at the margin: not drawn")
   check(I({ px = 0, py = -127 }, 0, 0, 240, 160), "a big sprite whose feet are just above the view: drawn")
-  local refl = {}
-  smV:reflections(refl, 5000, 5000)
-  eq(#refl, 0, "no reflections for Pokemon out of view")
   fakeEngine.viewSize = nil
 end
 

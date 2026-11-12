@@ -237,10 +237,19 @@ local function buildProxies(world, hooks, pipeline)
     p.moving = false
     -- the main sprite of a wild Pokemon stands on a cell: the engine covers its feet when
     -- that cell is grass (Gen 1 queueGrass reads cellX/cellY; Gen 2 reads inGrass)
+    p.grassShake, p.progress, p.stepFrames = nil, nil, nil
     if act.kind == "wild_mon" then
       local cx, cy = math.floor(((act.x or 0) + CELL / 2) / CELL), math.floor(((act.y or 0) + CELL / 2) / CELL)
       p.cellX, p.cellY = cx, cy
       p.inGrass = map ~= nil and map.isGrassCell ~= nil and map:isGrassCell(cx, cy) == true
+      -- Gen 2: a wild Pokemon stepping into tall grass rustles it, drawn by the engine itself
+      -- (World:drawGrassShake reads grassShake / moving / progress / stepFrames, the way an
+      -- NPC's NormalStep sets them); Gen 1 has no grass rustle
+      if gen == 2 and act.moving and act.targetX and map and map.isGrassCell
+          and map:isGrassCell(act.targetX, act.targetY) == true then
+        p.grassShake, p.moving = true, true
+        p.progress, p.stepFrames = act.progress or 0, act.stepFrames
+      end
     else
       p.cellX, p.cellY, p.inGrass = nil, nil, false
     end
@@ -560,6 +569,24 @@ function EngineGb.playerBiking()
   return a ~= nil and a.isBiking(EngineGb._world) == true
 end
 
+--- Where the reachable area (lib/reachability.lua) starts: the player's cell, and whether they
+--- surf (a surfer can cross water). nil when there is no player.
+function EngineGb.reachStart()
+  local p = EngineGb.playerCell()
+  if not p then return nil end
+  return { x = p.x, y = p.y, state = { surfing = EngineGb.playerSurfState().surfing == true } }
+end
+
+--- The running generation's step function for lib/reachability.lua (lib/gb/gen1.lua /
+--- gen2.lua reachMover), or nil (no map yet, or an engine without the rules).
+function EngineGb.reachMover(_game)
+  local a = A()
+  if not (a and a.reachMover) then return nil end
+  local ok, move = pcall(a.reachMover, EngineGb._world)
+  if ok and type(move) == "function" then return move end
+  return nil
+end
+
 function EngineGb.playerSurfState()
   local a = A()
   return { surfing = a ~= nil and a.isSurfing(EngineGb._world) == true, dismounting = false }
@@ -745,7 +772,29 @@ function EngineGb.repelAllows(level)
 end
 
 function EngineGb.isSweetScentFacility() return false end
-function EngineGb.safariActive() return false end
+--- In a Gen 1 Safari Zone visit (lib/gb/gen1.lua): the Battler leaves its Pokemon be.
+function EngineGb.safariActive()
+  local a = A()
+  if not (a and a.safariActive) then return false end
+  local ok, yes = pcall(a.safariActive, EngineGb._world)
+  return ok and yes == true
+end
+
+--- A type's plain name ("WATER", "PSYCHIC") for lib/finisher_fx.lua and the type effects. The
+--- Game Boy data spells two types with a suffix (PSYCHIC_TYPE, CURSE_TYPE: pokered / pokecrystal
+--- constants); a non-string (no type) is nil, which reads as NORMAL.
+function EngineGb.typeName(t)
+  if type(t) ~= "string" then return nil end
+  return (t:upper():gsub("_TYPE$", ""))
+end
+
+--- No visible spawns right now (Gen 2's Bug-Catching Contest, lib/gb/gen2.lua).
+function EngineGb.spawnsPaused()
+  local a = A()
+  if not (a and a.spawnsPaused) then return false end
+  local ok, yes = pcall(a.spawnsPaused, EngineGb._world)
+  return ok and yes == true
+end
 
 --- The wild battle against `enc` (the spawn's own species / level / DVs).
 function EngineGb.startWild(_game, enc, opts)

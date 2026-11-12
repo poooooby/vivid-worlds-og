@@ -212,57 +212,6 @@ local function faceToward(x, y, tx, ty)
   return dy < 0 and "up" or "down"
 end
 
---- Sweet Scent used in the field (engine_patch's `sweetScent` hook, in place of the
---- engine's instant wild battle): calls Config.SWEET_SCENT.min..max wild Pokemon to free
---- spawn cells minDist..maxDist tiles from the player, rolled the way the engine's Sweet
---- Scent rolls (no Repel check, as the engine's has none), lured -- staying put, facing
---- the player, hearts over them -- for lureTicks. Returns how many came, or nil when the
---- visible spawns are not in charge here (option off, no encounters on this map): the
---- engine's own Sweet Scent then runs.
-function SpawnManager:sweetScent()
-  if not Config.enabled(self.mod) or not self.source:isEligible() then return nil end
-  local p = EnginePatch.playerCell and EnginePatch.playerCell()
-  if not p then return nil end
-  local cfg = Config.SWEET_SCENT
-  local cells = {}
-  for _, terrain in ipairs({ "land", "water" }) do
-    for _, c in ipairs(self.source:eligibleCells(terrain)) do
-      local d = math.max(math.abs(c.x - p.x), math.abs(c.y - p.y))
-      if d >= cfg.minDist and d <= cfg.maxDist and self:_cellFree(c.x, c.y) then
-        cells[#cells + 1] = { x = c.x, y = c.y, terrain = terrain }
-      end
-    end
-  end
-  for i = #cells, 2, -1 do -- shuffle
-    local j = math.random(1, i)
-    cells[i], cells[j] = cells[j], cells[i]
-  end
-  local want, came = math.random(cfg.min, cfg.max), 0
-  for _, c in ipairs(cells) do
-    if came >= want then break end
-    if self:_cellFree(c.x, c.y) then
-      local enc = EnginePatch.rollSweetScent(self.mapId, c.terrain)
-      if enc and not (enc.roamer and self:_roamerOut()) then
-        if enc.personality == nil then enc.personality = EnginePatch.randomPersonality() end
-        enc = ModernSpawns.apply(self.mapId, c.terrain, enc)
-        -- other mods' species swaps (lib/spawn_filters.lua): see what you fight
-        enc = SpawnFilters.apply(self.mapId, c.terrain, enc, true)
-        local id = self.nextId
-        if self:_place(c.terrain, c, enc) then
-          local e = self.entities[id]
-          if e then
-            e.lured = { ticks = cfg.lureTicks, age = 0 }
-            e.moving = false
-            e.facing = faceToward(c.x, c.y, p.x, p.y)
-          end
-          came = came + 1
-        end
-      end
-    end
-  end
-  return came
-end
-
 function SpawnManager:_cellFree(x, y)
   for _, e in pairs(self.entities) do
     if e.cellX == x and e.cellY == y then return false end
@@ -362,18 +311,8 @@ function SpawnManager:_place(terrain, cell, enc, keepShiny)
   }
   local e = self.entities[id]
   self.order[#self.order + 1] = id
-  -- after the map's first fill, a new Pokemon rises out of the grass / surfaces / fades
-  -- in -- or, a Flying type with the sky open, swoops down onto its cell
-  if self.filled then
-    if self.sky and self.sky:canFly(e) and self.sky:clearOfPlayer(e.cellX, e.cellY) then
-      e.fx = self.sky:planArrival(e)
-    elseif self.underwater and self.water and self.water:canSwim(e) then
-      -- under the sea a fish swims in as a shadow and takes shape (lib/water_life.lua)
-      e.fx = self.water:planArrival(e)
-    else
-      self:_startFx(e, "appear")
-    end
-  end
+  -- after the map's first fill, a new Pokemon rises out of the grass / surfaces / fades in
+  if self.filled then self:_startFx(e, "appear") end
   return true
 end
 
@@ -446,6 +385,8 @@ end
 --- usual full map returns after a count, and a spawn picks a cell straight from the
 --- source's filtered list.
 function SpawnManager:refill(terrain)
+  -- the Bug-Catching Contest's park keeps to the contest's own encounters
+  if EnginePatch.spawnsPaused and EnginePatch.spawnsPaused() then return end
   local count = self.source:eligibleCount(terrain)
   if count == 0 then return end
   local want = targetCount(count, (Config.spawnAmount(self.mod)))
@@ -478,9 +419,7 @@ function SpawnManager:_reactContext()
   ctx.player = EnginePatch.playerCell and EnginePatch.playerCell()
   ctx.lead = lead and { level = tonumber(lead.level), bst = bst and bst(tonumber(lead.species or lead.speciesId)) } or nil
   ctx.bst = bst
-  ctx.canFly = ctx.canFly or function(e)
-    return self.sky ~= nil and self.sky:canFly(e)
-  end
+  ctx.canFly = ctx.canFly or function() return false end -- no sky to take off into
   ctx.occupied = ctx.occupied or function(x, y, me)
     for _, o in pairs(self.entities) do
       if o ~= me and o.state ~= Config.STATE.DESPAWNED
@@ -696,16 +635,6 @@ function SpawnManager:tick(game)
         e.charging = nil
         r:advance(e.moving)
       end
-      -- a Flying type that has been on the ground a while takes off (a fresh spawn,
-      -- maybe another one swooping in, takes its place)
-      if e.groundStay and not lure and not e.react then
-        e.groundAge = e.groundAge + 1
-        if e.groundAge >= e.groundStay and not e.moving and self.sky and self.sky:canFly(e)
-          and self.sky:clearOfPlayer(e.cellX, e.cellY) then
-          gone = gone or {}
-          gone[#gone + 1] = { takeoff = id }
-        end
-      end
     elseif e and e.engaged and e.moving then
       -- caught mid-step: it finishes the step (the Battler planned for the cell it
       -- lands on), then stands its ground
@@ -747,29 +676,6 @@ local function inView(e, camX, camY, vw, vh)
 end
 SpawnManager._inView = inView
 
---- Every live wild Pokemon's water reflection, for lib/reflection.lua (the
---- drawBehind hook). Off-screen ones are skipped when the camera is given.
-function SpawnManager:reflections(list, camX, camY)
-  local vw, vh = 240, 160
-  if camX ~= nil and EnginePatch.viewSize then vw, vh = EnginePatch.viewSize() end
-  for _, id in ipairs(self.order) do
-    local e = self.entities[id]
-    local r = e and e.state ~= Config.STATE.DESPAWNED and not travelling(e)
-      and inView(e, camX, camY, vw, vh) and e.renderer
-    if r and r.reflectionGeometry then
-      local geo = r:reflectionGeometry(e.px, e.py, e.facing, poseOf(e))
-      if geo then
-        local moving = e.moving and e.targetX ~= nil
-        list[#list + 1] = {
-          geo = geo,
-          cell = { cx = moving and e.targetX or e.cellX, cy = moving and e.targetY or e.cellY,
-                   pcx = e.cellX, pcy = e.cellY },
-        }
-      end
-    end
-  end
-end
-
 function SpawnManager:collectActors(actors, camX, camY)
   local vw, vh = 240, 160
   if camX ~= nil and EnginePatch.viewSize then vw, vh = EnginePatch.viewSize() end
@@ -803,6 +709,9 @@ function SpawnManager:collectActors(actors, camX, camY)
         x = e.px, y = e.py, sortY = e.py, elevation = e.elevation,
         facing = e.facing, walkPhase = pose,
         renderer = e.renderer,
+        -- its step, for the engine's own grass rustle under it (Gen 2, lib/engine_patch.lua)
+        moving = e.moving == true, progress = e.progress, stepFrames = e.stepFrames,
+        targetX = e.targetX, targetY = e.targetY,
       }
       if e.rings then
         local a = SpawnFx.ringsActor(e.rings.age, e.cellX * 16, e.cellY * 16, e.py, e.elevation, id)
@@ -1069,18 +978,7 @@ function SpawnManager:despawn(id, opts)
     end
     e.state = Config.STATE.LEAVING
     e.lured, e.react = nil, nil
-    -- (`opts.fly`: a startled bird takes off even right by the player, flying away from them)
-    if self.underwater and self.water and self.water:canSwim(e) and not e.engaged then
-      -- under the sea a fish fades back to a shadow and swims off
-      e.fx = self.water:planDeparture(e)
-    elseif self.sky and self.sky:canFly(e) and not e.engaged
-      and (opts.fly or self.sky:clearOfPlayer(e.cellX, e.cellY)) then
-      -- a Flying type takes off from its cell and flies away
-      self:_liftEffects(e)
-      e.fx = self.sky:planDeparture(e)
-    else
-      self:_startFx(e, "leave")
-    end
+    self:_startFx(e, "leave")
     return
   end
   if travelling(e) then

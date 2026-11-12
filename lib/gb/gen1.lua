@@ -1008,4 +1008,62 @@ function Gen1.displayName(mon)
   return type(mon.species) == "string" and mon.species or "POKeMON"
 end
 
+-- ------------------------------------------------------------------ Safari Zone
+--- In a Safari Zone visit (the same test Gen1.startWild uses to make a battle a Safari one):
+--- wild Pokemon still show and battle as Safari Pokemon, but the Battler leaves them be.
+function Gen1.safariActive(ow)
+  local Game = Gen1.game()
+  local Map = load("src.world.Map")
+  local def = ow and ow.map and ow.map.def
+  if not (Game and Game.save and Game.save.safari and Map and Map.inRegion and def) then return false end
+  local ok, inside = pcall(Map.inRegion, def, "SAFARI", "SAFARI_ZONE")
+  return ok and inside == true
+end
+
+-- ------------------------------------------------------------------ reachable area
+-- A step function for lib/reachability.lua over Red / Blue / Yellow's own movement rules
+-- (Collision's verdict, minus the entities, and OverworldState:checkLedgeHop):
+--   * a step lands on a walkable cell (water too while the player surfs) and does not cross a
+--     blocked tile pair (the cave / forest elevation edges, Collision.pairBlocked);
+--   * a step onto a ledge tile hops TWO cells, exactly where the engine's ledge table
+--     (data.field.ledges: tileset, facing, standing tile, ledge tile) lets the player jump;
+--   * a warp cell is a hole: stepping on it leaves the map, so nothing behind it is reached.
+-- Surfing is the start state's: a player already on the water can cross it.
+local DELTA = { up = { 0, -1 }, down = { 0, 1 }, left = { -1, 0 }, right = { 1, 0 } }
+
+function Gen1.reachMover(ow)
+  local map = ow and ow.map
+  if not (map and map.inBounds and map.isWalkableCell and map.cellTile and map.def) then return nil end
+  local Collision = load("src.world.Collision")
+  local pairBlocked = Collision and Collision.pairBlocked
+  local data = Gen1.data()
+  local ledges = data and data.field and data.field.ledges or {}
+  local tileset = map.def.tileset
+  local function floor(x, y, surfing)
+    if not map:inBounds(x, y) then return false end
+    if map.warpAtCell and map:warpAtCell(x, y) then return false end
+    if map:isWalkableCell(x, y) then return true end
+    return surfing == true and map.isWaterCell ~= nil and map:isWaterCell(x, y)
+  end
+  return function(x, y, dir, state)
+    local d = DELTA[dir]
+    if not d then return nil end
+    local surfing = state and state.surfing
+    local tx, ty = x + d[1], y + d[2]
+    if not map:inBounds(tx, ty) then return nil end
+    local standing, front = map:cellTile(x, y), map:cellTile(tx, ty)
+    for _, ledge in ipairs(ledges) do
+      if (ledge.tileset or "OVERWORLD") == tileset and ledge.facing == dir and ledge.input == dir
+          and ledge.standingTile == standing and ledge.ledgeTile == front then
+        local lx, ly = tx + d[1], ty + d[2]
+        if floor(lx, ly, false) then return lx, ly, state end
+        return nil
+      end
+    end
+    if not floor(tx, ty, surfing) then return nil end
+    if pairBlocked and pairBlocked(map, { surfing = surfing }, x, y, tx, ty) then return nil end
+    return tx, ty, state
+  end
+end
+
 return Gen1

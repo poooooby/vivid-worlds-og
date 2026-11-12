@@ -22,7 +22,10 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 - 🦌 **Wild Pokémon in the overworld:** Areas with wild encounters fill with visible Pokémon
   wandering the grass and swimming the water. Walk onto one to battle it, the very Pokémon you
-  saw.
+  saw. On land they only appear where you can actually walk to: never in a cave pocket you can't
+  get into or on the far side of a ledge you can't climb.
+- 🌾 **The grass moves:** In Gold, Silver and Crystal the tall grass rustles as wild Pokémon walk
+  through it.
 - 🌿 **They arrive, they don't pop in:** new Pokémon rise out of the grass, surface from the
   water, or fade in on bare ground, and leave the same way.
 - 🎲 **Classic encounters, your call:** Keep the original step-based encounters in grass, caves
@@ -49,8 +52,8 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - 🎨 **Two sprite styles:** **HGSS** sprites at true size, every species and form at its own
   size so a Snorlax towers over a Rattata, or **GSC** sprites, one tile each like the original
   games (705 species; any it lacks, or a shiny it has no art for, shows its HGSS sprite).
-- 🧊 **3D worlds:** In TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2's 3D worlds, wild
-  Pokémon and your partner stand as cards of their own size.
+- 🧊 **3D worlds:** In TERRARIUM, Battle Art (Gen 1 and 2), Potato, Dramaless and Stadium 2's 3D
+  worlds, wild Pokémon and your partner stand as cards of their own size.
 - 🌑 **Silhouettes:** Optionally hide species you haven't caught as dark shapes.
 
 ## ⚙️ Options
@@ -87,6 +90,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 ## 📌 Good to Know
 
+- In the Safari Zone, wild Pokémon battle as Safari Pokémon, and your Battler leaves them be.
+- During the Bug-Catching Contest, the National Park has no visible wild Pokémon: the contest's
+  own encounters run as in the game.
 - In Gold, Silver and Crystal your partner follows you, but its roles, Pet / Play / Talk and
   the wild reactions are not there yet.
 

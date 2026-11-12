@@ -306,7 +306,7 @@ return function(mod)
 
   mod.exports.engineReady = true
 
-  -- A 3D world mod (TERRARIUM, Potato Voxel, Dramaless, Stadium2) draws the world from engine
+  -- A 3D world mod (TERRARIUM, Battle Art, Potato Voxel, Dramaless, Stadium2) draws the world from engine
   -- sprites: our Pokemon go in as sheets baked from their own art (lib/voxel_sheets.lua), on
   -- cards of their own size (lib/compat/: one adapter per provider over one shared
   -- SpriteBillboards wrap)
@@ -325,6 +325,8 @@ return function(mod)
   local VOXEL_ADAPTERS = {
     "compat/terrarium_variable_geometry", "compat/potato_voxel_variable_geometry",
     "compat/dramaless_variable_geometry", "compat/stadium2_variable_geometry",
+    -- Battle Art keeps its own two (Wilds of Kanto Revival's): Gen 2's places cards by its halfWidth
+    "compat/battle_art_variable_geometry", "compat/battle_art_gen2_geometry",
   }
   -- each adapter installs only when its provider is loaded (absent -> nothing)
   local function voxelAdapters()

@@ -264,4 +264,57 @@ function Gen2.party(world)
   return save and save.party
 end
 
+-- ------------------------------------------------------------------ Bug-Catching Contest
+--- While the Bug-Catching Contest runs, the park's encounters are the contest's own (its table,
+--- Park Balls, one catch kept): no visible spawns (they would be ordinary wild battles there).
+function Gen2.spawnsPaused(world)
+  local BugContest = load("src.core.gen2.BugContest")
+  local save = Gen2.save(world)
+  if not (BugContest and BugContest.isActive and save) then return false end
+  local ok, active = pcall(BugContest.isActive, save)
+  return ok and active == true
+end
+
+-- ------------------------------------------------------------------ reachable area
+-- A step function for lib/reachability.lua over Gold / Silver / Crystal's own movement rules:
+-- Gold keeps its one-way rules in the COLLISION bytes (one-way UP_WALL edges, ledges), so a
+-- plain 4-neighbour fill fabricates most of a cave. Directed exactly like the engine's offline
+-- model (tools/goldwalk/mapgraph.lua) and Wilds of Kanto Revival's cave fill:
+--   * a step must pass `map:stepPermitted` and land on floor;
+--   * a step refused off a ledge tile hops TWO cells in a direction the ledge allows;
+--   * a cell is a HOLE only when it is BOTH a warp tile by collision AND has a warp event there
+--     (a warp event on plain floor never fires; a warp-collision tile with no event does nothing).
+-- Surf is not modelled (water is not floor); ice is plain floor (a real slide can only shrink it).
+local GOLD_DIRS = { up = { 0, -1 }, down = { 0, 1 }, left = { -1, 0 }, right = { 1, 0 } }
+
+function Gen2.reachMover(world)
+  local map = world and world.map
+  if not (map and type(map.stepPermitted) == "function" and type(map.cellCollision) == "function") then
+    return nil
+  end
+  local P = load("src.world.gen2.Permissions")
+  if not (P and P.isWalkable and P.ledgeFacings and P.isWarpCollision and P.carpetDirection) then return nil end
+  local function floor(x, y)
+    if map.inBounds and not map:inBounds(x, y) then return false end
+    local coll = map:cellCollision(x, y)
+    if not P.isWalkable(coll) then return false end
+    if P.isWarpCollision(coll) or P.carpetDirection(coll) ~= nil then
+      if type(map.warpAtCell) ~= "function" or map:warpAtCell(x, y) then return false end
+    end
+    return true
+  end
+  return function(x, y, dir, state)
+    local d = GOLD_DIRS[dir]
+    if not d then return nil end
+    local nx, ny = x + d[1], y + d[2]
+    if map:stepPermitted(x, y, dir) and floor(nx, ny) then return nx, ny, state end
+    local hop = P.ledgeFacings(map:cellCollision(x, y))
+    if hop and hop[dir] then
+      local hx, hy = x + d[1] * 2, y + d[2] * 2
+      if floor(hx, hy) then return hx, hy, state end
+    end
+    return nil
+  end
+end
+
 return Gen2

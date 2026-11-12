@@ -13,11 +13,13 @@
 
 # unit tests and engine tests
 tests/actor_renderer_unit_test.lua
+tests/battle_art_geometry_unit_test.lua
 tests/battle_trigger_unit_test.lua
 tests/behavior_unit_test.lua
 tests/cell_path_unit_test.lua
 tests/companion_unit_test.lua
 tests/config_unit_test.lua
+tests/drivers/p1_checks.lua
 tests/drivers/smoke.lua
 tests/encounter_source_unit_test.lua
 tests/engine_api_unit_test.lua
@@ -51,6 +53,7 @@ tests/partner_fx_unit_test.lua
 tests/party_roles_unit_test.lua
 tests/pixel_shapes_unit_test.lua
 tests/popup_text_unit_test.lua
+tests/reach_mover_unit_test.lua
 tests/reachability_unit_test.lua
 tests/renderer_factory_unit_test.lua
 tests/role_hotkey_unit_test.lua
