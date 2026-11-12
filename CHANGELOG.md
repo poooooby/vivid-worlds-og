@@ -4,13 +4,6 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
-## Unreleased
-
-- **WoobleView**: with its Field HD on, your partner and the wild Pokémon are drawn sharp at the
-  screen's resolution, glide smoothly between pixels and stand at their species' true sizes
-  (**Species Sizes**, now on the flat field too). Red, Blue and Yellow need the ADVANCED colours
-  for it; their other colour modes draw the sprites as before.
-
 ## 1.0.0 — 2026-11-12
 
 The first release: visible wild Pokémon and a partner Pokémon for Red, Blue, Yellow, Gold, Silver
@@ -78,6 +71,10 @@ and Crystal, in a light package (one small sprite atlas, no portraits).
 
 ### Works with
 
+- WoobleView: with its Field HD on, your partner and the wild Pokémon are drawn sharp at the
+  screen's resolution, glide smoothly between pixels and stand at their species' true sizes
+  (**Species Sizes**) on the regular overworld too. Red, Blue and Yellow need the ADVANCED
+  colours for it; their other colour modes draw the sprites at their art's own size.
 - Modern Spawns on all six games: the visible spawns roll from its generated tables (a swarm in
   progress is kept), with its legendaries (never a second copy of a roaming beast still out) and
   its shiny chain's species.
