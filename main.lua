@@ -446,6 +446,9 @@ return function(mod)
       if ev.value == false then pcall(function() spawnManager:calmReactions() end) end
     elseif ev.key == "species_sizes" then
       HdField.setSpeciesSizes(ev.value)
+    elseif ev.key == "sprite_style" then
+      -- re-point every wild Pokemon's renderer now (the partner follows on its next tick)
+      pcall(function() spawnManager:refreshSpriteStyle() end)
     end
   end)
 end

@@ -33,6 +33,7 @@ local V = ...
 local GbColor = V.require("gb_color")
 local HdField = V.require("hd_field")
 local Config = V.require("config")
+local SpriteSource = V.require("sprite_source")
 
 local VoxelSheets = {}
 VoxelSheets.__index = VoxelSheets
@@ -145,10 +146,16 @@ function VoxelSheets:spriteFor(r, luma)
   local b = r.voxelStride == "b"
   local key = table.concat({ tostring(r.dex), r.shiny and "s" or "n", style, sil and "sil" or "",
     luma and "luma" or "color" }, "-") .. (b and "-b" or "")
-  local factor = HdField.factorFor(style == "pmd" and "pmd" or "hgss", r.dex)
-  -- sized against the shorter Game Boy player (Config.gbSizeRatio; 1 on Gen 3), with
-  -- Species Sizes on only -- off, a card keeps its art's own size
-  if HdField.speciesSizes then factor = factor * Config.gbSizeRatio() end
+  -- a Poke Followers / GSC sheet is already drawn at the Game Boy's own scale: its card
+  -- keeps the sheet's size. HGSS art (including a GSC-style species that has no GSC art)
+  -- is sized by Species Sizes against the shorter Game Boy player (Config.gbSizeRatio),
+  -- with the option on only -- off, a card keeps its art's own size
+  local path = r.imagePath and r:imagePath()
+  local factor = 1
+  if not SpriteSource.isGsc(path) then
+    factor = HdField.factorFor("hgss", r.dex)
+    if HdField.speciesSizes then factor = factor * Config.gbSizeRatio() end
+  end
   local spriteKey = key .. "@" .. factor
   local hit = self.sprites[spriteKey]
   if hit ~= nil then return hit or nil end
@@ -175,7 +182,7 @@ function VoxelSheets:spriteFor(r, luma)
     return img:clone() -- callers may change what they get
   end) end
   local def = {
-    id = "WILDS_OF_HOENN_" .. key, image = path, frames = VoxelSheets.FRAMES, walker = true,
+    id = "VWOG_VOXEL_" .. key, image = path, frames = VoxelSheets.FRAMES, walker = true,
     trueColor = not luma, frameWidth = cell, frameHeight = cell, anchorX = cell / 2, anchorY = cell,
     wohVoxel = true,
   }

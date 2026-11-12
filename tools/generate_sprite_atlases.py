@@ -74,6 +74,7 @@ FAMILIES: dict[str, list[str]] = {
     "hgss18": [f"{GEN}/true_size18/hgss"],
     "swimming18": [f"{GEN}/true_size18/swimming"],
     "levitates18": [f"{GEN}/true_size18/levitates"],
+    "gsc": [f"{GEN}/gsc"],  # Poke Followers / GSC 16x96 sheets (tools/copy_wilds_assets.py)
     # PMDCollab Walk/Idle sheets (tools/generate_pmd_sprites.py); optional --
     # a checkout without SpriteCollab has neither directory and bakes nothing.
     "pmd_walk": ["assets/pmd/walk"],

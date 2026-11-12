@@ -36,8 +36,9 @@ RAW_SPRITE_DIRS = [
     "assets/wilds_generated/true_size18/hgss",
     "assets/wilds_generated/true_size18/swimming",
     "assets/wilds_generated/true_size18/levitates",
+    "assets/wilds_generated/gsc",
 ]
-ATLAS_FAMILIES = "hgss18,swimming18,levitates18"
+ATLAS_FAMILIES = "hgss18,swimming18,levitates18,gsc"
 MAX_ZIP_MB = 3.5
 
 # Never ship, even if present under an included root.
@@ -115,7 +116,8 @@ def build(args, version: str, mod_id: str, out_dir: Path) -> Path | None:
         problems.append("manifest.json not at ZIP root")
     if not args.no_atlas:
         leaked = [n for n in names if n.startswith("assets/enhanced_overworld/")
-                  or n.startswith("assets/wilds_generated/true_size18/")]
+                  or n.startswith("assets/wilds_generated/true_size18/")
+                  or n.startswith("assets/wilds_generated/gsc/")]
         if leaked:
             problems.append(f"atlas mode but {len(leaked)} raw sprite files leaked into the ZIP (first: {leaked[0]})")
     size = zip_path.stat().st_size / 1e6

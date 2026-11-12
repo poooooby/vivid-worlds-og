@@ -52,7 +52,7 @@ local modNoPmd = newMod(false)
 
 -- ------- defaults with nothing saved
 eq(Config.enabled(mod), true, "enabled defaults true")
-eq(Config.spriteStyle(mod), "pokemmo", "HGSS / PokeMMO is the only sprite style")
+eq(Config.spriteStyle(mod), "pokemmo", "Sprite Style defaults to HGSS / PokeMMO")
 eq(Config.classicEncEnabled(mod), true, "classic_enc defaults true")
 eq(Config.silhouetteMode(mod), "off", "silhouette defaults off")
 eq(Config.followerEnabled(mod), true, "a companion is always allowed (no Follower option any more)")
@@ -87,9 +87,14 @@ for _, key in ipairs({ "enabled", "classic_enc", "wild_silhouettes" }) do
   check(byKey[key] ~= nil, "schema has " .. key)
   eq(byKey[key].default, Config.DEFAULTS[key], "schema default matches Config.DEFAULTS for " .. key)
 end
-for _, gone in ipairs({ "sprite_style", "portraits", "language", "flyers", "water_life", "local_scenes" }) do
-  check(byKey[gone] == nil, "no " .. gone .. " row (HGSS only, Game Boy only, no portraits)")
+for _, gone in ipairs({ "portraits", "language", "flyers", "water_life", "local_scenes" }) do
+  check(byKey[gone] == nil, "no " .. gone .. " row (Game Boy only, no portraits)")
 end
+check(byKey.sprite_style ~= nil and byKey.sprite_style.default == "pokemmo" and #byKey.sprite_style.choices == 2,
+  "Sprite Style: HGSS (default) or GSC")
+optionStore = { sprite_style = "followers" }
+eq(Config.spriteStyle(mod), "followers", "Sprite Style reads a saved GSC")
+optionStore = {}
 check(byKey.follower == nil, "the old Follower key (removed in 1.2.0) stays out of the schema")
 check(byKey.show_follower ~= nil and byKey.show_follower.default == true and Config.DEFAULTS.show_follower == true,
   "the Follower option has its own key, show_follower, on by default")

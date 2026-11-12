@@ -2,7 +2,7 @@
 -- Labels are limited to 14 characters (tools/validate_option_labels.py), ASCII only.
 --
 -- Wandering is Idle or Roam; Wild Reacts adds fleeing / chasing when the player bikes close
--- by (lib/wild_reactions.lua). Sprites are HGSS / PokeMMO only, at each species' own size.
+-- by (lib/wild_reactions.lua). Sprite Style: HGSS at each species' own size, or GSC (one tile).
 
 return {
   {
@@ -23,6 +23,17 @@ return {
       { "HIGH", "high" },
     },
     description = "How many wild Pokemon are out at once, for grass and water each, growing with the size of the area. Low: about half (up to 4). Normal: up to 8. High: about one and a half times (up to 12).",
+  },
+  {
+    key = "sprite_style",
+    label = "Sprite Style",
+    type = "choice",
+    default = "pokemmo",
+    choices = {
+      { "HGSS", "pokemmo" },
+      { "GSC", "followers" },
+    },
+    description = "How wild Pokemon and your partner look. HGSS: HeartGold / SoulSilver-style sprites, each species at its own size (a Snorlax towers over a Rattata). GSC: Poke Followers' Gold / Silver / Crystal-style sprites, one tile each like the original games; a species they have no sprite for, or no shiny sprite for, uses its HGSS one.",
   },
   {
     key = "wild_reacts",

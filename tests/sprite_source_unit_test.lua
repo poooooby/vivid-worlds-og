@@ -67,11 +67,35 @@ do
   Atlas._reset()
 end
 
--- Kanto's Poke Followers / GSC style and its Pokewilds extension are not part
--- of this mod: nothing resolves into them and the style constant is gone.
-eq(SpriteSource.STYLE_FOLLOWERS, nil, "there is no Poke Followers / GSC style any more")
-check(p1:find("poke_followers", 1, true) == nil and p1:find("Pokewilds", 1, true) == nil,
-  "default art never comes from the Poke Followers / Pokewilds trees")
+-- Poke Followers / GSC (style "followers"): its own 6-frame sheet on land, HGSS where it has
+-- none. A fake file set keeps this independent of the copied art.
+do
+  local GSC = SpriteSource.GSC_REL
+  local present = {
+    [GSC .. "/025-normal.png"] = true, [GSC .. "/025-shiny.png"] = true,
+    [GSC .. "/150-normal.png"] = true, -- no shiny GSC Mewtwo
+    ["assets/wilds_generated/true_size18/hgss/025-normal.png"] = true,
+    ["assets/wilds_generated/true_size18/hgss/150-normal.png"] = true,
+    ["assets/wilds_generated/true_size18/hgss/150-shiny.png"] = true,
+    ["assets/wilds_generated/true_size18/hgss/900-normal.png"] = true, -- no GSC art at all
+    ["assets/wilds_generated/true_size18/swimming/025-normal.png"] = true,
+  }
+  local fakeMod = { read = function(_, rel) return present[rel] and "png" or nil end }
+  local F = SpriteSource.STYLE_FOLLOWERS
+  eq(F, "followers", "the GSC style id")
+  eq(SpriteSource.pathFor(fakeMod, 25, false, F), GSC .. "/025-normal.png", "GSC: a species with GSC art draws it")
+  eq(SpriteSource.pathFor(fakeMod, 25, true, F), GSC .. "/025-shiny.png", "...shiny too")
+  eq(SpriteSource.pathFor(fakeMod, 150, true, F), "assets/wilds_generated/true_size18/hgss/150-shiny.png",
+    "a shiny with no GSC shiny art takes the HGSS shiny (never shown plain)")
+  eq(SpriteSource.pathFor(fakeMod, 900, false, F), "assets/wilds_generated/true_size18/hgss/900-normal.png",
+    "a species with no GSC art at all falls back to HGSS")
+  eq(SpriteSource.pathFor(fakeMod, 25, false, F, SpriteSource.PRESENTATION_SWIMMING),
+    "assets/wilds_generated/true_size18/swimming/025-normal.png", "on water it is the HGSS swimmer")
+  eq(SpriteSource.pathFor(fakeMod, 25, false, "pokemmo"), "assets/wilds_generated/true_size18/hgss/025-normal.png",
+    "the HGSS style never draws GSC art")
+  eq(SpriteSource.frameCountOf(GSC .. "/025-normal.png"), 6, "a GSC sheet stacks 6 frames")
+  eq(SpriteSource.frameCountOf("assets/wilds_generated/true_size18/hgss/025-normal.png"), 18, "an HGSS sheet 18")
+end
 
 -- isFloater: the levitates pack is a species REFERENCE only (Zubat 41 is in
 -- it, Bulbasaur 1 is not); out-of-range dex never floats.

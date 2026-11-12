@@ -14,5 +14,8 @@ here.
 - On Red, Blue and Yellow the partner can battle wild Pokémon on the field and forage for
   items, and you can Pet, Play with and Talk to it; its mood shows as an emote above its head
   (no portraits).
+- **Sprite Style**: HGSS sprites at true size (the default), or Poke Followers' one-tile GSC
+  sprites; a species with no GSC sprite, or a shiny with no GSC shiny sprite, shows its HGSS
+  one, and swimmers always use HGSS's swimming art.
 - Classic Enc turns off only the step encounters: the Bug-Catching Contest, Sweet Scent and
   fishing stay as the game has them.

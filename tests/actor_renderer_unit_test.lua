@@ -31,9 +31,24 @@ local ActorRenderer = V.require("actor_renderer")
 
 local POSE_STAND, POSE_WALK_A, POSE_WALK_B = ActorRenderer.POSE_STAND, ActorRenderer.POSE_WALK_A, ActorRenderer.POSE_WALK_B
 local POSE_RUN_BASE, POSE_RUN_A, POSE_RUN_B = ActorRenderer.POSE_RUN_BASE, ActorRenderer.POSE_RUN_A, ActorRenderer.POSE_RUN_B
--- Kanto's 6-frame Poke Followers / GSC layout is gone: any frame count other
--- than 18 reads the 18-frame table, never a stale 6-frame one.
-eq(ActorRenderer.frameIndexFor("down", POSE_WALK_B, 6), 4, "a leftover 6-frame count reads the 18-frame table (walkB = 4, not the old collapsed 3)")
+-- 6-frame Poke Followers / GSC sheets: the engine's SpriteRenderer order (stand down / up /
+-- left, walk down / up / left). Down / up walk steps alternate the walk frame with its mirror;
+-- left / right alternate walk and stand.
+eq(ActorRenderer.frameIndexFor("down", POSE_STAND, 6), 0, "GSC: stand down = 0")
+eq(ActorRenderer.frameIndexFor("up", POSE_STAND, 6), 1, "GSC: stand up = 1")
+eq(ActorRenderer.frameIndexFor("left", POSE_STAND, 6), 2, "GSC: stand left = 2")
+eq(ActorRenderer.frameIndexFor("down", POSE_WALK_A, 6), 3, "GSC: walk down = 3")
+eq(ActorRenderer.frameIndexFor("down", POSE_WALK_B, 6), 3, "...both down steps use the walk frame")
+eq(ActorRenderer.frameIndexFor("up", POSE_WALK_A, 6), 4, "GSC: walk up = 4")
+eq(ActorRenderer.frameIndexFor("left", POSE_WALK_A, 6), 5, "GSC: walk left = 5")
+eq(ActorRenderer.frameIndexFor("left", POSE_WALK_B, 6), 2, "...the other left step is the stand frame")
+eq(ActorRenderer.frameIndexFor("right", POSE_WALK_A, 6), 5, "right reuses left (mirrored)")
+eq(ActorRenderer.frameIndexFor("down", POSE_RUN_A, 6), 3, "running uses the walk frame")
+eq(ActorRenderer.mirrorsFrame(6, "down", POSE_WALK_B), true, "GSC: the second down step is mirrored")
+eq(ActorRenderer.mirrorsFrame(6, "up", POSE_WALK_B), true, "...and the second up step")
+eq(ActorRenderer.mirrorsFrame(6, "down", POSE_WALK_A), false, "...the first is not")
+eq(ActorRenderer.mirrorsFrame(6, "left", POSE_WALK_B), false, "...nor any left step")
+eq(ActorRenderer.mirrorsFrame(18, "down", POSE_WALK_B), false, "HGSS sheets never mirror a step")
 eq(ActorRenderer.frameIndexFor("down", "not-a-real-pose", 18), 0, "an unrecognized pose falls back to stand")
 
 -- ------- frame index, 18 frames (the only layout): the full walk-A/

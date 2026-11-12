@@ -96,6 +96,42 @@ def copy_water_sprites(source_root, dest_root, max_dex):
     return copied, skipped_over_cap
 
 
+# Poke Followers / GSC (the Sprite Style option's GSC choice): 16x96 sheets, six 16x16 frames
+# in the engine's SpriteRenderer order (stand down/up/left, walk down/up/left). Wilds of Kanto
+# Revival's own set covers dex 1-251; its PokeWilds conversion fills in dex 252+ (and any gap).
+# Copied under the HGSS sheets' naming, <key>-<normal|shiny>.png, so the atlas pairs normal
+# and shiny like it does for HGSS. A species / shiny with no GSC art falls back to HGSS at
+# runtime (lib/sprite_source.lua), so nothing is synthesized here.
+GSC_SOURCES = ("poke_followers", "Pokewilds")  # first one that has a file wins
+GSC_RE = re.compile(r"^follower_(\d+)_(normal|shiny)\.png$")
+
+
+def copy_gsc(source_root, dest_root, max_dex):
+    dst_dir = dest_root / "assets" / "wilds_generated" / "gsc"
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    taken, copied, skipped_over_cap = set(), 0, 0
+    for folder in GSC_SOURCES:
+        src_dir = source_root / "assets" / "enhanced_overworld" / folder
+        if not src_dir.is_dir():
+            print(f"warn: missing source folder {src_dir}", file=sys.stderr)
+            continue
+        for src_file in sorted(src_dir.glob("follower_*.png")):
+            m = GSC_RE.match(src_file.name)
+            if not m:
+                continue  # forms (Unown letters, Castform ...) are not mapped yet
+            dex, variant = int(m.group(1)), m.group(2)
+            if dex > max_dex:
+                skipped_over_cap += 1
+                continue
+            name = f"{dex:03d}-{variant}.png"
+            if name in taken:
+                continue
+            taken.add(name)
+            shutil.copy2(src_file, dst_dir / name)
+            copied += 1
+    return copied, skipped_over_cap
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default=str(REPO_ROOT.parent / "overworld-spawn-mod"),
@@ -116,6 +152,9 @@ def main():
     w_copied, w_skipped = copy_water_sprites(source_root, REPO_ROOT, args.max_dex)
     print(f"water_sprites (raw):  copied {w_copied} files"
           + (f" (skipped {w_skipped} beyond dex {args.max_dex})" if w_skipped else ""))
+    g_copied, g_skipped = copy_gsc(source_root, REPO_ROOT, args.max_dex)
+    print(f"gsc (Poke Followers): copied {g_copied} files"
+          + (f" (skipped {g_skipped} beyond dex {args.max_dex})" if g_skipped else ""))
     return 0
 
 

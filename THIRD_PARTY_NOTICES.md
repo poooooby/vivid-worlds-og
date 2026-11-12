@@ -72,6 +72,20 @@ the complete, authoritative credit list for this art.
   sheet, enlarges it (nearest neighbour) to Zygarde 50%'s size and draws the swimming sheet's foam
   line.
 
+## Poke Followers / GSC sprites
+
+The Sprite Style option's **GSC** sheets under `assets/wilds_generated/gsc/` are a read-only
+copy (`tools/copy_wilds_assets.py`) of Wilds of Kanto Revival's built-in GSC walker art. They
+remain under the licence of their original authors and are not covered by this mod's MIT
+License; this mod claims no authorship of them.
+
+- Dex 1-251 (`poke_followers`): third-party follower / overworld walker art in the Followers EX
+  / PokéPC / ShockSlayer (Pokémon Crystal Clear) lineage, with GSC sprites by **MegaMan-Omega**
+  and **FrenchOrange** and recolours by **Wooble**.
+- Dex 252 and up (`Pokewilds`): the overworld walker sprites of
+  [Pokémon Wilds](https://github.com/SheerSt/pokewilds) (SheerSt), converted by Wilds of Kanto
+  Revival (frame order only, colours untouched). See that project for its per-species credits.
+
 ## Engine
 
 Built against [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp),

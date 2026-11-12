@@ -56,10 +56,15 @@ local SpriteAtlas = V and V.require("sprite_atlas") or nil
 local SpriteSource = {}
 
 local TRUE_SIZE18_REL = "assets/wilds_generated/true_size18"
+-- Poke Followers / GSC (style "followers"): 16x96 sheets, six 16x16 frames in the engine's
+-- SpriteRenderer order (tools/copy_wilds_assets.py copies them in as <key>-<variant>.png)
+local GSC_REL = "assets/wilds_generated/gsc"
+SpriteSource.GSC_REL = GSC_REL
 local MAX_DEX = 1025
 
 SpriteSource.STYLE_POKEMMO = "pokemmo"
 SpriteSource.STYLE_PMD = "pmd"
+SpriteSource.STYLE_FOLLOWERS = "followers" -- Poke Followers / GSC, HGSS where it has no art
 -- A species with no PMDCollab art (about 50 of them) draws in this style.
 SpriteSource.PMD_FALLBACK_STYLE = SpriteSource.STYLE_POKEMMO
 SpriteSource.DEFAULT_STYLE = SpriteSource.STYLE_POKEMMO
@@ -183,15 +188,39 @@ function SpriteSource.pathFor(mod, dex, shiny, style, presentation)
   -- a form's own art first (shiny, then normal), then its base species'
   local keys = { dex }
   if SpriteSource.isForm(dex) then keys[2] = SpriteSource.baseOf(dex) end
+  local gsc = style == SpriteSource.STYLE_FOLLOWERS
+    and (presentation == nil or presentation == SpriteSource.PRESENTATION_LAND)
   for _, key in ipairs(keys) do
+    -- Poke Followers / GSC on land: its own sheet, else HGSS -- a shiny with no GSC shiny
+    -- art takes the HGSS shiny (a shiny is never shown plain); water is always HGSS
     if shiny then
-      local p = SpriteSource.shinyPath(mod, key, style, presentation)
+      local p = (gsc and SpriteSource.gscPath(mod, key, "shiny")) or SpriteSource.shinyPath(mod, key, style, presentation)
       if p then return p end
     end
-    local p = SpriteSource.normalPath(mod, key, style, presentation)
+    local p = (gsc and SpriteSource.gscPath(mod, key, "normal")) or SpriteSource.normalPath(mod, key, style, presentation)
     if p then return p end
   end
   return nil
+end
+
+--- A Poke Followers / GSC sheet for art key `key` ("025", "201-b") and `variant`
+--- ("normal" | "shiny"), or nil when that style has no art for it.
+function SpriteSource.gscPath(mod, key, variant)
+  if not validKey(key) then return nil end
+  local p = string.format("%s/%s-%s.png", GSC_REL, SpriteSource.keyName(key), variant)
+  if fileExists(mod, p) then return p end
+  return nil
+end
+
+--- Is `path` a Poke Followers / GSC sheet?
+function SpriteSource.isGsc(path)
+  return type(path) == "string" and path:sub(1, #GSC_REL + 1) == GSC_REL .. "/"
+end
+
+--- How many frames the sheet at `path` stacks: 6 for a GSC sheet (the engine's own
+--- SpriteRenderer layout), 18 for an HGSS / PokeMMO one.
+function SpriteSource.frameCountOf(path)
+  return SpriteSource.isGsc(path) and 6 or 18
 end
 
 --- Whether an art key (a form) has HGSS / PokeMMO art of its own on land.

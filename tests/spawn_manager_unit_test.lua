@@ -305,13 +305,16 @@ local anyStyleEntity
 for _, e in pairs(smStyle.entities) do anyStyleEntity = e break end
 eq(anyStyleEntity.renderer.style, "pokemmo", "a new spawn uses the current Sprite Style")
 
--- a saved style that no longer exists ("followers" was Kanto-only) falls back
--- to the default and rebuilds cleanly -- here PMD has no art in this fake mod,
--- so the HGSS / PokeMMO renderer is what draws
+-- switching to Poke Followers / GSC rebuilds the renderer in that style
 optionStore.sprite_style = "followers"
 smStyle:refreshSpriteStyle()
+eq(anyStyleEntity.renderer.style, "followers",
+  "refreshSpriteStyle rebuilds an already-spawned entity's renderer in the new style")
+-- a saved style that does not exist here ("pmd", from Wilds of Hoenn) reads as the default
+optionStore.sprite_style = "pmd"
+smStyle:refreshSpriteStyle()
 eq(anyStyleEntity.renderer.style, "pokemmo",
-  "refreshSpriteStyle rebuilds an already-spawned entity's renderer on a stale style")
+  "...and a stale style falls back to the default")
 eq(smStyle:count(), 1, "refreshSpriteStyle never despawns anything")
 optionStore.sprite_style = "pokemmo" -- restore for safety
 

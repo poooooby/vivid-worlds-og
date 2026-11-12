@@ -46,8 +46,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 ### A Living World
 
-- 🎨 **HGSS-style sprites at true size:** every species, all 1025 and their forms, at its own
-  size, so a Snorlax towers over a Rattata.
+- 🎨 **Two sprite styles:** **HGSS** sprites at true size, every species and form at its own
+  size so a Snorlax towers over a Rattata, or **GSC** sprites, one tile each like the original
+  games (705 species; any it lacks, or a shiny it has no art for, shows its HGSS sprite).
 - 🧊 **3D worlds:** In TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2's 3D worlds, wild
   Pokémon and your partner stand as cards of their own size.
 - 🌑 **Silhouettes:** Optionally hide species you haven't caught as dark shapes.
@@ -58,6 +59,7 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 |---|---|---|---|
 | **Show Wild Mons** | On / Off | On | Visible wild Pokémon in encounter areas. |
 | **Spawn Amount** | Low / Normal / High | Normal | How many wild Pokémon are out at once. |
+| **Sprite Style** | HGSS / GSC | HGSS | HGSS sprites at true size, or one-tile GSC sprites (HGSS for any species GSC lacks). |
 | **Wild Reacts** | On / Off | On | Biking close by startles or angers them (Red, Blue, Yellow). |
 | **Follower** | On / Off | On | Your partner walks behind you, or stays in its Poké Ball. |
 | **Battler: Pad** | R / L / Off | Off | A controller button that sends your partner into battle and back. |
@@ -66,7 +68,7 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 | **Type Aura** | On / Off | Off | Now and then a little puff of your partner's type. |
 | **Classic Enc** | On / Off | On | The original step-based encounters in grass, caves and on Surf. |
 | **Silhouette** | Off / Undiscovered / All | Off | Silhouettes for uncaught species, or for all of them. |
-| **Species Sizes** | On / Off | On | Each species at its own size in the 3D world mods. |
+| **Species Sizes** | On / Off | On | Each HGSS species at its own size in the 3D world mods. |
 
 ## 💾 Installation
 
@@ -94,6 +96,8 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   pieces of Wilds of Kanto Revival.
 - [Gen 9 Resource Pack](https://eeveeexpo.com/resources/1101/) and its many artists: the
   HGSS-style overworld sprites (full list in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
+- **MegaMan-Omega** and **FrenchOrange**: the GSC sprites; **Wooble**: recolours;
+  [Pokémon Wilds](https://github.com/SheerSt/pokewilds): GSC sprites beyond dex 251.
 - **Nuclear-Blizzard**: the Pokémon Tower ghost.
 - **TTiN** and **Untamed Tohjo**: the ideas behind the friendship-weighted foraging and the
   shiny chain.

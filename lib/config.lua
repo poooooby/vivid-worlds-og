@@ -5,7 +5,7 @@ local Config = {}
 
 Config.DEFAULTS = {
   enabled = true,
-  sprite_style = "pokemmo", -- HGSS / PokeMMO only (no option row)
+  sprite_style = "pokemmo", -- HGSS / PokeMMO; "followers" = Poke Followers / GSC
   classic_enc = true,
   wild_silhouettes = "off",
   species_sizes = true,
@@ -402,9 +402,14 @@ function Config.enabled(mod)
   return optGet(mod, "enabled") == true
 end
 
---- HGSS / PokeMMO, the only sprite style.
-function Config.spriteStyle(_mod)
-  return "pokemmo"
+--- The Sprite Style option: "pokemmo" (HGSS / PokeMMO at true size) or "followers" (Poke
+--- Followers / GSC, with HGSS for any species it has no art for). Anything else (a stale
+--- "pmd" from Wilds of Hoenn) reads as the default.
+local VALID_SPRITE_STYLE = { pokemmo = true, followers = true }
+function Config.spriteStyle(mod)
+  local v = optGet(mod, "sprite_style")
+  if VALID_SPRITE_STYLE[v] then return v end
+  return Config.DEFAULTS.sprite_style
 end
 
 --- The Smooth Follow option: the follower is spaced out behind the player either way;

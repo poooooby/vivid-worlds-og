@@ -67,9 +67,35 @@ local FRAME_INDEX_18 = {
 }
 FRAME_INDEX_18.right = FRAME_INDEX_18.left
 
+-- 6-frame Poke Followers / GSC sheets (SpriteSource.STYLE_FOLLOWERS): the engine's own
+-- SpriteRenderer order -- stand down / up / left, walk down / up / left. Like the games, a
+-- step down or up alternates the walk frame with its mirror (MIRROR_6), a step left / right
+-- alternates the walk frame with the stand frame; running uses the walk.
+local FRAME_INDEX_6 = {
+  down = { stand = 0, walkA = 3, walkB = 3, runBase = 0, runA = 3, runB = 3 },
+  up = { stand = 1, walkA = 4, walkB = 4, runBase = 1, runA = 4, runB = 4 },
+  left = { stand = 2, walkA = 5, walkB = 2, runBase = 2, runA = 5, runB = 2 },
+}
+FRAME_INDEX_6.right = FRAME_INDEX_6.left
+local MIRROR_6 = { walkB = true, runB = true }
+
 local FRAME_COUNT_TO_TABLE = {
   [FRAME_COUNT_POKEMMO] = FRAME_INDEX_18,
+  [6] = FRAME_INDEX_6,
 }
+
+--- Whether this frame is drawn mirrored on top of the facing's own mirroring: a 6-frame
+--- sheet's second walk step down or up (the games' walk cycle). Pure (tested).
+function ActorRenderer.mirrorsFrame(frameCount, facing, pose)
+  return frameCount == 6 and (facing == "down" or facing == "up") and MIRROR_6[pose] == true
+end
+
+--- The facing whose draw offset a frame uses: "right" (mirrored about its centre) for a
+--- mirrored GSC walk step, else the facing itself.
+local function offsetFacing(frameCount, facing, pose)
+  if ActorRenderer.mirrorsFrame(frameCount, facing, pose) then return "right" end
+  return facing
+end
 
 --- The opacity a renderer draws at: its `alpha` field (0..1), 1 when unset. Shared
 --- with lib/pmd_renderer.lua. Pure (tested).
@@ -254,6 +280,9 @@ function ActorRenderer:imagePath()
     return c[6]
   end
   local path = SpriteSource.pathFor(self.mod, self.dex, self.shiny, self.style, self.presentation)
+  -- the layout follows the sheet actually drawn: a GSC style species with no GSC art
+  -- falls back to an 18-frame HGSS sheet
+  if path then self.frameCount = SpriteSource.frameCountOf(path) end
   if path then
     if not c then c = {} self._pathFor = c end
     c[1], c[2], c[3], c[4], c[5], c[6] = self.dex, self.shiny, self.style, self.presentation, self.mod, path
@@ -516,11 +545,12 @@ function ActorRenderer:reflectionGeometry(x, y, facing, walkPhase)
   local path = self:imagePath()
   local image = path and loadImage(self.mod, path)
   if not image then return nil end
-  local frameIndex = ActorRenderer.frameIndexFor(facing, self.poseOverride or walkPhase, self.frameCount)
+  local pose = self.poseOverride or walkPhase
+  local frameIndex = ActorRenderer.frameIndexFor(facing, pose, self.frameCount)
   local quad = quadFor(path, image, frameIndex, self.frameCount)
   if not quad then return nil end
   local qx, qy, frameW, frameH = quad:getViewport()
-  local drawX, drawY, flipX = ActorRenderer.drawOffset(facing, frameW, frameH)
+  local drawX, drawY, flipX = ActorRenderer.drawOffset(offsetFacing(self.frameCount, facing, pose), frameW, frameH)
   local pad = ActorRenderer.feetPadFor(self.mod, path, self.frameCount or 18)
   drawY = drawY + pad + ActorRenderer.swimDropFor(path)
   local pushX, pushY = self.pushX, self.pushY
@@ -563,7 +593,7 @@ function ActorRenderer:draw(x, y, camX, camY, facing, walkPhase, _stepFlip)
   if not quad then return end
 
   local _qx, _qy, frameW, frameH = quad:getViewport()
-  local drawX, drawY, flipX = ActorRenderer.drawOffset(facing, frameW, frameH)
+  local drawX, drawY, flipX = ActorRenderer.drawOffset(offsetFacing(self.frameCount, facing, pose), frameW, frameH)
   drawY = drawY + ActorRenderer.feetPadFor(self.mod, path, self.frameCount or 18) -- the art's feet on the ground
   drawY = drawY + ActorRenderer.swimDropFor(path) -- sits lower in the water
   -- only the top of it showing, cut off at its feet' line (a Tropius's head above the
