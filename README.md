@@ -48,9 +48,11 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   on the field with its real moves, with hit sparks, knockouts and EXP for its wins.
 - 💎 **Foraging:** As a Forager it spots a glint, dashes over, digs and brings back an item.
   The fonder it is of you, the better its finds.
-- 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood shows as an emote above
-  its head. In Gold, Silver and Crystal this raises its real happiness, the stat behind Return,
-  Frustration and happiness evolutions.
+- 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood pops up above its head in
+  the game's own emote bubbles: a heart, a smile, a sad face, Zs, a bolt (Yellow's skull for a
+  poisoned one), with little drawn effects for the moods a game has no bubble for. In Gold,
+  Silver and Crystal this raises its real happiness, the stat behind Return, Frustration and
+  happiness evolutions.
 - 🌱 **It stays your partner:** its role and friendship carry over when it evolves.
 
 ### A Living World

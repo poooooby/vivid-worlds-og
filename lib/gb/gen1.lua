@@ -432,9 +432,18 @@ function Gen1.playCry(species)
   pcall(Sound.playCry, data, key)
 end
 
---- The engine's emote bubbles ("!" frame 0, "?" frame 1) as the sheet shape the mod reads
---- ({ image, quads }): the OBJ-palette art re-shaded the way the engine's own emote draw
---- does (OverworldController.lua obpEmoteImage), built once.
+-- emotion_bubbles.asm's crops by the names lib/emote_art.lua reads (Red / Blue: the first
+-- three; Yellow: all eight)
+local BUBBLE_NAMES = {
+  EXCLAMATION_BUBBLE = "exclaim", QUESTION_BUBBLE = "question", SMILE_BUBBLE = "happy",
+  SKULL_BUBBLE = "skull", HEART_BUBBLE = "heart", BOLT_BUBBLE = "bolt", ZZZ_BUBBLE = "sleep",
+  FISH_BUBBLE = "fish",
+}
+
+--- The engine's emote bubbles as the sheet shape the mod reads: `quads` "!" frame 0 and "?"
+--- frame 1 (lib/wild_emote.lua), `named` every bubble this game has by name (lib/emote_art.lua);
+--- the OBJ-palette art re-shaded the way the engine's own emote draw does
+--- (OverworldController.lua obpEmoteImage), built once.
 local emoteSheet
 function Gen1.emoteSheet()
   if emoteSheet ~= nil then return emoteSheet or nil end
@@ -458,15 +467,18 @@ function Gen1.emoteSheet()
       img = love.graphics.newImage(Assets.resolve(bubble.path))
     end
     if not img then return nil end
-    local quads = {}
-    -- the mod reads frames 0 ("!") and 1 ("?"); the engine's crops are 1 EXCLAMATION,
-    -- 2 QUESTION (emotion_bubbles.asm order)
+    local quads, named = {}, {}
+    -- frames 0 ("!") and 1 ("?") are the engine's crops 1 EXCLAMATION, 2 QUESTION
+    -- (emotion_bubbles.asm order)
     for i, rect in ipairs(bubble.bubbles or {}) do
-      if i <= 2 and rect.w then
-        quads[i - 1] = love.graphics.newQuad(rect.x, rect.y, rect.w, rect.h, img:getDimensions())
+      if rect.w then
+        local q = love.graphics.newQuad(rect.x, rect.y, rect.w, rect.h, img:getDimensions())
+        if i <= 2 then quads[i - 1] = q end
+        local name = BUBBLE_NAMES[rect.name]
+        if name then named[name] = q end
       end
     end
-    return { image = img, quads = quads, fw = 16, fh = 16, frames = 2 }
+    return { image = img, quads = quads, named = named, fw = 16, fh = 16, frames = 2 }
   end)
   if ok and sheet then emoteSheet = sheet end
   return emoteSheet or nil

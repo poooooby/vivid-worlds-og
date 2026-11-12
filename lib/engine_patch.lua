@@ -1166,6 +1166,16 @@ function EngineGb.fieldEffectSheet(name)
   return ok and sheet or nil
 end
 
+--- One of this game's own emote bubbles by name ("exclaim", "question", "happy", "sad",
+--- "heart", "bolt", "sleep", "skull", "fish"): image, quad -- or nil when the game has none
+--- (Red / Blue: "!", "?" and the smile only; Yellow and Gold: eight each).
+function EngineGb.emoteBubble(name)
+  local sheet = EngineGb.fieldEffectSheet("exclamation_question_mark")
+  local q = sheet and sheet.named and sheet.named[name]
+  if not q then return nil end
+  return sheet.image, q
+end
+
 -- ------------------------------------------------------------------ roles
 -- The Battler, the Forager and the level-up follow-through (lib/overworld_battle.lua,
 -- lib/forage_source.lua, lib/level_ready.lua): each engine fact is the adapter's

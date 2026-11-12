@@ -426,9 +426,14 @@ function Gen2.drawText(text, x, y)
 end
 
 -- ------------------------------------------------------------------ emote art
---- Gold's own showemote bubbles as the two-frame "!" / "?" sheet lib/wild_emote.lua reads
---- (frame 0 SHOCK, frame 1 QUESTION: menu_gfx.lua emotes, the art World:showEmote draws),
---- shaded to the bubble's white / grey / black like Gen 1's sheet. Built once.
+-- the showemote bubbles (EMOTE_* order, menu_gfx.lua emotes) by the names lib/emote_art.lua reads
+local EMOTES = { { "shock", "exclaim" }, { "question", "question" }, { "happy", "happy" }, { "sad", "sad" },
+  { "heart", "heart" }, { "bolt", "bolt" }, { "sleep", "sleep" }, { "fish", "fish" } }
+
+--- Gold's own showemote bubbles (menu_gfx.lua emotes, the art World:showEmote draws) as the
+--- sheet shape the mod reads: `quads` frame 0 SHOCK and frame 1 QUESTION (lib/wild_emote.lua),
+--- `named` all eight by name (lib/emote_art.lua). Shaded the way World:drawEmote colours them
+--- (PAL_OW_EMOTE's silver row: white, white, RGB 13,13,13, black). Built once.
 local emoteSheet
 function Gen2.emoteSheet(world)
   if emoteSheet ~= nil then return emoteSheet or nil end
@@ -442,26 +447,36 @@ function Gen2.emoteSheet(world)
     return nil
   end
   local ok, sheet = pcall(function()
-    local out = love.image.newImageData(32, 16)
-    for i, key in ipairs({ "shock", "question" }) do
-      local src = Assets.imageData(emotes[key])
-      local w, h = math.min(16, src:getWidth()), math.min(16, src:getHeight())
-      for y = 0, h - 1 do
-        for x = 0, w - 1 do
-          local r, _, _, a = src:getPixel(x, y)
-          local v = 0
-          if r > 0.5 then v = 1 elseif r > 0.17 then v = 170 / 255 end
-          out:setPixel((i - 1) * 16 + x, y, v, v, v, a)
+    local n = #EMOTES
+    local out = love.image.newImageData(16 * n, 16)
+    local present = {}
+    for i, e in ipairs(EMOTES) do
+      local okI, src = false, nil
+      if emotes[e[1]] then okI, src = pcall(Assets.imageData, emotes[e[1]]) end
+      if okI and src then
+        present[i] = true
+        local w, h = math.min(16, src:getWidth()), math.min(16, src:getHeight())
+        for y = 0, h - 1 do
+          for x = 0, w - 1 do
+            local r, _, _, a = src:getPixel(x, y)
+            local v = 0
+            if r > 0.5 then v = 1 elseif r > 0.17 then v = 13 / 31 end
+            out:setPixel((i - 1) * 16 + x, y, v, v, v, a)
+          end
         end
       end
     end
     local img = love.graphics.newImage(out)
     if img.setFilter then img:setFilter("nearest", "nearest") end
-    local quads = {
-      [0] = love.graphics.newQuad(0, 0, 16, 16, 32, 16),
-      [1] = love.graphics.newQuad(16, 0, 16, 16, 32, 16),
-    }
-    return { image = img, quads = quads, fw = 16, fh = 16, frames = 2 }
+    local quads, named = {}, {}
+    for i, e in ipairs(EMOTES) do
+      if present[i] then
+        local q = love.graphics.newQuad((i - 1) * 16, 0, 16, 16, 16 * n, 16)
+        named[e[2]] = q
+        if i <= 2 then quads[i - 1] = q end
+      end
+    end
+    return { image = img, quads = quads, named = named, fw = 16, fh = 16, frames = 2 }
   end)
   emoteSheet = (ok and sheet) or false
   return emoteSheet or nil

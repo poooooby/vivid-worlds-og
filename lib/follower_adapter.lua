@@ -42,6 +42,7 @@ local function trc(context, english, ...)
   return english
 end
 local ShinySparkle = V.require("shiny_sparkle")
+local EmoteArt = V.require("emote_art")
 local PartnerFx = V.require("partner_fx")
 local FollowerSwap = V.require("follower_swap")
 
@@ -887,7 +888,8 @@ function FollowerAdapter:collectActors(actors)
     if a then actors[#actors + 1] = a end
   end
   -- crouching under a roof's edge: a sweat drop at the top corner of its (squashed) head
-  -- talking with it: hearts, notes, a rain cloud ... over the top of its head
+  -- talking with it: the game's own emote bubble for its mood (a heart, a smile, a sad face
+  -- ...), or for a mood the game has no bubble for, a drawn one (an anger mark, sweat ...)
   if self.moodKind and sr and (sr.recall or 1) >= 0.5 and sr.headLift then
     local act = sr.act
     local feetY = npc.py + CELL + (sr.pushY or 0) + (sr.duckDy or 0) + ((act and act.dy) or 0)
@@ -895,7 +897,12 @@ function FollowerAdapter:collectActors(actors)
     local x = npc.px + CELL / 2 + (sr.pushX or 0) + ((act and act.dx) or 0)
     -- (headLift is its highest frame, an idle hop or raised ears included: a little lower
     -- sits just over the head as it usually stands)
-    actors[#actors + 1] = MoodFx.actor(self.moodKind, self.moodAge or 0, x, top + 3, feetY + 1, math.min(1, (self.moodAge or 0) / 10))
+    local bubble = EmoteArt.bubbleFor(self.moodKind)
+    if bubble then
+      actors[#actors + 1] = EmoteArt.actor(bubble, self.moodAge or 0, x, top + 2, feetY + 1)
+    else
+      actors[#actors + 1] = MoodFx.actor(self.moodKind, self.moodAge or 0, x, top + 3, feetY + 1, math.min(1, (self.moodAge or 0) / 10))
+    end
   end
   if self.sweatAge and sr and (sr.recall or 1) >= 0.5 and sr.headLift then
     local height = sr:headLift() or CELL

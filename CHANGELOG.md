@@ -34,3 +34,6 @@ here.
   shiny is a matter of its DVs (Gold's rule, which Red, Blue and Yellow follow too), so the shiny
   you see in the grass is the shiny you battle and catch; a shiny partner shows its shiny sprite.
   Red, Blue and Yellow battles play a sparkle and chime for a shiny.
+- The partner's mood shows in each game's own emote bubbles: Red and Blue's smile, Yellow's
+  eight (heart, smile, Zs, bolt, skull ...), Gold, Silver and Crystal's eight (heart, happy, sad,
+  sleep, bolt ...); a mood a game has no bubble for keeps its drawn effect.
