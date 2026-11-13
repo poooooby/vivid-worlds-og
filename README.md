@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="imgs/VWOG%20Logo.png" alt="Vivid Worlds: OG" width="480">
+
 # Vivid Worlds: OG 🌿
 
 *Kanto and Johto come alive. Wild Pokémon roam the overworld of Red, Blue, Yellow, Gold,
@@ -10,6 +12,23 @@ treasure.*
 
 A mod for [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp), for its Generation 1 and 2
 games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
+
+<div align="center">
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="imgs/VWOG-Interact.webp" alt="Petting and talking with your partner" width="280"></td>
+<td align="center" width="33%"><img src="imgs/VWOG-Fight.webp" alt="Your partner battling a wild Pokémon" width="280"></td>
+<td align="center" width="33%"><img src="imgs/VWOG-Forage.webp" alt="Your partner foraging for an item" width="280"></td>
+</tr>
+<tr>
+<td align="center"><b>Pet, Play, Talk</b><br>Turn to your partner and press A; its mood shows in the game's own emote bubbles.</td>
+<td align="center"><b>Battle</b><br>Give it the Battler role and it takes on the wild Pokémon around you, earning EXP.</td>
+<td align="center"><b>Forage</b><br>Give it the Forager role and it digs up an item every 60 steps you take.</td>
+</tr>
+</table>
+
+</div>
 
 ## ✨ Features
 

@@ -105,7 +105,10 @@ docs/MANUAL_TEST.md
 docs/PROVENANCE.md
 
 # README banner and showcase images
-
+imgs/VWOG Logo.png
+imgs/VWOG-Fight.webp
+imgs/VWOG-Forage.webp
+imgs/VWOG-Interact.webp
 
 # local Claude Code settings and skills (gitignored)
 .claude/skills/lua-developer/SKILL.md
@@ -119,3 +122,4 @@ dist/vivid-worlds-og-v0.0.1.zip
 dist/vivid-worlds-og-v1.0.0.zip
 dist/vivid-worlds-og-v1.0.1.zip
 dist/vivid-worlds-og-v1.0.2.zip
+dist/vivid-worlds-og-v1.0.3.zip
