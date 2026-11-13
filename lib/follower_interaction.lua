@@ -165,8 +165,11 @@ function FollowerInteraction:abort()
   self:reset()
 end
 
--- Final line of an interaction: a normal message the player closes with A/B.
+-- Final line of an interaction: a normal message the player closes with A/B. The report
+-- ("stay") box under the menu comes down first: left there, it would reappear once this line
+-- closes and nothing would ever close it (a softlock after picking a role).
 function FollowerInteraction:finish(text, emotion)
+  EnginePatch.closeStayMessage()
   local shown = self.portraitUI:say(text, {
     mon = self.mon, emotion = emotion,
     done = function() self:reset() end,

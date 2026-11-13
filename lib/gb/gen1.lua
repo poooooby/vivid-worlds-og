@@ -639,6 +639,19 @@ function Gen1.nativeTalk(ow)
   return npc ~= nil and npc.cellX == p.cellX + d[1] and npc.cellY == p.cellY + d[2]
 end
 
+--- An A press the partner menu passed on (mid-step, busy, cooling down) that the engine would
+--- still hand to the partner's npc: OverworldState:interact sends any `pikachuFollower` npc to
+--- PikachuFollower.talk, Yellow's Pikachu talk, which errors on Red / Blue (no field.pikachu)
+--- and would put Pikachu's faces on any other partner in Yellow. True = drop the press.
+function Gen1.partnerPressBlocked(ow)
+  if not (ow and ow.player and ow.player.facingCell and ow.npcAtCell) then return false end
+  if Gen1.nativeTalk(ow) then return false end
+  local okF, fx, fy = pcall(ow.player.facingCell, ow.player)
+  if not okF then return false end
+  local okN, npc = pcall(ow.npcAtCell, ow, fx, fy)
+  return okN and type(npc) == "table" and npc.pikachuFollower == true
+end
+
 -- ------------------------------------------------------------------ roles
 -- The Battler's skirmish, the Forager's bag, level-ups and the learn / evolve screens:
 -- the Gen 1 answers to the engine facts lib/ow_combat.lua, lib/forage_items.lua and

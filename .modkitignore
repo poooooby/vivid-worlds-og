@@ -29,6 +29,7 @@ tests/drivers/p2_voxel_fx.lua
 tests/drivers/p3_roles.lua
 tests/drivers/p4_extras.lua
 tests/drivers/p5_perf.lua
+tests/drivers/p6_role_talk.lua
 tests/drivers/smoke.lua
 tests/emote_art_unit_test.lua
 tests/encounter_source_unit_test.lua
@@ -113,3 +114,4 @@ DEVELOPMENT.md
 
 # local build output
 dist/vivid-worlds-og-v0.0.1.zip
+dist/vivid-worlds-og-v1.0.0.zip

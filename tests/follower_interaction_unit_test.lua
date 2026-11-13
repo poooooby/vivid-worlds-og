@@ -391,9 +391,12 @@ do
   check(lastSay().text:find("returned to you"), "...and says it came back")
   closeMessage()
   fi = jobInteraction()
-  fi:tryStart({}) openMenu(fi) pick(5)
+  fi:tryStart({}) openMenu(fi)
+  local closedBefore = E.closedStay
+  pick(5)
   eq(set[#set], "battle", "Fight sets the battle role")
   check(lastSay().text:find("battle wild"), "...and says what it will do")
+  eq(E.closedStay, closedBefore + 1, "...with the report box taken down first (left up, it softlocked)")
   closeMessage()
   fi = jobInteraction()
   fi:tryStart({}) openMenu(fi) pick(6)

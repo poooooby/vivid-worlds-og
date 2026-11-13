@@ -473,6 +473,8 @@ function EngineGb.install(hooks, log)
       if not native then
         local consumed = safeCall(log, "interact", hooks.interact, a.game and a.game(EngineGb._world) or nil)
         if consumed then return end
+        -- a press on the partner the menu passed on: never the engine's own follower talk
+        if a.partnerPressBlocked and select(2, pcall(a.partnerPressBlocked, world)) == true then return end
       end
       return originals.interact(world, ...)
     end

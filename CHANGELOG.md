@@ -4,6 +4,16 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## 1.0.1 — 2026-11-12
+
+### Fixes
+
+- Picking a role (Follow, Forage, Fight) or Recall from your partner's own menu no longer
+  softlocks the game: its mood line ("... is beaming with joy!") came back after the role's line
+  and could not be closed. The same went for the "already doing that" and "wants some space"
+  lines.
+- Red and Blue: pressing A at your partner while it is mid-step no longer crashes the game.
+
 ## 1.0.0 — 2026-11-12
 
 The first release: visible wild Pokémon and a partner Pokémon for Red, Blue, Yellow, Gold, Silver
