@@ -4,7 +4,7 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
-## Unreleased
+## 1.0.2 — 2026-11-12
 
 ### Fixes
 
