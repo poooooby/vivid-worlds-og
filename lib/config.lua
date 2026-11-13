@@ -129,12 +129,22 @@ Config.ACTIONS = {
 
 -- Swapping the companion (lib/follower_swap.lua): all ticks / px.
 Config.SWAP = {
-  poseTicks = 26,    -- the player's arm-up pose, a Poke Ball in hand, per phase
-  recallDelay = 10,  -- ticks of holding the ball up before the old one shrinks in
-  sendDelay = 12,    -- ... before the new one grows out
-  ballLift = 19,     -- px the ball is held above the player's feet
-  ballX = 6,         -- px to the side: the raised hand
+  poseTicks = 26,    -- the player's arm-up pose, per phase
+  recallDelay = 10,  -- ticks of the arm up before the ball drops onto the old one
+  sendDelay = 12,    -- ... before the ball drops for the new one (lib/ball_drop.lua)
   maxTicks = 240,    -- hard cap: the scene may not hold the field lock longer
+}
+
+-- The partner going into / coming out of its Poke Ball on purpose (lib/ball_drop.lua: the
+-- party switch, the Follower option, a Battler resting): all ticks / px.
+--   out: the ball falls `fall` ticks from `dropZ`, bounces `bounceH` px for `bounce` ticks,
+--        pops (sound, burst) and the Pokemon grows out over `grow` ticks as the ball fades
+--   in:  the ball falls `fallIn` ticks from `dropZIn` to `hitZ` (on the Pokemon), pops, the
+--        Pokemon shrinks in over `shrink` ticks as the ball settles, rests `rest`, fades `fade`
+Config.BALL = {
+  fall = 8, dropZ = 20, bounce = 5, bounceH = 3, grow = 8,
+  fallIn = 7, dropZIn = 26, hitZ = 10, shrink = 8, rest = 3, fade = 6,
+  burst = 8, -- ticks the white pop ring spreads and fades
 }
 
 -- Battler role (lib/overworld_battle.lua): all ticks / px / cells.
@@ -158,8 +168,9 @@ Config.OW_BATTLE = {
   attackSpeed = 1.6,    -- animation rate of attack / hurt
   winPause = 36,        -- ticks the cry plays before the defeated Pokemon sinks
   sinkTicks = 40,       -- ... then it sinks into the ground over this long
-  cryPause = 36,        -- the Battler's cry before it shrinks into the player
-  recallTicks = 18,     -- shrinking in / growing back out (the PMD recall length)
+  cryPause = 36,        -- the Battler's cry before a Poke Ball takes it in
+  -- coming back out of its ball (lib/ball_drop.lua's "out" run)
+  recallTicks = Config.BALL.fall + Config.BALL.bounce + Config.BALL.grow,
   restCheck = 30,       -- ticks between "healed yet?" checks while resting
   popupTicks = 110,     -- "+EXP" label time
   expShare = 0.5,       -- fraction of the engine's EXP value a win is worth

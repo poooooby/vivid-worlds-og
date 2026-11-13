@@ -587,6 +587,10 @@ do
   local realPixel = fakeEngine.playerPixel
   fakeEngine.playerPixel = function() return 40, 48 end
   local T = V.require("config").PMD_RECALL_TICKS
+  local BallDrop = V.require("ball_drop")
+  local biking = false
+  local realBike = fakeEngine.playerBiking
+  fakeEngine.playerBiking = function() return biking end
   for _, style in ipairs({ "pokemmo" }) do
     optionStore.sprite_style = style
     V.mod = (style == "pmd") and pmdMod or mod
@@ -594,17 +598,47 @@ do
     local fo = FollowerAdapter.new(V.mod)
     fo:tick()
     eq(fo.renderer.recall or 1, 1, style .. ": the Follower option on (default): it is out")
+    local poofs = 0
+    fakeEngine.playSeNamed = function(name) if name == "BALL_POOF" then poofs = poofs + 1 end return true end
     optionStore.show_follower = false
-    for _ = 1, T do fo:tick() end
+    fo:tick()
+    check(fo.ballRun ~= nil and fo.ballState ~= nil, style .. ": option off: a Poke Ball drops onto it")
+    eq(fo.renderer.recallX, nil, style .. ": ...it goes in where it stands (no slide to the player)")
+    npc.px, npc.py = 48, 48
+    local balls = 0
+    local actors = {}
+    fo:collectActors(actors)
+    for _, a in ipairs(actors) do if a.kind == "follower_action_ball" then balls = balls + 1 end end
+    eq(balls, 1, style .. ": ...the ball is drawn")
+    for _ = 1, BallDrop.length("in") do fo:tick() end
     eq(fo.renderer.recall, 0, style .. ": option off: it goes into its ball")
+    eq(fo.ballState, nil, style .. ": ...and the ball is gone")
+    eq(poofs, 1, style .. ": ...with one Ball Poof")
     check(fo:isRecalled(), style .. ": ...recalled, so it cannot be talked to")
     check(fo.surfRecall, style .. ": ...and its job pauses (as on a bike)")
     for _ = 1, 60 do fo:tick() end
     eq(fo.renderer.recall, 0, style .. ": ...and it stays in")
     optionStore.show_follower = nil
+    fo:tick()
+    eq(fo.renderer.recall, 0, style .. ": option back on: the ball drops first, nothing out yet")
+    for _ = 1, BallDrop.popAt("out") - 2 do fo:tick() end
+    eq(fo.renderer.recall, 0, style .. ": ...still inside as the ball lands and bounces")
+    for _ = 1, BallDrop.length("out") do fo:tick() end
+    eq(fo.renderer.recall, 1, style .. ": option back on: it pops back out")
+    eq(poofs, 2, style .. ": ...with another Ball Poof")
+    -- the bike is not a choice: the quick shrink into the player, no ball
+    biking = true
+    fo:tick()
+    eq(fo.ballRun, nil, style .. ": getting on the bike: no ball")
+    for _ = 1, T do fo:tick() end
+    eq(fo.renderer.recall, 0, style .. ": ...it shrank into the player")
+    biking = false
     for _ = 1, T + 1 do fo:tick() end
-    eq(fo.renderer.recall, 1, style .. ": option back on: it comes back out")
+    eq(fo.renderer.recall, 1, style .. ": off the bike: back out")
+    eq(poofs, 2, style .. ": ...no Ball Poof for the bike")
+    fakeEngine.playSeNamed = nil
   end
+  fakeEngine.playerBiking = realBike
   fakeEngine.playerPixel = realPixel
   optionStore.sprite_style = nil
   V.mod = mod
@@ -724,7 +758,7 @@ do
   local actors = {}
   fs:collectActors(actors)
   for _, a in ipairs(actors) do if a.kind == "follower_action_ball" then ball = true end end
-  check(ball, "a ball is drawn in the player's hand")
+  check(not ball, "no ball in the player's hand: it drops at the partner")
 
   local sawOut, sawIn = false, false
   for _ = 1, 200 do

@@ -867,7 +867,7 @@ function Gen2.playSelect() return sfx("Sfx_ReadText2") end
 
 -- the battle's own hit sounds (BattleState:effectivenessSfx) and faint, for EnginePatch.playSeNamed
 Gen2.SFX = { SE_EFFECTIVE = "Sfx_Damage", SE_SUPER_EFFECTIVE = "Sfx_SuperEffective",
-  SE_NOT_EFFECTIVE = "Sfx_NotVeryEffective", KO = "Sfx_Faint" }
+  SE_NOT_EFFECTIVE = "Sfx_NotVeryEffective", KO = "Sfx_Faint", BALL_POOF = "Sfx_BallPoof" }
 
 function Gen2.holdsExpShare(mon)
   return type(mon) == "table" and mon.item == "EXP_SHARE"

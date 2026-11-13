@@ -4,6 +4,16 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Changes
+
+- Your partner comes out of a real **Poké Ball**: it drops behind you, bounces once and the
+  Pokémon pops out with the ball's sound. Going back in, a ball drops onto it and it shrinks
+  inside before the ball fades away. This is for switching partners, the **Follower** option,
+  Recall and a Battler resting; on the bike, in cutscenes and at the Pokémon Center it still
+  shrinks quickly into you, as before.
+
 ## 1.0.4 — 2026-11-13
 
 ### Fixes

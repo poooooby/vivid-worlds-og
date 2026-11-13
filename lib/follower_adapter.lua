@@ -45,6 +45,7 @@ local ShinySparkle = V.require("shiny_sparkle")
 local EmoteArt = V.require("emote_art")
 local PartnerFx = V.require("partner_fx")
 local FollowerSwap = V.require("follower_swap")
+local BallDrop = V.require("ball_drop")
 
 local FollowerAdapter = {}
 FollowerAdapter.__index = FollowerAdapter
@@ -379,6 +380,9 @@ function FollowerAdapter:_tickRecall(npc, r)
   -- a cutscene (a script moving anyone: the player, an NPC, both -- or Gen 2's `follow`),
   -- it stays out of the way inside its ball; plain dialogue moves nobody and leaves it out
   if self:inCutscene() then recalled = true end
+  -- (the reasons above come and go with what the player does: a quick shrink into them.
+  -- The ones below are a choice -- the option, a rest, a switch -- and use the ball.)
+  local incidental = recalled
   -- the Follower option off: in its ball all the time, its role paused like on a bike
   if self.off then recalled = true end
   self.surfRecall = recalled
@@ -393,16 +397,42 @@ function FollowerAdapter:_tickRecall(npc, r)
     -- the new sprite begins inside the ball, whatever it is about to do
     r.recall, r.recallPlaced, self.swapFresh = 0, true, false
   end
-  if r.recallPlaced then
+  local ballOk = not (incidental or self.lastIncidental)
+  self.lastIncidental = incidental
+  if self.ballRun and self.ballRenderer ~= r then self:_endBall() end -- another sprite now
+  if not self.ballRun and r.recallPlaced and r.recall == 1 - want and ballOk then
+    -- settled the other way, and it is a choice: a Poke Ball drops (lib/ball_drop.lua)
+    self.ballRun, self.ballRenderer = BallDrop.new(want == 0 and "in" or "out"), r
+  end
+  if self.ballRun then
+    -- the run plays out whole (under half a second) even if `want` turns back meanwhile
+    local s = self.ballRun:step()
+    if s then
+      r.recall = s.recall
+      self.ballState = s.ball
+      if s.poof and EnginePatch.playSeNamed then EnginePatch.playSeNamed("BALL_POOF") end
+    else
+      self:_endBall()
+    end
+  elseif r.recallPlaced then
     local step = 1 / math.max(1, Config.PMD_RECALL_TICKS)
     r.recall = ActorRenderer.approach(r.recall, want, step)
   else
     r.recall, r.recallPlaced = want, true -- a new sprite starts in its right state
   end
-  local px, py = nil, nil
-  if EnginePatch.playerPixel then px, py = EnginePatch.playerPixel() end
-  r.recallX, r.recallY = px, py
+  if self.ballRun then
+    -- into / out of the ball where it stands: scaled about its feet, no slide to the player
+    r.recallX, r.recallY = nil, nil
+  else
+    local px, py = nil, nil
+    if EnginePatch.playerPixel then px, py = EnginePatch.playerPixel() end
+    r.recallX, r.recallY = px, py
+  end
   self:_tickDuck(npc, r)
+end
+
+function FollowerAdapter:_endBall()
+  self.ballRun, self.ballRenderer, self.ballState = nil, nil, nil
 end
 
 -- the art's width as drawn (px), for which columns of tiles it spans
@@ -517,6 +547,7 @@ end
 --- tick shows the companion as it is, with no scene.
 function FollowerAdapter:resetDisplay()
   self:_endSwap()
+  self:_endBall()
   self.disp = nil
 end
 
@@ -806,12 +837,17 @@ function FollowerAdapter:collectActors(actors)
   if ball then
     actors[#actors + 1] = FollowerActions.ballActor(ball, npc.px, npc.py, npc.elevation)
   end
-  local held = self.swapState and self.swapState.ball
-  if held then
-    local px, py = EnginePatch.playerPixel()
-    if px then
-      actors[#actors + 1] = FollowerActions.ballActor(held, px, py, EnginePatch.playerElevation())
-    end
+  -- the Poke Ball it goes into / comes out of (lib/ball_drop.lua), under its feet where it
+  -- is drawn: its tile, the glide behind the player, a scene's offset (a Battler afield)
+  local drop = self.ballState
+  local r = self.renderer
+  if drop and r and npc.px and npc.py then
+    local pushX, pushY = r.pushX, r.pushY
+    if pushX == nil or pushY == nil then pushX, pushY = ActorRenderer.behindOffset(npc.facing, r.largePushback) end
+    local act = r.act
+    local ox = npc.px + pushX + (act and act.dx or 0)
+    local oy = npc.py + pushY + (act and act.dy or 0)
+    actors[#actors + 1] = FollowerActions.ballActor(drop, ox, oy, npc.elevation)
   end
   local role = self.behaviors and self.behaviors[self.role]
   if role and role.collectActors and not self.away then role:collectActors(actors) end

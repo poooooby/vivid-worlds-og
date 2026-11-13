@@ -939,7 +939,7 @@ end
 
 -- the battle's own hit sounds (EffectRegistry) and faint thud, for EnginePatch.playSeNamed
 Gen1.SFX = { SE_EFFECTIVE = "Damage", SE_SUPER_EFFECTIVE = "Super_Effective",
-  SE_NOT_EFFECTIVE = "Not_Very_Effective", KO = "Faint_Thud" }
+  SE_NOT_EFFECTIVE = "Not_Very_Effective", KO = "Faint_Thud", BALL_POOF = "Ball_Poof" }
 
 --- EXP.ALL is a bag item in Gen 1: carried, every party Pokemon shares a win.
 function Gen1.holdsExpShare(_mon)
