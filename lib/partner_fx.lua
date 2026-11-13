@@ -22,6 +22,10 @@ local GOLD = { 1.0, 0.86, 0.30 }
 
 local function clamp01(v) return v < 0 and 0 or (v > 1 and 1 or v) end
 
+-- the rest between drifts / puffs (asked for every frame): one shared, read-only empty list
+local NONE = setmetatable({}, { __newindex = function() error("PartnerFx: read-only list", 2) end })
+PartnerFx.NONE = NONE
+
 --- The partner's type kind (a FinisherFx kind): its first type, or its second when the first
 --- is Normal (a Pidgey reads as Flying). nil when unknown.
 function PartnerFx.kindFor(species)
@@ -55,8 +59,9 @@ end
 
 --- `age` ticks into being ready to evolve (it repeats every EVOLVE_PERIOD).
 function PartnerFx.evolveParts(age)
-  local out = {}
   local t = (tonumber(age) or 0) % PartnerFx.EVOLVE_PERIOD
+  if t >= 2 * 10 + 50 then return NONE end -- the last sparkle (i = 2) is over
+  local out = {}
   for i = 0, 2 do
     local u = t - i * 10
     if u >= 0 and u < 50 then
@@ -70,10 +75,10 @@ end
 
 --- A soft puff of `kind` `age` ticks into a cycle of `period` ticks (one puff each cycle).
 function PartnerFx.typePuffParts(kind, age, period)
-  local out = {}
   period = period or PartnerFx.PUFF_PERIOD
   local t = (tonumber(age) or 0) % period
-  if t >= 30 then return out end
+  if t >= 30 then return NONE end
+  local out = {}
   local q = t / 30
   local s = FinisherFx.SPARKS[kind] or FinisherFx.SPARKS.NORMAL
   local shape = (s[1] ~= "ring" and s[1] ~= "streak") and s[1] or nil

@@ -41,10 +41,14 @@ local SPOTS = {
 
 --- The stars to draw `age` ticks into the Pokemon's life (`id` sets its own rhythm):
 --- { {shape, sx, sy, alpha}, ... } with sx -1..1 across the body, sy 0..1 down it.
+-- between bursts (most of the time): one shared, read-only empty list, not a new one a frame
+local NONE = setmetatable({}, { __newindex = function() error("ShinySparkle: read-only list", 2) end })
+
 function ShinySparkle.burst(age, id)
   age = math.max(0, math.floor(tonumber(age) or 0))
   local offset = ((tonumber(id) or 0) * 53) % ShinySparkle.PERIOD
   local t = (age + offset) % ShinySparkle.PERIOD
+  if t >= (ShinySparkle.COUNT - 1) * ShinySparkle.STAGGER + ShinySparkle.LIFE then return NONE end
   local n = math.floor((age + offset) / ShinySparkle.PERIOD)
   local spots = SPOTS[(n % #SPOTS) + 1]
   local out = {}

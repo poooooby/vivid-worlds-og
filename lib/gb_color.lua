@@ -66,19 +66,20 @@ function GbColor.mode(generation, PaletteFX)
   return "luma"
 end
 
---- Runs `fn` (which draws one actor) the way `mode` says; (x, y, w, h) is a canvas rect
---- that covers what it draws (only used for "mark").
-function GbColor.draw(mode, PaletteFX, fn, x, y, w, h)
+--- Runs `fn(...)` (which draws one actor) the way `mode` says; (x, y, w, h) is a canvas rect
+--- that covers what it draws (only used for "mark"). The arguments after it go to `fn`, so a
+--- caller drawing every frame can pass one shared function instead of a new closure.
+function GbColor.draw(mode, PaletteFX, fn, x, y, w, h, ...)
   if mode == "mark" then
     if PaletteFX and PaletteFX.markTrueColor then pcall(PaletteFX.markTrueColor, x, y, w, h) end
-    return fn()
+    return fn(...)
   end
   local sh = mode == "luma" and shader() or nil
-  if not sh then return fn() end
+  if not sh then return fn(...) end
   local G = love.graphics
   local prev = G.getShader()
   G.setShader(sh)
-  local ok, err = pcall(fn)
+  local ok, err = pcall(fn, ...)
   G.setShader(prev)
   if not ok then error(err, 0) end
 end

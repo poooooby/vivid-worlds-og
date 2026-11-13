@@ -148,10 +148,10 @@ end
 local function drawGen1(p, camX, camY)
   local a = p.actor
   if not a then return end
-  local lift = GbColor.FOOT_LIFT
   local x, y = (a.x or 0) - camX, (a.y or 0) - camY
-  GbColor.draw(p.colorMode, p.paletteFx, function() drawActor(a, camX, camY + lift) end,
-    math.floor(x + CELL / 2 - MARK_W / 2), math.floor(y - MARK_UP), MARK_W, MARK_H)
+  GbColor.draw(p.colorMode, p.paletteFx, drawActor,
+    math.floor(x + CELL / 2 - MARK_W / 2), math.floor(y - MARK_UP), MARK_W, MARK_H,
+    a, camX, camY + GbColor.FOOT_LIFT)
 end
 
 -- Gen 2 calls entity:draw(ox, oy, s, oamRow) (World:drawPersonEntry), ox/oy already the
@@ -419,6 +419,9 @@ function EngineGb.install(hooks, log)
     return r1, r2, r3
   end
 
+  -- the engine lists each wrap hands withProxies: one table per wrap, refilled every frame
+  local drawLists, pipeLists = {}, {}
+
   local DrawMod = loadModule(a.TARGETS.draw.mod)
   local drawField = a.TARGETS.draw.field
   originals.draw = DrawMod[drawField]
@@ -429,7 +432,8 @@ function EngineGb.install(hooks, log)
     -- the pipeline inside drawWorld; Gen 2 from World:drawPipeline (below).
     local pipeline = a.generation == 1 and EngineGb.pipelineActive()
     EngineGb._pipeline = pipeline
-    return withProxies({ listOf(world) }, pipeline, originals.draw, world, ...)
+    drawLists[1] = listOf(world)
+    return withProxies(drawLists, pipeline, originals.draw, world, ...)
   end
 
   -- Gen 2: a pipeline (Stadium2) draws the world in World:drawPipeline, from the same lists
@@ -441,7 +445,8 @@ function EngineGb.install(hooks, log)
     originals.pipeline = PipeMod[pipe.field]
     PipeMod[pipe.field] = function(world, ...)
       EngineGb._world, EngineGb._pipeline = world, true
-      local lists = {}
+      local lists = pipeLists
+      lists[1], lists[2] = nil, nil
       if type(world.npcs) == "table" then lists[#lists + 1] = world.npcs end
       if type(world.entities) == "table" and world.entities ~= world.npcs then lists[#lists + 1] = world.entities end
       return withProxies(lists, true, originals.pipeline, world, ...)
@@ -1121,9 +1126,8 @@ local function spriteDraw(s, px, py, camX, camY, facing, phase, _flip, _a, _b, _
   local paletteFx = loadModule("src.render.PaletteFX")
   local mode = GbColor.mode(1, paletteFx)
   local x, y = (px or 0) - (camX or 0), (py or 0) - (camY or 0)
-  GbColor.draw(mode, paletteFx, function()
-    r:draw(px, py, camX, (camY or 0) + GbColor.FOOT_LIFT, facing, phase or 0, false)
-  end, math.floor(x + CELL / 2 - MARK_W / 2), math.floor(y - MARK_UP), MARK_W, MARK_H)
+  GbColor.draw(mode, paletteFx, r.draw, math.floor(x + CELL / 2 - MARK_W / 2), math.floor(y - MARK_UP),
+    MARK_W, MARK_H, r, px, py, camX, (camY or 0) + GbColor.FOOT_LIFT, facing, phase or 0, false)
 end
 
 local function spriteOrigin(_s, px, py, camX, camY)

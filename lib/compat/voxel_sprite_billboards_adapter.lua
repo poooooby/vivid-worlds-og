@@ -236,19 +236,11 @@ function Factory.create(spec)
     return fw, fh, ax, ay, dw, dh, dax, day
   end
 
+  -- (one concatenation, no table: asked for every card every frame)
   function Adapter.cacheKey(def, frame, fw, fh, ax, ay, dw, dh, dax, day)
-    return table.concat({
-      tostring(def.image),
-      tostring(frame or 0),
-      tostring(fw),
-      tostring(fh),
-      tostring(ax),
-      tostring(ay),
-      tostring(dw),
-      tostring(dh),
-      tostring(dax),
-      tostring(day),
-    }, "#")
+    return tostring(def.image) .. "#" .. tostring(frame or 0) .. "#" .. tostring(fw) .. "#" .. tostring(fh)
+      .. "#" .. tostring(ax) .. "#" .. tostring(ay) .. "#" .. tostring(dw) .. "#" .. tostring(dh)
+      .. "#" .. tostring(dax) .. "#" .. tostring(day)
   end
 
   function Adapter.localQuad(fw, fh, ax, ay)

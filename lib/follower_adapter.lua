@@ -50,6 +50,7 @@ local FollowerAdapter = {}
 FollowerAdapter.__index = FollowerAdapter
 
 local CELL = 16
+local NO_STATE = {} -- what collectActors reads with no scene running (never written)
 local POPUP_GAP = 3 -- px of air between the top of its head and a label's tail
 FollowerAdapter.NOTICE_TICKS = 120 -- how long a notice (the Battler hotkey's call-out) stays up
 -- the Gen 3 player's art reaches this high above the tile's bottom edge (a bubble over them)
@@ -833,7 +834,7 @@ function FollowerAdapter:collectActors(actors)
     -- over where the sprite is actually drawn: tile + spacing + the act's offset
     local r = self.renderer
     local act = r and r.act
-    local state = self.actState or {}
+    local state = self.actState or NO_STATE -- (read only: a new `{}` here was garbage a frame)
     -- just over its head as drawn (headLift: the highest point its art reaches, Species Sizes
     -- included; squashed under an eave), not a fixed height
     local head = (r and r.headLift and r:headLift()) or CELL
@@ -873,6 +874,7 @@ function FollowerAdapter:collectActors(actors)
     local parts
     local pending = self.readyPending
     if pending and pending.evolve then parts = PartnerFx.evolveParts(self.fxClock or 0) end
+    if parts and #parts == 0 then parts = nil end -- (PartnerFx.NONE between drifts: shared, never appended to)
     local species = self.disp and self.disp.species
     if species ~= self.fxSpecies then self.fxSpecies, self.fxKind = species, species and PartnerFx.kindFor(species) end
     local puff

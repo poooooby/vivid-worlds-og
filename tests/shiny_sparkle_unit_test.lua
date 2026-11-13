@@ -31,6 +31,11 @@ for age = 0, P - 1 do
 end
 check(frames > 0 and frames <= SS.LIFE + (SS.COUNT - 1) * SS.STAGGER, "a short burst each period (" .. frames .. " ticks)")
 check(quiet > P / 2, "...and quiet most of the time")
+-- the quiet stretch returns early with one shared list: the burst itself must not lose a tick
+eq(frames, SS.LIFE + (SS.COUNT - 1) * SS.STAGGER, "the burst runs every star's whole life")
+local q1, q2 = SS.burst(P - 1, 0), SS.burst(P - 2, 0)
+check(#q1 == 0 and q1 == q2, "the quiet stretch is one shared list (no garbage a frame)")
+check(not pcall(function() q1[1] = "x" end), "...which cannot be written to")
 check(maxStars >= 2 and maxStars <= SS.COUNT, "the stars overlap a little, never more than " .. SS.COUNT)
 
 -- the burst repeats every period; a second Pokemon is out of step

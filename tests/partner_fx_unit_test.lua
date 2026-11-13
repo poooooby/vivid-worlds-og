@@ -68,6 +68,10 @@ check(#PartnerFx.evolveParts(5) > 0, "ready to evolve: sparkles drift up")
 check(#PartnerFx.evolveParts(PartnerFx.EVOLVE_PERIOD + 5) > 0, "...again and again")
 check(#PartnerFx.evolveParts(PartnerFx.EVOLVE_PERIOD - 5) == 0, "...with a rest in between")
 check(allKnown(PartnerFx.evolveParts(20)), "...known shapes")
+check(#PartnerFx.evolveParts(69) > 0, "...the last sparkle runs its whole life (to tick 69)")
+check(PartnerFx.evolveParts(70) == PartnerFx.NONE, "the rest is one shared list (no garbage a frame)")
+check(PartnerFx.typePuffParts("FIRE", 40, 45) == PartnerFx.NONE, "...and so is a puff's rest")
+check(not pcall(function() PartnerFx.NONE[1] = "x" end) and #PartnerFx.NONE == 0, "...which cannot be written to")
 
 -- type puffs, every type
 for kind in pairs(V.require("finisher_fx").SPARKS) do

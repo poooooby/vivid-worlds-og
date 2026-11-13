@@ -1028,6 +1028,9 @@ end
 --   * a warp cell is a hole: stepping on it leaves the map, so nothing behind it is reached.
 -- Surfing is the start state's: a player already on the water can cross it.
 local DELTA = { up = { 0, -1 }, down = { 0, 1 }, left = { -1, 0 }, right = { 1, 0 } }
+-- the mover Collision.pairBlocked reads (only `.surfing`): two shared ones, not a new table for
+-- every step the flood fill tries (4 a cell, thousands a re-measure)
+local SURFER, WALKER = { surfing = true }, { surfing = false }
 
 function Gen1.reachMover(ow)
   local map = ow and ow.map
@@ -1059,7 +1062,7 @@ function Gen1.reachMover(ow)
       end
     end
     if not floor(tx, ty, surfing) then return nil end
-    if pairBlocked and pairBlocked(map, { surfing = surfing }, x, y, tx, ty) then return nil end
+    if pairBlocked and pairBlocked(map, surfing and SURFER or WALKER, x, y, tx, ty) then return nil end
     return tx, ty, state
   end
 end

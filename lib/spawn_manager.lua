@@ -657,8 +657,10 @@ function SpawnManager:tick(game)
       Behavior._advanceMove(e)
     end
   end
-  for _, id in ipairs(gone or {}) do
-    if type(id) == "table" then self:despawn(id.takeoff or id.leave, { animate = true }) else self:despawn(id) end
+  if gone then -- (no `or {}`: that built an empty table every tick)
+    for _, id in ipairs(gone) do
+      if type(id) == "table" then self:despawn(id.takeoff or id.leave, { animate = true }) else self:despawn(id) end
+    end
   end
   -- switched off, the option's clear must stay cleared: this refill undid it every tick
   if Config.enabled(self.mod) then

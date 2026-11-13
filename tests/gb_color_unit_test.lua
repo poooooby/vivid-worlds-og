@@ -52,6 +52,13 @@ check(ran == 2 and shaderSet[1] and shaderSet[1].lum and shaderSet[2] == "prev",
 local ok = pcall(GbColor.draw, "luma", PaletteFX, function() error("boom") end)
 check(not ok and shaderSet[#shaderSet] == "prev", "an error inside still puts the shader back")
 
+-- the arguments after the rect reach `fn` (a shared draw function, no closure per frame)
+for _, mode in ipairs({ "mark", "luma", "raw" }) do
+  local got = {}
+  GbColor.draw(mode, PaletteFX, function(a, b, c) got[1], got[2], got[3] = a, b, c end, 0, 0, 1, 1, "x", 7, nil)
+  check(got[1] == "x" and got[2] == 7 and got[3] == nil, mode .. ": the extra arguments reach fn")
+end
+
 print("")
 if failures > 0 then
   io.stderr:write(failures .. " failure(s)\n")

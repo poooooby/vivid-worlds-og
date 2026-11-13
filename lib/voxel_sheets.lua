@@ -144,8 +144,9 @@ function VoxelSheets:spriteFor(r, luma)
   local style = styleOf(r)
   local sil = r.silhouette and true or false
   local b = r.voxelStride == "b"
-  local key = table.concat({ tostring(r.dex), r.shiny and "s" or "n", style, sil and "sil" or "",
-    luma and "luma" or "color" }, "-") .. (b and "-b" or "")
+  -- (one concatenation, no table: this runs for every card every frame)
+  local key = tostring(r.dex) .. "-" .. (r.shiny and "s" or "n") .. "-" .. tostring(style) .. "-"
+    .. (sil and "sil" or "") .. "-" .. (luma and "luma" or "color") .. (b and "-b" or "")
   -- a Poke Followers / GSC sheet is already drawn at the Game Boy's own scale: its card
   -- keeps the sheet's size. HGSS art (including a GSC-style species that has no GSC art)
   -- is sized by Species Sizes against the shorter Game Boy player (Config.gbSizeRatio),
