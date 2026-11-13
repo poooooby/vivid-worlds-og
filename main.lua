@@ -288,10 +288,17 @@ return function(mod)
   followerAdapter.behaviors.battle = battler
   mod.exports.battler = battler
 
+  -- the Pokemon standing on the maps (Mewtwo, the birds, Snorlax, Lugia ... and the town and
+  -- house ones) in this mod's art instead of the generic Game Boy sheets (lib/static_mons.lua)
+  local staticMons = V.require("static_mons").new(mod)
+  mod.exports.staticMons = staticMons
+
   local installed = EnginePatch.install({
     collectActors = function(actors, camX, camY)
       spawnManager:collectActors(actors, camX, camY)
       followerAdapter:collectActors(actors)
+      -- (a map's Pokemon dressed before its first frame shows them, not one tick after)
+      staticMons:tick(true)
     end,
     messageDraw = function() end, -- no portraits: the partner's emote is a field actor
     -- Runs BEFORE the engine's A-button handler: facing your partner and pressing A
@@ -306,6 +313,7 @@ return function(mod)
       battleTrigger:tick()
       battleTrigger:checkContact()
       followerAdapter:tick()
+      staticMons:tick()
     end,
   }, mod.log)
 

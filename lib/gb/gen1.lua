@@ -540,6 +540,18 @@ function Gen1.follower(ow)
   return nil
 end
 
+--- A map object's facts for lib/static_mons.lua: its object_event's name (CERULEANCAVEB1F_MEWTWO),
+--- its static battle's species (`pokemon`) and the sheet it wears now (NPC:setAppearance).
+function Gen1.npcFacts(ow, npc, out)
+  local def = type(npc) == "table" and npc.def
+  if type(def) ~= "table" or type(def.name) ~= "string" then return false end
+  out.mapId = ow and ow.map and ow.map.id
+  out.index, out.name, out.pokemon = def.index, def.name, def.pokemon
+  out.sprite = npc.appearance or def.sprite
+  out.spriteSpecies, out.script = nil, nil
+  return true
+end
+
 --- The overworld that has `map` loaded: the state on top of the game's stack (it is pushed
 --- before it loads its map), else nil.
 function Gen1.liveWorld(game, map)

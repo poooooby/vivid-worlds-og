@@ -1091,6 +1091,22 @@ function EngineGb.followerCurrent()
   return a.follower(EngineGb._world)
 end
 
+--- The map's people (Gen 1 OverworldController.npcs, Gen 2 World.npcs), for
+--- lib/static_mons.lua. nil before the field's first frame.
+function EngineGb.mapNpcs()
+  local w = EngineGb._world
+  return type(w) == "table" and w.npcs or nil
+end
+
+--- What a map object's own data says about it, written into `out` (the facts
+--- lib/static_mons.lua classifies). false for anything that is no map object.
+function EngineGb.npcFacts(npc, out)
+  local a = A()
+  if not (a and a.npcFacts and type(out) == "table") then return false end
+  local ok, yes = pcall(a.npcFacts, EngineGb._world, npc, out)
+  return ok and yes == true
+end
+
 -- the engine sprite a follower npc carries, for one of our renderers: draws it 4 px up
 -- (GbColor.FOOT_LIFT) in the generation's colour mode, with the fields Gen 1's grass
 -- strip and hop shadow read (a 16x16 walker's geometry). Anything else (`def`, `image`

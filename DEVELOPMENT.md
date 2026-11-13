@@ -34,6 +34,12 @@ throwaway portable export of the engine: `git archive HEAD` without `mods/`, plu
 folders (`red/`, `gold/`, `crystal/` ...), a `portable.txt`, and this repo junctioned into
 `mods/vivid_worlds_og`. That keeps your real saves and mod settings untouched.
 
+The map's own Pokémon (`lib/static_mons.lua`): `tests/drivers/p7_static.lua` (`red` / `crystal`;
+pre-create `<shots>/<version>-static`) warps next to Mewtwo, Zapdos, Snorlax ... / Lugia, the red
+Gyarados, the big Snorlax, the beasts ..., checks each wears our art for its species, and takes a
+screenshot. `tests/static_mons_unit_test.lua` also classifies every object of the six games' map
+data when `../gen1recomp` is present.
+
 Per-frame cost: `tests/drivers/p5_perf.lua` (`red` / `crystal`) walks a route with the partner out
 and the garbage collector stopped, and prints KB allocated and ms spent a frame per hook
 (`VWOG_PERF_DEEP=1`: per EnginePatch function and class method). At 1.0.0 the mod's hooks made

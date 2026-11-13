@@ -375,6 +375,24 @@ function Gen2.follower(world)
   return nil
 end
 
+--- A map object's facts for lib/static_mons.lua: the sheet it resolved to (a `variablesprite`
+--- slot included: Route 36's Sudowoodo), the Day-Care's species, and its script's op list
+--- (its `loadwildmon`, its `cry`).
+function Gen2.npcFacts(world, npc, out)
+  local def = type(npc) == "table" and npc.def
+  if type(def) ~= "table" or def.index == nil then return false end
+  local sd = npc.spriteDef
+  out.mapId = npc.mapId or (world and world.map and world.map.id)
+  out.index, out.name, out.pokemon = def.index, nil, nil
+  out.sprite = type(sd) == "table" and sd.id or (type(def.sprite) == "string" and def.sprite or nil)
+  -- (only the Day-Care's built sheet: an icon-made SPRITE_<species> row names its species
+  -- too, and a borrowed one must not beat the object's own script)
+  out.spriteSpecies = type(sd) == "table" and sd.id == "SPRITE_DAY_CARE_MON" and sd.species or nil
+  local scripts = world and world.scripts
+  out.script = def.scriptKey ~= nil and type(scripts) == "table" and scripts[def.scriptKey] or nil
+  return true
+end
+
 --- The world that has `map` loaded: Gold's one World (game.world).
 function Gen2.liveWorld(game, map)
   local w = game and game.world

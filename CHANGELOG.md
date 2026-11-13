@@ -4,6 +4,18 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Added
+
+- **The map's own Pokémon** in this mod's art, in your Sprite Style: Mewtwo, Articuno, Zapdos,
+  Moltres, Snorlax, the Power Plant's Voltorb and Electrode, Lugia, Ho-Oh, Raikou, Entei and
+  Suicune, the red Gyarados (shiny), Sudowoodo, the Rocket base's Electrode, Lance's Dragonite,
+  and the town and house Pokémon (Slowpoke, Clefairy, Miltank, Chansey ...). Each one is shown
+  as the species it really is: the games drew many of them with a few stand-in sprites (a
+  generic "monster" for Mewtwo, a bird for Zapdos, Moltres' sprite for a Murkrow). The Day-Care's
+  Pokémon on Route 34 show too. Dolls stay as they are.
+
 ## 1.0.2 — 2026-11-12
 
 ### Fixes

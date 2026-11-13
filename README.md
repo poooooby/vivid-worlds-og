@@ -76,6 +76,11 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - 🎨 **Two sprite styles:** **HGSS** sprites at true size, every species and form at its own
   size so a Snorlax towers over a Rattata, or **GSC** sprites, one tile each like the original
   games (705 species; any it lacks, or a shiny it has no art for, shows its HGSS sprite).
+- 🏔️ **The map's own Pokémon:** The Pokémon the games place on their maps show as their real
+  species in the same style: Mewtwo, the legendary birds, Snorlax, Lugia, Ho-Oh, the beasts,
+  the red Gyarados (shiny, as it is in battle), the Power Plant's Voltorb, and the Pokémon in
+  towns and houses (Slowpoke, Clefairy, Miltank ...), where the games drew most of them as a
+  handful of stand-in sprites. Dolls stay dolls.
 - 🧊 **3D worlds:** In TERRARIUM, Battle Art (Gen 1 and 2), Potato, Dramaless and Stadium 2's 3D
   worlds, wild Pokémon and your partner stand as cards of their own size, and their emotes,
   sparkles, health bars and battle effects show up in 3D too.
