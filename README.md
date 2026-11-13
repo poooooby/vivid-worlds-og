@@ -60,7 +60,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   on the field with its real moves and each game's own damage rules, with hit sparks,
   knockouts and EXP for its wins. Whatever it wears a wild Pokémon down to carries into the
   real battle if you then walk into it, and an Exp. Share holder gets its cut.
-- 💎 **Foraging:** As a Forager it spots a glint, dashes over, digs and brings back an item.
+- 💎 **Foraging:** As a Forager it finds an item every 60 steps you take. Every step counts
+  in towns, on routes and in caves; it sniffs the air (a "?" over its head) every 20 of them.
+  On a route or in a cave it then spots a glint, dashes over, digs and brings the item back.
   The fonder it is of you, the better its finds.
 - 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood pops up above its head in
   the game's own emote bubbles: a heart, a smile, a sad face, Zs, a bolt (Yellow's skull for a

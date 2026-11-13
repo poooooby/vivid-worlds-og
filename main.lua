@@ -236,6 +236,16 @@ return function(mod)
     elevation = EnginePatch.playerElevation,
     playCry = EnginePatch.playCry, -- the cry that tells the player it is foraging
     playFound = EnginePatch.playSuccess,
+    -- the hint while it counts its steps: the game's "?" over its head, as a wild Pokemon's
+    hintActor = function(age, wx, wy, renderer)
+      local lift = 20
+      if renderer and renderer.headLift then
+        local okL, h = pcall(renderer.headLift, renderer)
+        if okL and tonumber(h) then lift = h end
+      end
+      return V.require("wild_emote").actor("?", age, wx, wy, math.max(10, math.min(96, lift + 4)),
+        EnginePatch.playerElevation(), 0)
+    end,
   })
   followerAdapter.behaviors.forage = forager
   mod.exports.forageSource = forageSource -- what it can find (tests and tools)

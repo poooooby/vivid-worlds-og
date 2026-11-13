@@ -25,10 +25,10 @@ end
 local Forager = V.require("forager")
 local Config = V.require("config")
 
--- a quick timer (every 50 walking ticks) so the trips can be watched end to end
+-- a quick count (a find every 3 steps) so the trips can be watched end to end; no hint
 local CFG = {
   minSpread = 3, maxSpread = 5, maxWalk = 12,
-  intervalMin = 50, intervalMax = 50, skewLow = 0.5, skewHigh = 3, retryTicks = 20,
+  stepsPerFind = 3, retryTicks = 20,
   allowedMapTypes = { [3] = true },
   perkMax = 45, perkMin = 30, forageSpeedMin = 2.2, forageSpeedMax = 3.0, runSpeed = 4,
   digTicks = 12, cryPause = 6, cryGap = 10, rarePause = 20, rarePause4 = 30,
@@ -98,7 +98,7 @@ do
     eq(f:step(env(20, false)), nil, "standing: nothing to draw") ; if f.mode ~= "near" then break end
   end
   eq(f.mode, "near", "standing still never starts a trip")
-  eq(f.forageTimer, 0, "...and the timer does not count")
+  eq(f.steps, 0, "...and no step is counted")
 end
 
 -- ------- a find, end to end: perk > out > dig > react > back, and always an item
@@ -150,7 +150,7 @@ do
   local f = newForager({ rollItem = function() tries = tries + 1 if fits then return { name = "Potion", tier = 1 } end return nil end })
   local order = modesOf(f, 20, 300)
   eq(order, "near", "a full bag never sends it out")
-  check(f.forageTimer >= 50, "...the timer is kept (it is due)")
+  check(f.steps >= 3, "...the steps are kept (it is due)")
   check(tries >= 2 and tries <= 300 / 20 + 1, "...and it only looks again now and then (" .. tries .. " tries)")
   fits = true
   check(modesOf(f, 40, 200):find("perk", 1, true) ~= nil, "once something fits it sets out")
@@ -166,23 +166,74 @@ end
 
 -- ------- no idle wandering, ever
 do
-  local f = newForager(nil, setmetatable({ intervalMin = 1e9, intervalMax = 1e9 }, { __index = CFG }))
+  local f = newForager(nil, setmetatable({ stepsPerFind = 1e9 }, { __index = CFG }))
   local drawn = 0
   walk(f, 20, 20000, function(s) if s then drawn = drawn + 1 end end)
   eq(f.mode, "near", "with no find due it never leaves the player's side")
   eq(drawn, 0, "...and never draws away from them")
 end
 
--- ------- the timer only runs while walking, where foraging is allowed
+-- ------- it counts the player's steps, where steps count (towns too); it digs only where allowed
+do
+  local f = newForager(nil, setmetatable({ stepsPerFind = 1e9 }, { __index = CFG }))
+  for _ = 1, 100 do f:step(env(20, false)) end
+  eq(f.steps, 0, "standing does not count")
+  local px = walk(f, 20, 64, nil, { forageOk = false })
+  eq(f.steps, 0, "walking in a building / on water does not count")
+  px = walk(f, px, 64, nil, { forageOk = false, countOk = true })
+  eq(f.steps, 4, "walking through a town does: one per cell reached (4)")
+  px = walk(f, px, 64)
+  eq(f.steps, 8, "...and on a route (4 more)")
+  -- a ledge hop is a step; a warp across the map is none
+  f:step(env(px + 2, true))
+  eq(f.steps, 9, "a ledge hop (two cells at once) is one step")
+  f:step(env(px + 40, true))
+  eq(f.steps, 9, "a jump across the map (a warp) is no step")
+  f:mapChanged()
+  f:step(env(5, true))
+  eq(f.steps, 9, "a new map: its first position is only noted, the count carries on")
+end
 do
   local f = newForager()
-  for _ = 1, 100 do f:step(env(20, false)) end
-  eq(f.forageTimer, 0, "standing does not count")
-  walk(f, 20, 30, nil, { forageOk = false })
-  eq(f.forageTimer, 0, "walking in a town / building / on water does not count")
-  eq(modesOf(f, 20, 300, { forageOk = false }), "near", "...and never starts a trip there")
-  walk(f, 20, 10)
-  eq(f.forageTimer, 10, "walking on a route does")
+  eq(modesOf(f, 20, 300, { forageOk = false, countOk = true }), "near", "a find due in a town is never dug up there")
+  check(f.steps >= 3, "...it is kept (" .. f.steps .. " steps)")
+  local first = modesOf(f, 40, 2)
+  check(first:find("perk", 1, true) ~= nil, "...and the next route sets it out at once (" .. first .. ")")
+end
+
+-- ------- the hint: every `hintEvery` steps short of the find, the actor over its head
+do
+  local hints, renderers = {}, {}
+  local cfg = setmetatable({ stepsPerFind = 6, hintEvery = 2, hintTicks = 5 }, { __index = CFG })
+  local f = newForager({ hintActor = function(age, wx, wy, renderer)
+    renderers[#renderers + 1] = renderer
+    return { kind = "hint", age = age, wx = wx, wy = wy }
+  end }, cfg)
+  local starts, shownTicks, stepsAtStart, perked = 0, 0, {}, false
+  local px = 20
+  for i = 1, 200 do
+    if i % 16 == 0 then px = px + 1 end
+    f:step(env(px, true, { renderer = "R" }))
+    if f.mode ~= "near" then perked = true break end
+    local a = {}
+    f:collectActors(a)
+    if #a > 0 then
+      eq(a[1].kind, "hint", "the hint is the actor hintActor made")
+      shownTicks = shownTicks + 1
+      if a[1].age == 1 then starts = starts + 1 stepsAtStart[#stepsAtStart + 1] = f.steps end
+      check(a[1].wx == f.wx and a[1].wy == f.wy, "...over the partner as drawn")
+    end
+  end
+  check(perked, "sanity: the find came at 6 steps")
+  eq(starts, 2, "two hints before the find (at steps 2 and 4, none at 6)")
+  check(stepsAtStart[1] == 2 and stepsAtStart[2] == 4, "...at steps " .. table.concat(stepsAtStart, ", "))
+  eq(shownTicks, 2 * 4, "each shows for hintTicks (5: ages 1-4 drawn)")
+  eq(renderers[1], "R", "...told the partner's renderer (its head height)")
+  local g = newForager({ hintActor = function() return { kind = "hint" } end })
+  walk(g, 20, 200)
+  local a = {}
+  g:collectActors(a)
+  for _, x in ipairs(a) do check(x.kind ~= "hint", "no hintEvery: no hint") end
 end
 
 -- ------- the tell: it stops where it is while the player walks on; fonder = shorter
@@ -293,12 +344,12 @@ do
   eq(popups, 0, "...and no label")
 end
 
--- ------- the walking carried over: after a find the surplus counts toward the next
+-- ------- the walking carried over: after a find the steps past it count toward the next
 do
-  local f = newForager(nil, setmetatable({ intervalMin = 50, intervalMax = 50 }, { __index = CFG }))
-  local timerAtReact
-  walk(f, 20, 600, function() if f.mode == "react" and not timerAtReact then timerAtReact = f.forageTimer end end)
-  check(timerAtReact ~= nil and timerAtReact > 0 and timerAtReact < 200, "the timer keeps what was walked past the goal (" .. tostring(timerAtReact) .. ")")
+  local f = newForager()
+  local stepsAtReact
+  walk(f, 20, 600, function() if f.mode == "react" and not stepsAtReact then stepsAtReact = f.steps end end)
+  check(stepsAtReact ~= nil and stepsAtReact > 0 and stepsAtReact < 20, "the steps walked during the trip carry over (" .. tostring(stepsAtReact) .. ")")
 end
 
 -- ------- a map change cancels the trip but keeps the timer: the next map starts at once
@@ -306,11 +357,11 @@ do
   local f = newForager()
   walk(f, 20, 60)
   eq(f.mode, "perk", "sanity: a tell is under way")
-  local timer = f.forageTimer
+  local steps = f.steps
   f:mapChanged()
   eq(f.mode, "near", "a map change cancels the trip")
   eq(f.spot, nil, "...and its spot")
-  check(f.forageTimer >= timer, "...but keeps the timer")
+  check(f.steps >= steps, "...but keeps the steps")
   f:step(env(100, true))
   eq(f.mode, "perk", "on the next allowed map it sets out at once")
 end
@@ -353,50 +404,48 @@ do
   walk(f, 20, 60)
   f:reset()
   eq(f.mode, "near", "reset brings it home")
-  eq(f.forageTimer, 0, "...and starts the timer over")
+  eq(f.steps, 0, "...and starts the count over")
   eq(f.rolled, nil, "...dropping the find it had not bagged yet")
   check(not f:isBusy(), "...and it is not busy")
 end
 
--- ------- the wait: always 1-3 minutes of walking, sooner the fonder it is
+-- ------- the wait: 60 steps, whatever its friendship
 do
-  local f = Forager.new({ cellFree = open, cfg = Config.FORAGE })
-  local sum0, sum255, inRange = 0, 0, true
-  local n = 200
-  for i = 0, n - 1 do
-    f.goalRoll = i / n
-    local g0, g255 = f:goal(0), f:goal(255)
-    if g0 < 3600 or g0 > 10800 or g255 < 3600 or g255 > 10800 then inRange = false end
-    sum0, sum255 = sum0 + g0, sum255 + g255
+  local f = newForager(nil, Config.FORAGE)
+  eq(f:goal(), 60, "a find every 60 steps")
+  local px, perkedAt = 20, nil
+  for i = 1, 16 * 70 do
+    if i % 16 == 0 then px = px + 1 end
+    f:step(env(px, true))
+    if f.mode ~= "near" then perkedAt = f.steps break end
   end
-  check(inRange, "every wait is between 3600 and 10800 walking ticks (1-3 minutes)")
-  local mean0, mean255 = sum0 / n / 60, sum255 / n / 60
-  check(mean0 > 125 and mean0 < 155, string.format("friendship 0 waits ~140 s on average (%.0f s)", mean0))
-  check(mean255 > 80 and mean255 < 100, string.format("friendship 255 waits ~90 s (%.0f s)", mean255))
-  check(f:goal(nil) == f:goal(0), "no friendship counts as 0")
+  eq(perkedAt, 60, "with the real settings it sets out on the 60th step")
 end
 
 -- ------- the real defaults
 do
   local F = Config.FORAGE
-  for _, k in ipairs({ "minSpread", "maxSpread", "maxWalk", "intervalMin", "intervalMax", "skewLow", "skewHigh",
-    "retryTicks", "allowedMapTypes", "perkMax", "perkMin", "forageSpeedMin", "forageSpeedMax", "runSpeed",
+  for _, k in ipairs({ "minSpread", "maxSpread", "maxWalk", "stepsPerFind", "hintEvery", "hintTicks",
+    "retryTicks", "countMapTypes", "allowedMapTypes", "perkMax", "perkMin", "forageSpeedMin", "forageSpeedMax", "runSpeed",
     "digTicks", "cryPause", "cryGap", "rarePause", "rarePause4", "popupTicks", "popupTicksRare", "popupTicksTop",
     "bands", "tierBase", "tierGate", "tierMult", "evoTop", "maxTmPrice" }) do
     check(F[k] ~= nil, "Config.FORAGE." .. k)
   end
-  for _, k in ipairs({ "findChance", "wanderWaitMin", "wanderWaitMax", "lingerMin", "lingerMax", "forageMin", "forageMax" }) do
+  for _, k in ipairs({ "findChance", "wanderWaitMin", "wanderWaitMax", "lingerMin", "lingerMax", "forageMin", "forageMax",
+    "intervalMin", "intervalMax", "skewLow", "skewHigh" }) do
     eq(F[k], nil, "Config.FORAGE." .. k .. " is gone")
   end
   eq(F.minSpread, 3, "the find is 3 ...")
   eq(F.maxSpread, 5, "... to 5 cells from the player")
-  eq(F.intervalMin, 3600, "one find per 1 ...")
-  eq(F.intervalMax, 10800, "... to 3 minutes of walking")
+  eq(F.stepsPerFind, 60, "one find every 60 steps")
+  eq(F.hintEvery, 20, "a hint every 20 of them")
   eq(F.tierGate[3], 130, "rare finds need friendship 130")
   eq(F.tierGate[4], 200, "very rare ones 200")
-  check(F.allowedMapTypes[3] and F.allowedMapTypes[4], "routes (3) and caves (4) are allowed")
+  check(F.allowedMapTypes[3] and F.allowedMapTypes[4], "it digs on routes (3) and in caves (4)")
   check(not (F.allowedMapTypes[1] or F.allowedMapTypes[2] or F.allowedMapTypes[8]
-    or F.allowedMapTypes[5] or F.allowedMapTypes[6]), "towns, cities, buildings and water are not")
+    or F.allowedMapTypes[5] or F.allowedMapTypes[6]), "...never in a town, a city, a building or the water")
+  check(F.countMapTypes[1] and F.countMapTypes[3] and F.countMapTypes[4], "steps count in towns, on routes and in caves")
+  check(not (F.countMapTypes[8] or F.countMapTypes[5] or F.countMapTypes[6]), "...not in buildings or the water")
 end
 
 if failures > 0 then

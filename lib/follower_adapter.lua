@@ -253,9 +253,10 @@ function FollowerAdapter:_tickBehavior(npc)
   elseif b and not self.surfRecall then
     local pc = EnginePatch.playerCell()
     local playerMoving = pc and pc.moving or false
-    local forageOk -- nil = the engine pieces are missing: no restriction
+    local forageOk, countOk -- nil = the engine pieces are missing: no restriction
     if EnginePatch.forageAllowed then
       forageOk = EnginePatch.forageAllowed(Config.FORAGE.allowedMapTypes)
+      countOk = forageOk or EnginePatch.forageAllowed(Config.FORAGE.countMapTypes)
     end
     state = b:step({
       still = not (npc.moving or false) and not playerMoving,
@@ -266,8 +267,9 @@ function FollowerAdapter:_tickBehavior(npc)
       mon = self.mon, renderer = self.renderer,
       -- 0-255: a Forager finds sooner and rarer the fonder it is
       friendship = self.mon and EnginePatch.friendshipOf and EnginePatch.friendshipOf(self.mon) or 0,
-      -- routes and caves only (EnginePatch.forageAllowed); nil without the engine pieces
-      forageOk = forageOk,
+      -- it digs on routes and in caves only, its steps count in towns too
+      -- (EnginePatch.forageAllowed); nil without the engine pieces
+      forageOk = forageOk, countOk = countOk,
     })
   end
   self.away = state ~= nil and state.away == true

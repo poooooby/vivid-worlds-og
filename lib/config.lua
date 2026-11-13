@@ -174,16 +174,19 @@ Config.FORAGE = {
   minSpread = 3,         -- the find is this many cells from the PLAYER ...
   maxSpread = 5,         -- ... to this many
   maxWalk = 12,          -- longest walk to it, in cells (round obstacles; the player keeps walking during the tell)
-  -- one find per 1-3 minutes of WALKING (only counted where foraging is allowed). The wait
-  -- leans long at low friendship and short at high: goal = min + (max - min) * r ^ e, with
-  -- e = skewLow at friendship 0 rising to skewHigh at 255 (mean ~140 s -> ~90 s).
-  intervalMin = 3600,
-  intervalMax = 10800,
-  skewLow = 0.5,
-  skewHigh = 3.0,
+  -- one find every `stepsPerFind` of the player's steps, counted on the maps in
+  -- `countMapTypes` (towns too); the find itself is only dug up on `allowedMapTypes`, so one
+  -- that comes due in a town waits for the next route or cave
+  stepsPerFind = 60,
+  -- the hint while it counts: every `hintEvery` steps (short of the find) it sniffs the
+  -- air, the game's "?" bubble over its head for `hintTicks`
+  hintEvery = 20,
+  hintTicks = 60,
   retryTicks = 60,       -- no spot / nothing that fits the bag yet: look again this much later
-  -- map types it may forage on: 3 = route (outside), 4 = underground (caves). Towns,
-  -- cities, buildings, water and secret bases are off limits.
+  -- map types (the Gen 3 numbers lib/gb/gen1.lua / gen2.lua report): 1 = town, 3 = route,
+  -- 4 = cave / dungeon. Steps count in all three; it digs only on routes and in caves.
+  -- Buildings (8), water and the sea are off limits for both.
+  countMapTypes = { [1] = true, [3] = true, [4] = true },
   allowedMapTypes = { [3] = true, [4] = true },
   -- the tell: it stops and perks up (a sparkle shows where it is going), then dashes there;
   -- both get more eager with friendship

@@ -1,13 +1,14 @@
 -- The Forager role: the companion sniffs out items while the player walks.
 --
 -- It only ever leaves the player's side for a find, and every trip finds
--- something. Only while the player is ACTIVELY MOVING, and only where foraging
--- is allowed (outside on a route, or in a cave -- never in a building, a town or
--- a city, on the water or in the Safari Zone: the adapter says so in
--- `env.forageOk`), a timer counts walking ticks. After 1-3 minutes of it -- the
--- higher the Pokemon's friendship, the sooner -- the find is ROLLED (an item
--- that fits the bag; rarer ones need more friendship, lib/forage_items.lua) and
--- a spot 3-5 cells from the player is picked. Then:
+-- something. It counts the player's STEPS (each new cell they reach) on the maps
+-- where steps count -- towns, routes and caves, never a building, the water or
+-- the sea: the adapter says so in `env.countOk`. Every 20 steps it sniffs the
+-- air (the hint: the game's "?" over its head). After 60 steps the find is
+-- ROLLED (an item that fits the bag; rarer ones need more friendship,
+-- lib/forage_items.lua) and a spot 3-5 cells from the player is picked -- only
+-- where it may dig (a route or a cave, `env.forageOk`): a find that comes due
+-- in a town waits for the next one. Then:
 --   perk    it stops and perks up (an alert bounce, shorter the fonder it is);
 --           a glint appears on the spot (lib/forage_sparkle.lua) ->
 --   out     it dashes there (faster the fonder it is), cell by cell round
@@ -19,7 +20,7 @@
 -- No spot or nothing that fits the bag yet: it simply tries again a second
 -- later (there is no such thing as a failed trip). A trip that has begun is
 -- finished even if the player stops; a map change cancels it but keeps the
--- timer (so the next allowed map starts it at once).
+-- steps (so the next allowed map starts it at once).
 --
 -- All motion is the same cosmetic draw-time offset the follower scenes and the
 -- Battler use (the engine owns the follower's real position). The Forager keeps
@@ -63,6 +64,9 @@ local CELL = 16
 ---   playCry(species)              optional: its cry when it finds something
 ---   playFound()                   optional sound
 ---   elevation() -> n              optional: for the glint actor
+---   hintActor(age, wx, wy, renderer) -> actor   optional: the hint over its head (the tile
+---                                 it is drawn on at world px (wx, wy); `renderer` its
+---                                 renderer, for the height of its head)
 ---   cfg                           optional (Config.FORAGE)
 --- }
 function Forager.new(deps)
@@ -89,16 +93,18 @@ function Forager:_clearTrip()
   self.facing, self.path, self.idx = nil, nil, 0
   self.rolled, self.spot, self.sparkleAge = nil, nil, 0
   self.popup, self.popupAge = nil, 0
+  self.hintAge = nil
+  self.lastPx, self.lastPy = nil, nil -- (the next tick only notes where the player is)
 end
 
---- Back to trotting beside the player (role change, save load): the timer starts over.
+--- Back to trotting beside the player (role change, save load): the count starts over.
 function Forager:reset()
   self:_clearTrip()
-  self.forageTimer, self.goalRoll, self.retry = 0, self:_rng(), 0
+  self.steps, self.retry = 0, 0
 end
 
 --- A new map: the trip in progress is cancelled (the places it knew are gone) but
---- the timer carries on.
+--- the steps carry on.
 function Forager:mapChanged()
   self:_clearTrip()
   self.retry = 0
@@ -109,13 +115,28 @@ function Forager:isBusy()
   return self.mode ~= "near" or self.dx ~= 0 or self.dy ~= 0
 end
 
---- Walking ticks until the next find for a Pokemon with `friendship`: always
---- intervalMin..intervalMax (1-3 minutes), leaning short the fonder it is.
-function Forager:goal(friendship)
-  local cfg = self.cfg
-  local e = lerp(cfg.skewLow or 0.5, cfg.skewHigh or 3, closeness(friendship))
-  local lo, hi = cfg.intervalMin or 3600, cfg.intervalMax or 10800
-  return math.floor(lo + (hi - lo) * (self.goalRoll or 0) ^ e)
+--- Steps until the next find: Config.FORAGE.stepsPerFind, the same for every Pokemon
+--- (friendship decides what it finds and how eagerly it goes, not how often).
+function Forager:goal()
+  return self.cfg.stepsPerFind or 60
+end
+
+-- One tick of the step count: a step is the player reaching a new cell (a ledge hop
+-- too); a jump further than that (a warp) is no step. Counted only where `countOk`;
+-- every `hintEvery` steps short of the find starts the hint.
+function Forager:_countStep(env)
+  local px, py, lx, ly = env.px, env.py, self.lastPx, self.lastPy
+  self.lastPx, self.lastPy = px, py
+  if not (lx and px and py) or (px == lx and py == ly) then return end
+  if math.max(math.abs(px - lx), math.abs(py - ly)) > 2 then return end
+  local countOk = env.countOk
+  if countOk == nil then countOk = env.forageOk ~= false end
+  if not countOk then return end
+  self.steps = self.steps + 1
+  local every = self.cfg.hintEvery
+  if every and every > 0 and self.mode == "near" and self.steps % every == 0 and self.steps < self:goal() then
+    self.hintAge = 0
+  end
 end
 
 -- ------------------------------------------------------------ helpers
@@ -211,7 +232,8 @@ end
 
 --- One field tick. `env` = { still = player and follower standing still, fx, fy =
 --- the follower's cell, fpx, fpy = where it is drawn (px), px, py = the player's
---- cell, mon = the Pokemon, friendship = 0-255, forageOk }. Returns the state to
+--- cell, mon = the Pokemon, friendship = 0-255, forageOk = it may dig here,
+--- countOk = steps count here (nil: as forageOk), renderer }. Returns the state to
 --- draw, or nil while it simply trots beside the player.
 function Forager:step(env)
   env = env or {}
@@ -221,7 +243,11 @@ function Forager:step(env)
   local active = not env.still and allowed -- walking, somewhere it may work
   if not self.wx then self.wx, self.wy = env.fpx, env.fpy end
   self.t = self.t + 1
-  if active then self.forageTimer = self.forageTimer + 1 end
+  self:_countStep(env)
+  if self.hintAge then
+    self.hintAge = self.hintAge + 1
+    if self.hintAge >= (self.cfg.hintTicks or 60) then self.hintAge = nil end
+  end
   if self.retry > 0 then self.retry = self.retry - 1 end
   if self.spot then self.sparkleAge = self.sparkleAge + 1 end
 
@@ -239,15 +265,15 @@ function Forager:_mode_near(env, active)
   self.wx, self.wy = env.fpx, env.fpy
   self.dx, self.dy, self.facing = 0, 0, nil
   if active and self.retry <= 0 then
-    local goal = self:goal(env.friendship)
-    if self.forageTimer >= goal then
+    local goal = self:goal()
+    if self.steps >= goal then
       local path = self:_findSpot(env)
       local rolled = path and self.deps.rollItem and self.deps.rollItem(env.friendship) or nil
       if not (path and rolled) then
         self.retry = cfg.retryTicks or 60 -- nowhere to go / nothing fits the bag yet: no trip
       else
         local last = path[#path]
-        self.rolled, self.tripGoal = rolled, goal
+        self.rolled, self.tripGoal, self.hintAge = rolled, goal, nil
         self.spot, self.sparkleAge = { x = last[1], y = last[2] }, 0
         self.closeness = closeness(env.friendship)
         self.perkFor = math.floor(lerp(cfg.perkMax or 45, cfg.perkMin or 30, self.closeness) + 0.5)
@@ -311,9 +337,8 @@ function Forager:_mode_dig(env)
       if self.deps.playFound then self.deps.playFound() end
       if self.deps.playCry and env.mon then self.deps.playCry(env.mon.species) end
       self.reactTier, self.cries = tier, 1
-      -- the next find: the surplus walking carries over, a fresh wait is rolled
-      self.forageTimer = math.max(0, self.forageTimer - (self.tripGoal or 0))
-      self.goalRoll = self:_rng()
+      -- the next find: the steps walked past this one carry over
+      self.steps = math.max(0, self.steps - (self.tripGoal or 0))
       self.mode, self.t = "react", 0
       return state(self, env, { moving = false })
     end
@@ -365,8 +390,13 @@ function Forager:_mode_back(env)
   return state(self, env, { moving = true, walkMul = 2 })
 end
 
---- The glint on the spot it is heading for, from the tell until it has dug.
+--- The glint on the spot it is heading for, from the tell until it has dug; while it
+--- counts, beside the player, the hint over its head now and then.
 function Forager:collectActors(actors)
+  if self.hintAge and self.mode == "near" and self.wx and self.deps.hintActor then
+    local a = self.deps.hintActor(self.hintAge, self.wx, self.wy, self.env and self.env.renderer)
+    if a then actors[#actors + 1] = a end
+  end
   if not self.spot then return end
   local elevation = self.deps.elevation and self.deps.elevation() or 3
   actors[#actors + 1] = ForageSparkle.actor(self.spot.x * CELL, self.spot.y * CELL, self.sparkleAge, elevation, 1)

@@ -377,9 +377,15 @@ function Gen1.isOutdoor(ow)
 end
 
 --- A town or city (the maps the Fly list knows, Map.isFlyTown): where the sky's birds
---- may perch. 1 town, 3 route, 4 inside -- the Gen 3 map-type numbers the mod reads.
+--- may perch. 1 town, 3 route, 4 a cave / dungeon, 8 a building -- the Gen 3 map-type numbers
+--- the mod reads (Gen 2's environments give the same). Gen 1 names no caves: an indoor map
+--- with wild encounters (Mt. Moon, Viridian Forest, Pokemon Tower, the Mansion ...) is a
+--- dungeon, any other (a house, a Mart, a Pokemon Center) a building.
 function Gen1.mapTypeOf(ow)
-  if not Gen1.isOutdoor(ow) then return 4 end
+  if not Gen1.isOutdoor(ow) then
+    local def = encDef(ow and ow.map and ow.map.id)
+    return (def and (hasSlots(def.grass) or hasSlots(def.water))) and 4 or 8
+  end
   local Map = load("src.world.Map")
   local def = ow and ow.map and ow.map.def
   if Map and Map.isFlyTown and def then

@@ -12,8 +12,15 @@ here.
   ...) now and then with the option on, and while you Pet, Play or Talk with it. Before, it never
   found its own type, so no puff ever showed.
 
+- Red, Blue and Yellow: a Forager no longer sets out inside houses, Marts and Pokémon Centers
+  (every indoor map counted as a cave). Caves, Viridian Forest, Pokémon Tower and the like still
+  count.
+
 ### Changes
 
+- **Foraging** comes every 60 steps you take, instead of after one to three minutes of walking on
+  a route. Steps in towns count too (the item is dug up on the next route or in a cave), and
+  every 20 steps your partner sniffs the air with a "?" over its head, so you can see it at work.
 - The **Smooth Follow** option is gone. On these games a partner's art is barely wider than a
   tile, so the spacing it eased on a turn was a few pixels at most; your partner keeps the glide
   it had by default.

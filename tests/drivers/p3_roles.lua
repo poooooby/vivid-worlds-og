@@ -48,6 +48,11 @@ return function(game)
   end
   U.wait(240)
   say("wild Pokemon on the route: " .. sm:count())
+  -- no contact battles while the driver walks (as tests/drivers/p5_perf.lua): a wild Pokemon that
+  -- wanders into the player's path would start a real battle nobody ends, and the field (with the
+  -- partner's roles) stops ticking under it. The Battler's own skirmishes are not contact battles.
+  local bt = ex.battleTrigger
+  bt.onPlayerStepped, bt.onChaserContact, bt.onPlayerBumped = function() end, function() end, function() end
 
   -- walk left and right (the Battler looks for targets near the player as they go)
   local function walk(frames, watch)
@@ -87,6 +92,13 @@ return function(game)
 
   -- ---- Battle
   ok(companion:set(lead, "battle"), "the partner takes the Battle role")
+  -- a few targets within its reach (Config.OW_BATTLE.radius 3): the route's own may all sit
+  -- where it cannot stand beside them (one in the player's path, next to a ledge)
+  local placed = 0
+  for _ = 1, 3 do
+    if sm:spawnSpecies(GEN == 1 and "PIDGEY" or "SENTRET", 3, { radius = 3, terrain = "land" }) then placed = placed + 1 end
+  end
+  say("extra targets placed within reach: " .. placed)
   local exp0, count0 = expOf(lead), sm:count()
   local fought, hit = false, false
   local sawFight = walk(60 * 60, function()
@@ -110,15 +122,15 @@ return function(game)
   local bag0 = bagCount()
   local fa = ex.followerAdapter
   U.wait(60)
-  say(string.format("forage state: adapter role %s, mode %s, timer %s, retry %s, allowed here %s, map type %s",
-    tostring(fa.role), tostring(forager.mode), tostring(forager.forageTimer), tostring(forager.retry),
+  say(string.format("forage state: adapter role %s, mode %s, steps %s, retry %s, allowed here %s, map type %s",
+    tostring(fa.role), tostring(forager.mode), tostring(forager.steps), tostring(forager.retry),
     tostring(EP.forageAllowed and EP.forageAllowed({ [3] = true, [4] = true })), tostring(EP.mapType())))
-  -- (harness, once the role switch has settled: a find is due now, not after minutes of walking)
-  forager.forageTimer = 10 ^ 6
+  -- (harness, once the role switch has settled: a find is due now, not after 60 steps)
+  forager.steps = 10 ^ 6
   local roll = ex.forageSource and ex.forageSource.roll and ex.forageSource:roll(70)
   say("a roll from the catalog: " .. tostring(roll and (roll.id or roll.name)))
   local found = walk(60 * 45, function() return bagCount() > bag0 end)
-  say(string.format("after: mode %s, timer %s, retry %s", tostring(forager.mode), tostring(forager.forageTimer), tostring(forager.retry)))
+  say(string.format("after: mode %s, steps %s, retry %s", tostring(forager.mode), tostring(forager.steps), tostring(forager.retry)))
   local got
   for id, q in pairs(game.save.inventory or {}) do got = got or ((tonumber(q) or 0) > 0 and id) end
   say(string.format("forage: bag %d -> %d (%s)", bag0, bagCount(), tostring(got)))

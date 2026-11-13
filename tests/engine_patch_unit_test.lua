@@ -417,7 +417,11 @@ eq(EP.terrainAt(2, 3), "water", "Gen 1 water is water")
 eq(EP.terrainAt(0, 0), nil, "a plain floor outdoors is nothing")
 ow.map.def.indoor = true
 eq(EP.terrainAt(0, 0), "land", "an indoor (cave) floor is land")
-eq(EP.mapType(), 4, "indoors reads as map type 4")
+eq(EP.mapType(), 4, "indoors with wild encounters (a cave) reads as map type 4")
+local savedId = ow.map.id
+ow.map.id = "PEWTER_MART"
+eq(EP.mapType(), 8, "indoors without any (a house, a Mart) reads as a building, 8")
+ow.map.id = savedId
 ow.map.def.indoor = nil
 eq(EP.mapType(), 3, "outdoors reads as map type 3")
 ow.map.def.town = true
