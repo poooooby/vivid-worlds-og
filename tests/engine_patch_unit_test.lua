@@ -433,6 +433,16 @@ eq(EP.isWaterType("GOLDEEN"), true, "Goldeen is a Water type")
 eq(EP.heightDm("PIDGEY"), 3, "Pidgey's 1'0\" dex height is 3 dm")
 eq(EP.heightDm(118), 6, "Goldeen's 2'0\" is 6 dm (by dex number)")
 eq(EP.baseStatTotal("PIKACHU"), 260, "Pikachu's five base stats sum to 260")
+-- the partner's type (Type Aura and the Pet / Play / Talk puff read its kind from this)
+local t1, t2 = EP.speciesTypes("PIDGEY")
+check(t1 == "NORMAL" and t2 == "FLYING", "Pidgey's two types, in order")
+t1, t2 = EP.speciesTypes(25)
+check(t1 == "ELECTRIC" and t2 == nil, "Pikachu's single type (by dex number), no second")
+Game1.data.pokemon.PIKACHU.types = { "ELECTRIC", "ELECTRIC" }
+t1, t2 = EP.speciesTypes("PIKACHU")
+check(t1 == "ELECTRIC" and t2 == nil, "a single type the data lists twice reads as one")
+Game1.data.pokemon.PIKACHU.types = { "ELECTRIC" }
+eq(EP.speciesTypes("MISSINGNO"), nil, "an unknown species has no types")
 ow.map.def.signs = { { x = 2, y = 0, text = "T" } }
 local signs = EP.signCells()
 check(#signs == 1 and signs[1].x == 2 and signs[1].y == 0, "the map's signposts come through")
@@ -821,7 +831,7 @@ local okP2, missing2 = EP2.probe()
 check(okP2, "the Gen 2 probe passes on the fake engine (" .. table.concat(missing2 or {}, "; ") .. ")")
 local p2 = { cellX = 1, cellY = 1, px = 16, py = 16 }
 local tables = { grass = { ROUTE_29 = { slots = {}, next = { species = "SENTRET", level = 3 } } }, water = {} }
-local game2 = { phase = "play", data = { pokemon = { SENTRET = { dex = 161 } } }, save = { pokedex = { caught = {} } },
+local game2 = { phase = "play", data = { pokemon = { SENTRET = { dex = 161, types = { "NORMAL" } } } }, save = { pokedex = { caught = {} } },
   stack = { top = function() return nil end } }
 local world = {
   map = fakeMap({ "#..g", ".ggg", "www." }), player = p2, camera = { x = 0, y = 0 }, npcs = {}, game = game2,
@@ -839,6 +849,10 @@ World.drawPeople(world)
 eq(#drawn.during, 1, "while Gen 2 draws its people our actor is among them")
 eq(gen2Draws, 1, "Crystal's grass split draws it once (whole on \"bottom\", nothing on \"top\")")
 eq(#world.npcs, 0, "after the people pass world.npcs is the engine's again")
+
+local s1, s2 = EP2.speciesTypes("SENTRET")
+check(s1 == "NORMAL" and s2 == nil, "Gen 2: the species' type from the live world's data")
+eq((EP2.speciesTypes(161)), "NORMAL", "...by national dex number too")
 
 eq(EP2.terrainAt(1, 1), "land", "Gen 2 grass is land")
 eq(EP2.terrainAt(0, 2), "water", "Gen 2 water is water")

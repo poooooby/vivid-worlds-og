@@ -11,7 +11,6 @@ Config.DEFAULTS = {
   wild_silhouettes = "off",
   species_sizes = true,
   spawn_amount = "normal",
-  smooth_follow = true,
   show_follower = true,
   wild_reacts = true,
   type_aura = false,
@@ -360,8 +359,6 @@ function Config.spriteStyle(mod)
   return Config.DEFAULTS.sprite_style
 end
 
---- The Smooth Follow option: the follower is spaced out behind the player either way;
---- on, it glides to its place on a turn, off it snaps there. On unless switched off.
 --- Removes the row `key` from an option schema (in place).
 function Config.withoutRow(schema, key)
   for i = #schema, 1, -1 do
@@ -395,10 +392,6 @@ end
 function Config.roleKey(mod)
   local v = optGet(mod, "role_key")
   return VALID_ROLE_KEY[v] and v or Config.DEFAULTS.role_key
-end
-
-function Config.smoothFollow(mod)
-  return optGet(mod, "smooth_follow") ~= false
 end
 
 --- The Wild Reacts option: wild Pokemon flee from / chase a player running or biking

@@ -90,7 +90,6 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 | **Follower** | On / Off | On | Your partner walks behind you, or stays in its Poké Ball. |
 | **Battler: Pad** | R / L / Off | Off | A controller button that sends your partner into battle and back. |
 | **Battler: Key** | E (R) / Q (L) / R / Off | Off | The same on the keyboard. |
-| **Smooth Follow** | On / Off | On | Your partner glides round when you turn, or snaps into place. |
 | **Type Aura** | On / Off | Off | Now and then a little puff of your partner's type. |
 | **Classic Enc** | On / Off | On | The original step-based encounters in grass, caves and on Surf. |
 | **Shiny Rate** | Off / 1/8192 (GSC) / 1/4096 / 1/1024 / 1/512 / 1/100 / 1/10 / Always | 1/4096 | How often a wild Pokémon is shiny. |

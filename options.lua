@@ -75,13 +75,6 @@ return {
     description = "The keyboard key that switches your partner between Battle and Follow while you walk around. E and Q are the R and L buttons; R is a free key.",
   },
   {
-    key = "smooth_follow",
-    label = "Smooth Follow",
-    type = "toggle",
-    default = true,
-    description = "Your partner is always spaced out behind you by its size. On: it glides round when you turn. Off: it snaps straight to its place behind you, step for step like the original games.",
-  },
-  {
     key = "type_aura",
     label = "Type Aura",
     type = "toggle",

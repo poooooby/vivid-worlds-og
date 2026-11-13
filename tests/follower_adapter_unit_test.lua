@@ -224,24 +224,6 @@ fa = FollowerAdapter.new(mod)
 fa:tick()
 check(fa.renderer.pushX == nil and fa.renderer.pushY == nil, "no pushback -> no eased offset (draw falls back)")
 
--- Smooth Follow off: a wide True Size sprite is spaced out the same, but snaps to its
--- place on a turn instead of gliding
-fakeImageWidth = 48
-optionStore.sprite_style = "pokemmo"
-optionStore.smooth_follow = false
-fa = FollowerAdapter.new(mod)
-npc.facing = "down"
-fa:tick()
-eq(fa.renderer.largePushback, 16, "Smooth Follow off: a wide sprite still keeps its spacing")
-local sx0, sy0 = ActorRenderer.behindOffset("down", 16)
-check(fa.renderer.pushX == sx0 and fa.renderer.pushY == sy0, "...placed behind the player at once")
-npc.facing = "left"
-fa:tick()
-local sx1, sy1 = ActorRenderer.behindOffset("left", 16)
-check(fa.renderer.pushX == sx1 and fa.renderer.pushY == sy1, "...and a turn snaps it to its new place (no glide)")
-npc.facing = "down"
-optionStore.smooth_follow = nil
-
 -- No art loaded yet (frameWidth nil) -> no pushback, never throws.
 fakeImageWidth = nil
 fa = FollowerAdapter.new(mod)

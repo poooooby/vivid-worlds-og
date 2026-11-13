@@ -1303,6 +1303,20 @@ function EngineGb.heightDm(species)
   return ok and dm or nil
 end
 
+--- The species' two types as the game data names them ("FIRE", "PSYCHIC_TYPE" ...), the second
+--- nil for a single type (Gen 1 data lists a single type twice). nil when unknown. Type Aura and
+--- the Pet / Play / Talk puff read the partner's kind from this (lib/partner_fx.lua kindFor).
+function EngineGb.speciesTypes(species)
+  local a = A()
+  if not (a and a.speciesDef) then return nil end
+  local ok, def = pcall(a.speciesDef, species, EngineGb._world)
+  local types = ok and type(def) == "table" and def.types
+  if type(types) ~= "table" or types[1] == nil then return nil end
+  local second = types[2]
+  if second == types[1] then second = nil end
+  return types[1], second
+end
+
 function EngineGb.baseStatTotal(species)
   local a = A()
   if not (a and a.baseStatTotal) then return nil end
@@ -1489,7 +1503,7 @@ local STUBS = {
   "hmUsable", "sweetScentFail", "setFoeStage", "encounters", "collision", "pokemon",
   "trainerIds", "isShiny", "genderOf", "grassSheet", "reflectionKind", "reflectiveAt",
   "reflectionWobble", "coverReflections", "startRipple", "moveDisplayName",
-  "speciesTypes", "eggGroups", "partyMenu", "playerPose", "grassRustle",
+  "eggGroups", "partyMenu", "playerPose", "grassRustle",
 }
 for _, name in ipairs(STUBS) do
   if EngineGb[name] == nil then EngineGb[name] = function() return nil end end

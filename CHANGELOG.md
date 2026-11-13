@@ -4,6 +4,22 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- **Type Aura** works: your partner now gives off its puffs of type (embers, droplets, leaves
+  ...) now and then with the option on, and while you Pet, Play or Talk with it. Before, it never
+  found its own type, so no puff ever showed.
+
+### Changes
+
+- The **Smooth Follow** option is gone. On these games a partner's art is barely wider than a
+  tile, so the spacing it eased on a turn was a few pixels at most; your partner keeps the glide
+  it had by default.
+- Less work every frame: the wild Pokémon and your partner make far less garbage for the game
+  to clean up, most of all in Red, Blue and Yellow.
+
 ## 1.0.1 — 2026-11-12
 
 ### Fixes

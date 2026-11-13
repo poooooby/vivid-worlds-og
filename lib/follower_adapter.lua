@@ -765,8 +765,6 @@ function FollowerAdapter:tick()
   local travel = math.max(pushback, math.abs(r.pushX or 0), math.abs(r.pushY or 0))
   if travel == 0 then
     r.pushX, r.pushY = nil, nil
-  elseif not Config.smoothFollow(self.mod) then
-    r.pushX, r.pushY = tx, ty -- Smooth Follow off: the same spacing, no glide on a turn
   else
     local maxStep = (travel * 2) / FollowerAdapter.STEP_TICKS
     r.pushX = ActorRenderer.approach(r.pushX, tx, maxStep)
