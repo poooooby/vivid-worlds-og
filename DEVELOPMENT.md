@@ -40,6 +40,10 @@ Gyarados, the big Snorlax, the beasts ..., checks each wears our art for its spe
 screenshot. `tests/static_mons_unit_test.lua` also classifies every object of the six games' map
 data when `../gen1recomp` is present.
 
+A partner in its ball is still the engine's follower walking behind the player, drawn as
+nothing: `tests/drivers/p8_follower_off.lua` (`gold` / `crystal`) walks Route 29's grass with the
+Follower option on and off and checks no grass rustle is drawn for it while it is in its ball.
+
 Per-frame cost: `tests/drivers/p5_perf.lua` (`red` / `crystal`) walks a route with the partner out
 and the garbage collector stopped, and prints KB allocated and ms spent a frame per hook
 (`VWOG_PERF_DEEP=1`: per EnginePatch function and class method). At 1.0.0 the mod's hooks made

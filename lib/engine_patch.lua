@@ -392,9 +392,35 @@ function EngineGb.install(hooks, log)
   local a = A()
   local originals = {}
 
+  -- The partner in its ball (Follower off, a bike, a cutscene ...) is still the engine's
+  -- follower walking behind the player, only drawn as nothing: for the length of a draw its
+  -- marks go too -- Gen 2's grass rustle (grassShake) and ledge-hop shadow (jumping), Gen 1's
+  -- hop shadow (hopShadowY) -- or the grass shakes behind the player as if it walked there.
+  -- Put back after the draw: the engine's own step logic still reads them.
+  local marksNpc, marksShake, marksJump, marksHop
+  -- true when this call hid them (a draw wrapped inside another leaves them to the outer one)
+  local function hideFollowerMarks()
+    if marksNpc or not hooks.followerInBall then return false end
+    local okH, inBall = pcall(hooks.followerInBall)
+    if not (okH and inBall == true) then return false end
+    local okF, npc = pcall(EngineGb.followerCurrent)
+    if not (okF and type(npc) == "table") then return false end
+    marksNpc, marksShake, marksJump, marksHop = npc, npc.grassShake, npc.jumping, npc.hopShadowY
+    npc.grassShake, npc.jumping, npc.hopShadowY = nil, nil, nil
+    return true
+  end
+  local function restoreFollowerMarks()
+    local npc = marksNpc
+    if not npc then return end
+    npc.grassShake, npc.jumping, npc.hopShadowY = marksShake, marksJump, marksHop
+    marksNpc, marksShake, marksJump, marksHop = nil, nil, nil, nil
+  end
+  EngineGb._hideFollowerMarks, EngineGb._restoreFollowerMarks = hideFollowerMarks, restoreFollowerMarks
+
   -- runs `original(world, ...)` with this frame's proxies in `lists` (the engine lists it
   -- reads), taking them out again whatever happens
   local function withProxies(lists, pipeline, original, world, ...)
+    local hid = hideFollowerMarks()
     local n = 0
     if lists[1] then
       local okP, count = pcall(buildProxies, world, hooks, pipeline)
@@ -409,6 +435,7 @@ function EngineGb.install(hooks, log)
       end
     end
     local okD, r1, r2, r3 = pcall(original, world, ...)
+    if hid then restoreFollowerMarks() end
     if n > 0 then
       for _, list in ipairs(lists) do stripProxies(list) end
       for i = 1, n do pool[i].actor, pool[i].sprite = nil, nil end

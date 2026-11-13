@@ -301,6 +301,11 @@ return function(mod)
       staticMons:tick(true)
     end,
     messageDraw = function() end, -- no portraits: the partner's emote is a field actor
+    -- the partner in its ball (Follower off, a bike, a cutscene ...): the engine's follower
+    -- walking behind leaves no grass rustle or hop shadow either
+    followerInBall = function()
+      return followerAdapter:isRecalled()
+    end,
     -- Runs BEFORE the engine's A-button handler: facing your partner and pressing A
     -- opens its Pet / Play / Talk menu instead (true = handled).
     interact = function(game)

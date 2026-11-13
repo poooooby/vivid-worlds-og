@@ -31,6 +31,7 @@ tests/drivers/p4_extras.lua
 tests/drivers/p5_perf.lua
 tests/drivers/p6_role_talk.lua
 tests/drivers/p7_static.lua
+tests/drivers/p8_follower_off.lua
 tests/drivers/smoke.lua
 tests/emote_art_unit_test.lua
 tests/encounter_source_unit_test.lua

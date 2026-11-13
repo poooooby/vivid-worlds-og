@@ -4,6 +4,14 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- Gold, Silver and Crystal: with the **Follower** option off (or while your partner is in its
+  ball on the bike, in a cutscene ...), the grass behind you no longer rustles as if an
+  invisible partner walked through it. Nor does a shadow hop down a ledge after you.
+
 ## 1.0.3 — 2026-11-13
 
 ### Added
