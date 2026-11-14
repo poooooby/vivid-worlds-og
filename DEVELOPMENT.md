@@ -58,6 +58,11 @@ Talking to the partner turns it to the player (`EnginePatch.followerFacePlayer`,
 `FollowerInteraction` at the start and every tick while it lasts): `tests/drivers/p11_face.lua`
 (`red` / `yellow` / `crystal`; pre-create `<shots>/<version>-face`).
 
+Wild Pokémon never share a tile: each entity carries the spawn manager's `occupied`, which
+`Behavior`'s step check asks (the engine's own check sees the player, NPCs and the partner,
+never our spawns). `tests/drivers/p12_overlap.lua` (`red` / `crystal`) watches a crowd wander
+for a minute and counts frames with a shared cell.
+
 Per-frame cost: `tests/drivers/p5_perf.lua` (`red` / `crystal`) walks a route with the partner out
 and the garbage collector stopped, and prints KB allocated and ms spent a frame per hook
 (`VWOG_PERF_DEEP=1`: per EnginePatch function and class method). At 1.0.0 the mod's hooks made

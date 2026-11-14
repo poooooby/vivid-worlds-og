@@ -23,6 +23,7 @@ tests/companion_unit_test.lua
 tests/config_unit_test.lua
 tests/drivers/p10_options.lua
 tests/drivers/p11_face.lua
+tests/drivers/p12_overlap.lua
 tests/drivers/p1_checks.lua
 tests/drivers/p2_emotes.lua
 tests/drivers/p2_reacts.lua
@@ -132,3 +133,4 @@ dist/vivid-worlds-og-v1.0.3.zip
 dist/vivid-worlds-og-v1.0.4.zip
 dist/vivid-worlds-og-v1.0.5.zip
 dist/vivid-worlds-og-v1.0.6.zip
+dist/vivid-worlds-og-v1.0.7.zip

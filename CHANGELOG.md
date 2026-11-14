@@ -4,6 +4,13 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- Wild Pokémon no longer walk onto each other: one wandering or swimming never steps onto a
+  tile another stands on or is stepping into, so two of them never end up overlapping.
+
 ## 1.0.7 — 2026-11-14
 
 ### Fixes

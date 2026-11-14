@@ -23,7 +23,7 @@ local SpawnManager = {}
 SpawnManager.__index = SpawnManager
 
 function SpawnManager.new(mod)
-  return setmetatable({
+  local self = setmetatable({
     mod = mod,
     source = EncounterSource.new(mod),
     entities = {}, -- id -> entity
@@ -32,6 +32,20 @@ function SpawnManager.new(mod)
     mapId = nil,
     game = nil,
   }, SpawnManager)
+  -- Is (x, y) taken by another wild Pokemon -- on that cell or stepping into it? Every
+  -- entity carries it as `occupied` (Behavior's canStep asks it before any step: wander,
+  -- swim, flee, chase), and the reactions' context hands the same one out. The engine's
+  -- own check (EngineGb.canEnter) sees the player, NPCs and the partner, never our spawns.
+  self._occupied = function(x, y, me)
+    for _, o in pairs(self.entities) do
+      if o ~= me and o.state ~= Config.STATE.DESPAWNED
+        and ((o.cellX == x and o.cellY == y) or (o.moving and o.targetX == x and o.targetY == y)) then
+        return true
+      end
+    end
+    return false
+  end
+  return self
 end
 
 -- Is `e` coming or going by air (lib/sky_flyers.lua, mode "swoop") or swimming under the
@@ -326,6 +340,7 @@ function SpawnManager:_place(terrain, cell, enc, keepShiny)
     state = Config.STATE.AVAILABLE,
     isFlyer = false, -- no sky on the Game Boy field: nothing arrives or leaves by air
     groundAge = 0,
+    occupied = self._occupied, -- other wild Pokemon in the way (SpawnManager.new)
   }
   local e = self.entities[id]
   self.order[#self.order + 1] = id
@@ -436,15 +451,7 @@ function SpawnManager:_reactContext()
   ctx.bst = bst
   ctx.safari, ctx.fleeChance = safari, EnginePatch.safariFleeChance
   ctx.canFly = ctx.canFly or function() return false end -- no sky to take off into
-  ctx.occupied = ctx.occupied or function(x, y, me)
-    for _, o in pairs(self.entities) do
-      if o ~= me and o.state ~= Config.STATE.DESPAWNED
-        and ((o.cellX == x and o.cellY == y) or (o.moving and o.targetX == x and o.targetY == y)) then
-        return true
-      end
-    end
-    return false
-  end
+  ctx.occupied = self._occupied
   ctx.takeoff = ctx.takeoff or function(e) self:despawn(e.id, { animate = true, fly = true }) end
   ctx.fleeVanish = ctx.fleeVanish or function(e) self:fleeVanish(e) end
   -- a chaser stuck off its grass with no way home leaves (its tile's leave fx: a fade)

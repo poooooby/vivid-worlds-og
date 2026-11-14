@@ -264,6 +264,19 @@ do
   fakeEngine.playerCell, fakeEngine.isWater = nil, nil
 end
 
+-- ------- never onto another wild Pokemon: canStep asks the entity's `occupied` (SpawnManager)
+do
+  fakeEngine.canEnter = function() return true end
+  fakeEngine.terrainAt = function() return "land" end
+  local asked
+  local m = { cellX = 2, cellY = 2, facing = "down", terrain = "land", elevation = 3 }
+  m.occupied = function(x, y, me) asked = me return x == 3 and y == 2 end
+  check(not Behavior._canStep(m, {}, 3, 2), "a wild Pokemon will not step onto another one")
+  eq(asked, m, "...asking with itself as the one to leave out")
+  check(Behavior._canStep(m, {}, 1, 2), "...other tiles are fine")
+  check(not Behavior.tryStep(m, {}, "right", 16) and not m.moving, "tryStep refuses it too")
+end
+
 print("")
 if failures > 0 then
   io.stderr:write(failures .. " failure(s)\n")

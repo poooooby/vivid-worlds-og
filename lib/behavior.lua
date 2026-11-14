@@ -64,6 +64,8 @@ local function canStep(entity, game, tx, ty, anyGround)
   if p and ((p.x == tx and p.y == ty) or (p.moving and p.targetX == tx and p.targetY == ty)) then
     return false
   end
+  -- never onto another wild Pokemon, or the cell one is stepping into (SpawnManager.new)
+  if entity.occupied and entity.occupied(tx, ty, entity) then return false end
   if anyGround and not onWater then
     if not openGround(tx, ty) then return false end
   elseif EnginePatch.terrainAt(tx, ty) ~= entity.terrain then

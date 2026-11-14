@@ -259,6 +259,50 @@ smTiny:refill("land") -- should not error or duplicate on the same cell
 eq(smTiny:count(), 1, "refill never double-occupies the only cell")
 fakeEngine.mapBounds = function() return 6, 1 end -- restore for safety
 
+-- ------- two wild Pokemon never share a tile: each entity carries the manager's `occupied`
+do
+  local sm = SpawnManager.new(mod)
+  sm:onMapEntered("ROUTE_1", { world = { player = { cellX = -1, cellY = -1 } } })
+  for i = 1, 6 do sm:_spawnOne("land", { x = 10 + i, y = 10 }) end
+  local a, b = sm.entities[sm.order[1]], sm.entities[sm.order[2]]
+  check(a and b and a.occupied ~= nil, "a wild Pokemon knows where the others are")
+  if a and b then
+    check(a.occupied(b.cellX, b.cellY, a), "...another's cell is taken")
+    check(not a.occupied(a.cellX, a.cellY, a), "...its own is not (it leaves itself out)")
+    b.moving, b.targetX, b.targetY = true, 40, 40
+    check(a.occupied(40, 40, a), "...nor the cell another is stepping into")
+    b.moving = false
+  end
+  -- roam them all for a while: no two ever end up on (or headed for) the same cell
+  local Behavior = V.require("behavior")
+  local realEnter, realTerrain = fakeEngine.canEnter, fakeEngine.terrainAt
+  fakeEngine.canEnter = function(_g, x, y) return x >= 0 and x < 4 and y >= 0 and y < 3 end
+  fakeEngine.terrainAt = function() return "land" end
+  local n = 0
+  for _, id in ipairs(sm.order) do
+    local e = sm.entities[id]
+    n = n + 1
+    e.cellX, e.cellY = (n - 1) % 4, math.floor((n - 1) / 4) % 3
+    e.behavior, e.terrain, e.moving = Behavior.ROAM, "land", false
+  end
+  local clash = false
+  for _ = 1, 3000 do
+    local seen = {}
+    for _, id in ipairs(sm.order) do
+      local e = sm.entities[id]
+      Behavior.tick(e, {})
+      local x, y = e.cellX, e.cellY
+      if e.moving then x, y = e.targetX, e.targetY end
+      for _, key in ipairs({ e.cellX .. "," .. e.cellY, x .. "," .. y }) do
+        if seen[key] and seen[key] ~= e then clash = true end
+        seen[key] = e
+      end
+    end
+  end
+  check(n >= 2 and not clash, "roaming " .. n .. " of them in a 4x3 patch for 3000 ticks, none overlap")
+  fakeEngine.canEnter, fakeEngine.terrainAt = realEnter, realTerrain
+end
+
 -- ------- a fled Pokemon disappearing at the end of its run: into grass, or a cave's dark
 do
   local sm = SpawnManager.new(mod)
