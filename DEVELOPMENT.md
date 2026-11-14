@@ -49,6 +49,11 @@ The partner's Poké Ball (`lib/ball_drop.lua`, a pure timeline under `Config.BAL
 Follower option off and on, rides the bike and switches the lead, checking the ball, the Ball
 Poof count and the cry on the pop, with screenshots of the fall, the pop and the shrink.
 
+The OPTION menu's VIVID WORLDS page (`lib/options_page.lua`, added through `ui.options.rows`;
+`EnginePatch.openOptionsPage` pushes it, `EnginePatch.setModOption` stores a change):
+`tests/drivers/p10_options.lua` (`red` / `crystal`; pre-create `<shots>/<version>-options`)
+opens OPTION, presses A on the entry, steps the Follower row and backs out.
+
 Per-frame cost: `tests/drivers/p5_perf.lua` (`red` / `crystal`) walks a route with the partner out
 and the garbage collector stopped, and prints KB allocated and ms spent a frame per hook
 (`VWOG_PERF_DEEP=1`: per EnginePatch function and class method). At 1.0.0 the mod's hooks made

@@ -21,6 +21,7 @@ tests/behavior_unit_test.lua
 tests/cell_path_unit_test.lua
 tests/companion_unit_test.lua
 tests/config_unit_test.lua
+tests/drivers/p10_options.lua
 tests/drivers/p1_checks.lua
 tests/drivers/p2_emotes.lua
 tests/drivers/p2_reacts.lua
@@ -63,6 +64,7 @@ tests/modern_spawns_bridge_unit_test.lua
 tests/modkit_boot_test.lua
 tests/mon_mood_unit_test.lua
 tests/mood_fx_unit_test.lua
+tests/options_page_unit_test.lua
 tests/overworld_battle_unit_test.lua
 tests/ow_combat_unit_test.lua
 tests/partner_fx_unit_test.lua
@@ -127,3 +129,4 @@ dist/vivid-worlds-og-v1.0.1.zip
 dist/vivid-worlds-og-v1.0.2.zip
 dist/vivid-worlds-og-v1.0.3.zip
 dist/vivid-worlds-og-v1.0.4.zip
+dist/vivid-worlds-og-v1.0.5.zip

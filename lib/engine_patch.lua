@@ -1560,4 +1560,48 @@ function EngineGb.isFlying(species)
 end
 function EngineGb.cryFinished() return true end
 
+--- Stores a mod option through the Mod Manager's own setter (ManagerState:setOption):
+--- saved, persisted and announced as `mod.options_changed`. Returns true on success.
+function EngineGb.setModOption(game, modId, key, value)
+  local ManagerState = loadModule("src.mods.ManagerState")
+  if not (type(game) == "table" and ManagerState and type(ManagerState.setOption) == "function") then
+    return false
+  end
+  local state = setmetatable({ game = game, notify = function() end }, { __index = ManagerState })
+  local ok, result = pcall(ManagerState.setOption, state, modId, key, value)
+  return ok and result ~= false
+end
+
+--- Pushes a page of `rows` ({ id, label, value(game), step(game, dir) }) over the OPTION
+--- screen, the way the game opens its own groups (BATTLE OPTIONS, AUDIO ...). Gen 1:
+--- OptionsMenu.new(game, { rows }) (src/ui/OptionsMenu.lua). Gen 2: a copy of the open
+--- screen driving these rows with its own BACK (src/ui/gen2/OptionsMenu.lua pushGroup),
+--- editing the same options table. Returns true when a page opened.
+function EngineGb.openOptionsPage(game, rows)
+  if not (type(game) == "table" and game.stack and type(rows) == "table") then return false end
+  local ok, opened = pcall(function()
+    if EngineGb.generation() == 2 then
+      local parent = game.stack:top()
+      local Menu = loadModule("src.ui.gen2.OptionsMenu")
+      local meta = type(parent) == "table" and getmetatable(parent) or Menu
+      if not (type(meta) == "table" and meta.update) then return false end
+      local Strings = loadModule("src.core.Strings")
+      local back = Strings and Strings.source and Strings.source("BACK") or "BACK"
+      local view = {}
+      for i, row in ipairs(rows) do view[i] = row end
+      view[#view + 1] = { label = back, cancel = true, id = "cancel" }
+      game.stack:push(setmetatable({
+        game = game, rows = rows, view = view, index = 1, scroll = 0, sub = true,
+        options = type(parent) == "table" and parent.options or game.options,
+      }, meta))
+      return true
+    end
+    local Menu = loadModule("src.ui.OptionsMenu")
+    if not (Menu and Menu.new) then return false end
+    game.stack:push(Menu.new(game, { rows = rows }))
+    return true
+  end)
+  return ok and opened == true
+end
+
 return EngineGb

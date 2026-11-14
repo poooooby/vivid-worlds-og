@@ -109,6 +109,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 ## ⚙️ Options
 
+Change them in the Mod Manager, or while you play: the game's own **OPTION** menu has a
+**VIVID WORLDS** entry with all of them.
+
 | Option | Choices | Default | What it does |
 |---|---|---|---|
 | **Show Wild Mons** | On / Off | On | Visible wild Pokémon in encounter areas. |

@@ -49,6 +49,7 @@ return function(mod)
 
   local Config = V.require("config")
   local HdField = V.require("hd_field")
+  local OptionsPage = V.require("options_page")
   local EnginePatch = V.require("engine_patch")
   local SpriteAtlas = V.require("sprite_atlas")
   local SpawnFilters = V.require("spawn_filters")
@@ -409,6 +410,14 @@ return function(mod)
       return (okRows and type(rows) == "table") and rows or items
     end)
   end
+
+  -- VIVID WORLDS on the game's own OPTION screen: one entry opening a page of this mod's
+  -- options (lib/options_page.lua)
+  mod.hooks:wrap("ui.options.rows", function(next, game, rows)
+    local out = next(game, rows)
+    local okRows, withEntry = pcall(OptionsPage.addEntry, mod, out, EnginePatch.generation())
+    return (okRows and type(withEntry) == "table") and withEntry or out
+  end)
 
   mod.events:on("map.entered", function(ev)
     local okMap, err = pcall(function()

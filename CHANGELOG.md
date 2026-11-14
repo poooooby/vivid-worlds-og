@@ -4,6 +4,14 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Added
+
+- **VIVID WORLDS** in the game's own **OPTION** menu: one entry that opens a page with all of
+  this mod's options, so you can change them while you play instead of going through the Mod
+  Manager. A change there is the same as one made in the Mod Manager.
+
 ## 1.0.5 — 2026-11-13
 
 ### Changes
