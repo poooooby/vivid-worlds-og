@@ -1,9 +1,9 @@
 -- Run: lua tests/battle_art_geometry_unit_test.lua
 -- lib/compat/battle_art_variable_geometry.lua (Battle Art, Red / Blue / Yellow) and
--- lib/compat/battle_art_gen2_geometry.lua (Battle Art Gen 2): Wilds of Kanto Revival's two
--- adapters. Each wraps its provider's SpriteBillboards so our voxel sheets (a def with its
+-- lib/compat/battle_art_gen2_geometry.lua (Battle Art Gen 2). Each wraps its provider's SpriteBillboards so our voxel sheets (a def with its
 -- own geometry) get a card of their own size, a classic 16x16 def keeps the provider's card,
--- and Gen 2's halfWidth places a sized card on the billboard pivot.
+-- Species Sizes sets the card's size, and Gen 2's halfWidth places a sized card on the
+-- billboard pivot.
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
 local failures = 0
@@ -64,6 +64,23 @@ for _, case in ipairs({
     eq(xs[#xs] - xs[1], 64, case.id .. ": 64 px wide")
   end
   check(SB.mesh(ours, 3) == m and made == 1, case.id .. ": cached")
+  -- Species Sizes: the card takes the display size, its anchor scaled with it (feet stay put)
+  local small = { image = "vivid_worlds_og/voxel/y.png", frames = 6, frameWidth = 64, frameHeight = 64,
+    anchorX = 32, anchorY = 64, displayWidth = 34, displayHeight = 34 }
+  local ms = SB.mesh(small, 0)
+  if type(ms) == "table" and ms.verts then
+    local x0, x1, y0, y1 = math.huge, -math.huge, math.huge, -math.huge
+    for _, v in ipairs(ms.verts) do
+      x0, x1 = math.min(x0, v[1]), math.max(x1, v[1])
+      y0, y1 = math.min(y0, v[2]), math.max(y1, v[2])
+    end
+    eq(x1 - x0, 34, case.id .. ": Species Sizes: the card is its display width")
+    eq(y1 - y0, 34, case.id .. ": ...and display height")
+    eq((x0 + x1) / 2, 8, case.id .. ": ...centred on the pivot")
+    eq(y0, 0, case.id .. ": ...feet on the ground")
+  else
+    check(false, case.id .. ": Species Sizes: a sized card")
+  end
   eq(SB.mesh({ image = "red.png" }, 0), "orig:red.png", case.id .. ": a classic 16x16 def keeps the provider's card")
   check(SB.shadowQuad(ours, 3) == m, case.id .. ": the shadow / silhouette pass gets the same card")
   if case.gen2 then

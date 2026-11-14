@@ -4,6 +4,15 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- Battle Art in Red, Blue and Yellow: **Species Sizes** now sizes the wild Pokémon and your
+  partner in its 3D world, as it already did in Gold, Silver and Crystal. Before, every
+  Pokémon there stood at its art's full size, so a Rattata was nearly twice as big as it
+  should be.
+
 ## 1.0.8 — 2026-11-14
 
 ### Fixes

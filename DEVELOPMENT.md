@@ -67,6 +67,12 @@ Wild Pokémon never share a tile: each entity carries the spawn manager's `occup
 never our spawns). `tests/drivers/p12_overlap.lua` (`red` / `crystal`) watches a crowd wander
 for a minute and counts frames with a shared cell.
 
+The Battle Art adapters (`lib/compat/battle_art_*`): `tests/drivers/p13_battle_art.lua`, with
+ONE Battle Art copied into the throwaway engine's `mods/` (Battle Art 1.x on `red` / `yellow`,
+Battle Art Gen 2 on `crystal`; pre-create `<shots>/<version>-battleart`), turns its 3D world on and
+measures every card it builds for our sheets: size, Species Sizes width, centred on the tile, feet
+on the ground, and on Gen 2 `halfWidth` 8.
+
 Per-frame cost: `tests/drivers/p5_perf.lua` (`red` / `crystal`) walks a route with the partner out
 and the garbage collector stopped, and prints KB allocated and ms spent a frame per hook
 (`VWOG_PERF_DEEP=1`: per EnginePatch function and class method). At 1.0.0 the mod's hooks made
