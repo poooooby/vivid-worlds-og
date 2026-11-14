@@ -41,6 +41,10 @@ end
 --- spec:
 ---   providerId, displayName
 ---   failLog, okInstalled, okNative  (DEV log strings)
+---   handles(def)     optional: only these defs get our card (others keep the provider's)
+---   centreHalfWidth  optional: also wrap SpriteBillboards.halfWidth to answer 8 for the defs
+---                    we build (a provider that places a card from x + halfWidth, Battle Art
+---                    Gen 2, would otherwise set a wide card off-centre)
 function Factory.create(spec)
   spec = spec or {}
   local Adapter = {}
@@ -56,6 +60,7 @@ function Factory.create(spec)
   local _origMesh = nil
   local _origInvalidate = nil
   local _origShadowQuad = nil
+  local _origHalfWidth = nil
   local _varMeshes = {}
   local _wrappedTable = nil
   local _Voxel3D = nil
@@ -108,6 +113,9 @@ function Factory.create(spec)
       if _origInvalidate then
         _wrappedTable.invalidate = _origInvalidate
       end
+      if _origHalfWidth then
+        _wrappedTable.halfWidth = _origHalfWidth
+      end
       _wrappedTable._wildsVariableGeometryWrapped = nil
     end
     _state = "idle"
@@ -117,6 +125,7 @@ function Factory.create(spec)
     _origMesh = nil
     _origInvalidate = nil
     _origShadowQuad = nil
+    _origHalfWidth = nil
     _varMeshes = {}
     _wrappedTable = nil
     _Voxel3D = nil
@@ -321,11 +330,16 @@ function Factory.create(spec)
     return mesh
   end
 
+  -- the defs this adapter builds the card for (spec.handles narrows them)
+  local function ours(def)
+    if type(def) ~= "table" or type(def.image) ~= "string" then return false end
+    if spec.handles and not spec.handles(def) then return false end
+    return Adapter.needsVariableGeometry(def)
+  end
+  Adapter.handles = ours
+
   local function wrappedMesh(def, frame, cut, ...)
-    if type(def) ~= "table" or type(def.image) ~= "string" then
-      return _origMesh(def, frame, cut, ...)
-    end
-    if not Adapter.needsVariableGeometry(def) then
+    if not ours(def) then
       return _origMesh(def, frame, cut, ...)
     end
     local fw, fh, ax, ay, dw, dh, dax, day = Adapter.resolveGeometry(def)
@@ -381,6 +395,14 @@ function Factory.create(spec)
       SpriteBillboards.shadowQuad = wrappedMesh
     end
     SpriteBillboards.invalidate = wrappedInvalidate
+    if spec.centreHalfWidth and type(SpriteBillboards.halfWidth) == "function" then
+      local orig = SpriteBillboards.halfWidth
+      _origHalfWidth = orig
+      SpriteBillboards.halfWidth = function(def, ...)
+        if ours(def) then return PIVOT_X end
+        return orig(def, ...)
+      end
+    end
     SpriteBillboards._wildsVariableGeometryWrapped = true
     if Assets and type(Assets.register) == "function" then
       pcall(Assets.register, wrappedInvalidate)

@@ -72,6 +72,9 @@ ONE Battle Art copied into the throwaway engine's `mods/` (Battle Art 1.x on `re
 Battle Art Gen 2 on `crystal`; pre-create `<shots>/<version>-battleart`), turns its 3D world on and
 measures every card it builds for our sheets: size, Species Sizes width, centred on the tile, feet
 on the ground, and on Gen 2 `halfWidth` 8.
+`tests/drivers/p14_static_3d.lua` (same setup, `<shots>/<version>-static3d`) does the same for the
+map's own Pokémon (the big Snorlax, Lugia, the red Gyarados ...) and lists any other sprite over
+16 x 16 that Battle Art draws on its own.
 
 Per-frame cost: `tests/drivers/p5_perf.lua` (`red` / `crystal`) walks a route with the partner out
 and the garbage collector stopped, and prints KB allocated and ms spent a frame per hook

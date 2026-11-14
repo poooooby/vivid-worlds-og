@@ -29,8 +29,9 @@ local fakeAssets = {
 local realRequire = require
 require = function(p) if p == "src.render.Assets" then return fakeAssets end return realRequire(p) end
 
+-- one of our voxel sheets (lib/voxel_sheets.lua marks them wohVoxel)
 local ours = { image = "vivid_worlds_og/voxel/x.png", frames = 6, frameWidth = 64, frameHeight = 64,
-  anchorX = 32, anchorY = 64 }
+  anchorX = 32, anchorY = 64, wohVoxel = true }
 
 for _, case in ipairs({
   { file = "compat/battle_art_variable_geometry", id = "BATTLE_ART_VOXEL_FORK", idField = "BATTLE_ART_ID" },
@@ -66,7 +67,7 @@ for _, case in ipairs({
   check(SB.mesh(ours, 3) == m and made == 1, case.id .. ": cached")
   -- Species Sizes: the card takes the display size, its anchor scaled with it (feet stay put)
   local small = { image = "vivid_worlds_og/voxel/y.png", frames = 6, frameWidth = 64, frameHeight = 64,
-    anchorX = 32, anchorY = 64, displayWidth = 34, displayHeight = 34 }
+    anchorX = 32, anchorY = 64, displayWidth = 34, displayHeight = 34, wohVoxel = true }
   local ms = SB.mesh(small, 0)
   if type(ms) == "table" and ms.verts then
     local x0, x1, y0, y1 = math.huge, -math.huge, math.huge, -math.huge
@@ -86,9 +87,19 @@ for _, case in ipairs({
   if case.gen2 then
     eq(SB.halfWidth(ours), 8, case.id .. ": a sized card is placed on the billboard pivot (halfWidth 8)")
     eq(SB.halfWidth({ image = "red.png", frameWidth = 16 }), 8, case.id .. ": a classic def keeps Gen 2's own halfWidth")
+    -- a sized def that is not ours (the game's big Snorlax doll, another mod's sprite) keeps
+    -- Battle Art Gen 2's own card and placement: it sizes and places those itself
+    local doll = { image = "big_snorlax.png", frames = 6, frameWidth = 32, frameHeight = 32, anchorX = 16,
+      anchorY = 32, big = true }
+    eq(SB.mesh(doll, 0), "orig:big_snorlax.png", case.id .. ": the game's big doll keeps Battle Art's own card")
+    eq(SB.halfWidth(doll), 16, case.id .. ": ...and its own placement")
   end
+  local realHalf = case.gen2 and SB.halfWidth
   Adapter.reset()
   eq(SB.mesh({ image = "a" }), "orig:a", case.id .. ": reset puts the provider's own back")
+  if case.gen2 then
+    check(SB.halfWidth ~= realHalf and SB.halfWidth(ours) == 32, case.id .. ": ...halfWidth too")
+  end
   check(not Adapter.install({ find = function() return nil end, log = { info = function() end } }),
     case.id .. ": no provider loaded, nothing installed")
   Adapter.reset()
