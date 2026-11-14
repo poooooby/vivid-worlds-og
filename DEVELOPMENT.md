@@ -34,6 +34,10 @@ throwaway portable export of the engine: `git archive HEAD` without `mods/`, plu
 folders (`red/`, `gold/`, `crystal/` ...), a `portable.txt`, and this repo junctioned into
 `mods/vivid_worlds_og`. That keeps your real saves and mod settings untouched.
 
+Every driver first calls `tests/drivers/novsync.lua`, which turns vsync off. The engine already
+runs a driver without a frame cap, so vsync was the only thing pacing it to the display, and over
+Remote Desktop that halved the speed. A new driver should start the same way.
+
 The map's own Pokémon (`lib/static_mons.lua`): `tests/drivers/p7_static.lua` (`red` / `crystal`;
 pre-create `<shots>/<version>-static`) warps next to Mewtwo, Zapdos, Snorlax ... / Lugia, the red
 Gyarados, the big Snorlax, the beasts ..., checks each wears our art for its species, and takes a

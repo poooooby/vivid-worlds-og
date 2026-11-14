@@ -1,7 +1,8 @@
 -- In-game check of Wild Reacts (biking past wild Pokemon), run like tests/drivers/smoke.lua:
 --   POKEPORT_DRIVER=<this> POKEPORT_VERSION=crystal|red lovec .
 -- A strong lead, a few wild Pokemon placed close by, the player on a bike riding past them:
--- at least one should react (startled "!" and flee, or angry and chase).
+-- at least one should react (startled "!" and flee, or angry and chase). The reaction roll is
+-- forced to hit and the riding row is cleared, so the outcome does not depend on luck.
 local U = require("tests.drivers.util")
 local GameVersion = require("src.core.GameVersion")
 
@@ -9,6 +10,7 @@ local VERSION = tostring(GameVersion.get())
 local GEN = GameVersion.generation and GameVersion.generation() or 1
 
 return function(game)
+  require("mods.vivid_worlds_og.tests.drivers.novsync")(game) -- full speed over RDP too
   local fails = 0
   local function say(line) print("[vwog-react] " .. line) end
   local function ok(cond, line)
@@ -24,6 +26,17 @@ return function(game)
   end
   local EP, sm = ex.enginePatch, ex.spawnManager
   ok(EP.supports("wild_reacts"), "this generation carries the wild reactions")
+  -- no step encounters in the grass; and every reaction roll hits (Config.REACT tops out at
+  -- maxChance %, one roll as the player comes in range): this checks that they react, not luck
+  local opts = game.mods.modOptions
+  opts.vivid_worlds_og = opts.vivid_worlds_og or {}
+  opts.vivid_worlds_og.classic_enc = false
+  local realCtx = sm._reactContext
+  sm._reactContext = function(self)
+    local c = realCtx(self)
+    if c then c.rng = function(lo) return lo or 0 end end
+    return c
+  end
 
   local species
   if GEN == 1 then
@@ -51,8 +64,36 @@ return function(game)
   ok(EP.playerBiking(), "the player counts as biking")
 
   local ctx = sm._reactContext and sm:_reactContext()
-  say("react context: " .. tostring(ctx ~= nil) .. "; wild_reacts option " .. tostring(ex.lib == nil and "?" or ""))
+  say("react context: " .. tostring(ctx ~= nil))
+  ok(ctx and ctx.lead and ctx.lead.bst ~= nil, "the lead's base stat total is known (" ..
+    tostring(ctx and ctx.lead and ctx.lead.bst) .. ")")
   local pc = EP.playerCell()
+  -- nobody on the row the bike rides along: running into one starts its battle
+  for _, id in ipairs(sm.order or {}) do
+    local e = sm.entities[id]
+    if e and e.cellY == pc.y then sm:despawn(id) end
+  end
+  -- ...and a few beside it, within the bike's reach (the route's own spawns may all be far off):
+  -- land Pokemon moved onto free grass one or two rows off the ride
+  local spots = {}
+  for dy = 1, 2 do
+    for _, sy in ipairs({ pc.y - dy, pc.y + dy }) do
+      for x = pc.x - 4, pc.x + 1 do
+        if EP.terrainAt(x, sy) == "land" and not sm:entityAt(x, sy) then spots[#spots + 1] = { x = x, y = sy } end
+      end
+    end
+  end
+  local moved = 0
+  for _, id in ipairs(sm.order or {}) do
+    local e = sm.entities[id]
+    local spot = spots[moved * 3 + 1]
+    if e and spot and e.terrain == "land" and e.state == "available" and not e.moving then
+      e.cellX, e.cellY, e.px, e.py = spot.x, spot.y, spot.x * 16, spot.y * 16
+      moved = moved + 1
+      if moved >= 3 then break end
+    end
+  end
+  ok(moved > 0, "wild Pokemon beside the ride (" .. moved .. ")")
   for _, id in ipairs(sm.order or {}) do
     local e = sm.entities[id]
     if e then say(string.format("  %s at %d,%d (player %d,%d) lv%s", tostring(e.species), e.cellX, e.cellY, pc.x, pc.y, tostring(e.level))) end

@@ -11,6 +11,7 @@ local GameVersion = require("src.core.GameVersion")
 local VERSION = tostring(GameVersion.get())
 
 return function(game)
+  require("mods.vivid_worlds_og.tests.drivers.novsync")(game) -- full speed over RDP too
   local fails = 0
   local function say(line) print("[vwog-follower-off] " .. line) end
   local function ok(cond, line)

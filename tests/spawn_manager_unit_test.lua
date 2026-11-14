@@ -786,6 +786,19 @@ do
   REACT.minChance, REACT.maxChance = odds[1], odds[2]
 end
 
+-- ------- the lead's strength reads its species as the party has it: a Game Boy key
+do
+  local realBst, realLead = fakeEngine.baseStatTotal, fakeEngine.leadPartyMon
+  local asked
+  fakeEngine.baseStatTotal = function(species) asked = species return species == "VENUSAUR" and 425 or nil end
+  fakeEngine.leadPartyMon = function() return { level = 60, species = "VENUSAUR" } end
+  local smL = SpawnManager.new(mod)
+  local ctx = smL:_reactContext()
+  eq(asked, "VENUSAUR", "the lead's base stats are looked up by its species key")
+  eq(ctx and ctx.lead and ctx.lead.bst, 425, "...and found (tonumber() lost the key)")
+  fakeEngine.baseStatTotal, fakeEngine.leadPartyMon = realBst, realLead
+end
+
 -- ------- the Battler's fight called off: a parting shot (cry + lunge), a run, gone; and a
 -- knocked-out or running Pokemon can never be walked into for a fresh battle
 do

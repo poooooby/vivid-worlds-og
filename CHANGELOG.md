@@ -10,6 +10,9 @@ here.
 
 - Wild Pokémon no longer walk onto each other: one wandering or swimming never steps onto a
   tile another stands on or is stepping into, so two of them never end up overlapping.
+- **Wild Reacts** weighs your lead Pokémon's species again, not just its level: on these games
+  its base stats were never found, so a strong species at a low level was treated like a weak
+  one when deciding whether wild Pokémon flee from it or chase it.
 
 ## 1.0.7 — 2026-11-14
 

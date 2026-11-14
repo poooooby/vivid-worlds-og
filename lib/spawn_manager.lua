@@ -443,7 +443,8 @@ function SpawnManager:_reactContext()
   if lead then
     local l = ctx._lead or {}
     ctx._lead = l
-    l.level, l.bst = tonumber(lead.level), bst and bst(tonumber(lead.species or lead.speciesId)) or nil
+    -- the species as the party has it: a Game Boy key ("VENUSAUR"), which tonumber() lost
+    l.level, l.bst = tonumber(lead.level), bst and bst(lead.species or lead.speciesId) or nil
     ctx.lead = l
   else
     ctx.lead = nil

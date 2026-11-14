@@ -16,6 +16,7 @@ local function patternShiny(d)
 end
 
 return function(game)
+  require("mods.vivid_worlds_og.tests.drivers.novsync")(game) -- full speed over RDP too
   local fails = 0
   local function say(line) print("[vwog-shiny] " .. line) end
   local function ok(cond, line)

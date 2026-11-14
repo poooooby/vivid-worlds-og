@@ -8,6 +8,7 @@ local VERSION = tostring(GameVersion.get())
 local GEN = GameVersion.generation and GameVersion.generation() or 1
 
 return function(game)
+  require("mods.vivid_worlds_og.tests.drivers.novsync")(game) -- full speed over RDP too
   local fails = 0
   local function say(line) print("[vwog-roletalk] " .. line) end
   local function ok(cond, line)

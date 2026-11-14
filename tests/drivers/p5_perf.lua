@@ -11,6 +11,7 @@ local GEN = GameVersion.generation and GameVersion.generation() or 1
 local FRAMES = tonumber(os.getenv("VWOG_PERF_FRAMES")) or 600
 
 return function(game)
+  require("mods.vivid_worlds_og.tests.drivers.novsync")(game) -- full speed over RDP too
   local function say(line) print("[vwog-perf] " .. line) end
   U.wait(60)
   local ex = game.mods and game.mods.exports and game.mods.exports.vivid_worlds_og

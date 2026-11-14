@@ -11,6 +11,7 @@ local GEN = GameVersion.generation and GameVersion.generation() or 1
 local SHOT = (os.getenv("VWOG_SHOT_DIR") or "shots") .. "/" .. VERSION .. "-roles"
 
 return function(game)
+  require("mods.vivid_worlds_og.tests.drivers.novsync")(game) -- full speed over RDP too
   local fails = 0
   local function say(line) print("[vwog-roles] " .. line) end
   local function ok(cond, line)
