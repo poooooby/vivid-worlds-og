@@ -4,6 +4,13 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- Your partner turns to face you when you talk to it (press A on it), and keeps facing you
+  until you are done, instead of looking whichever way it last walked.
+
 ## 1.0.6 — 2026-11-13
 
 ### Added

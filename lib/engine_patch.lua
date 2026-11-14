@@ -1237,6 +1237,7 @@ function EngineGb.canStartInteraction()
 end
 
 local FACING_DELTA = { up = { 0, -1 }, down = { 0, 1 }, left = { -1, 0 }, right = { 1, 0 } }
+local OPPOSITE_FACING = { up = "down", down = "up", left = "right", right = "left" }
 
 --- The follower npc standing still on the cell the player faces, else nil.
 function EngineGb.followerInFacingCell()
@@ -1247,6 +1248,29 @@ function EngineGb.followerInFacingCell()
   if npc.moving or npc.hidden then return nil end
   if npc.cellX == p.x + d[1] and npc.cellY == p.y + d[2] then return npc end
   return nil
+end
+
+--- Turns the standing partner to face the player, as the games turn a person you talk to
+--- (Yellow's own talk: PikachuFollower `OPPOSITE[player.facing]` after idleReset). Gen 1's
+--- idle record (bounce, look-around, spin) is dropped so it cannot turn it away or leave it
+--- off its cell. Returns the facing, or nil when there is no standing partner.
+function EngineGb.followerFacePlayer()
+  local npc = EngineGb.followerCurrent()
+  local p = EngineGb.playerCell()
+  if not (type(npc) == "table" and p) or npc.moving then return nil end
+  local dir
+  if npc.cellY ~= p.y then dir = npc.cellY < p.y and "down" or "up"
+  elseif npc.cellX ~= p.x then dir = npc.cellX < p.x and "right" or "left"
+  else dir = OPPOSITE_FACING[p.facing] end
+  if not dir then return nil end
+  if npc.idle ~= nil then
+    npc.idle = nil
+    if type(npc.cellX) == "number" and type(npc.cellY) == "number" then
+      npc.px, npc.py = npc.cellX * CELL, npc.cellY * CELL
+    end
+  end
+  npc.facing = dir
+  return dir
 end
 
 --- Dry walkable empty cells in a row from (cx, cy) heading `dir` (a thrown ball).

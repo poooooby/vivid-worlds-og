@@ -18,8 +18,9 @@ end
 local E = {
   startable = true, follower = { cellX = 1 }, lead = nil,
   messageOpen = false, lastPage = false, choiceUp = false, choice = nil,
-  closedStay = 0,
+  closedStay = 0, faced = 0,
 }
+E.followerFacePlayer = function() E.faced = E.faced + 1 return "up" end
 E.canStartInteraction = function() return E.startable end
 E.followerInFacingCell = function() return E.follower end
 E.leadPartyMon = function() return E.lead end
@@ -124,6 +125,9 @@ local fi = newInteraction()
 E.lead = mon()
 check(fi:tryStart({}), "facing the follower and pressing A starts an interaction")
 check(fi:isActive(), "...which is now active")
+check(E.faced == 1, "...and the partner turns to face the player")
+fi:tick({})
+check(E.faced == 2, "...and keeps facing them while the interaction lasts")
 local say = lastSay()
 check(say.opts.stay == true, "the report is a stay message (a menu goes under it)")
 check(say.opts.mon == E.lead, "...shown with the lead Pokemon's own portrait")
@@ -139,6 +143,7 @@ check(not fi2:tryStart({}), "not when the follower is not in the facing cell")
 E.follower = { cellX = 1 }
 E.lead = nil
 check(not fi2:tryStart({}), "not without a party Pokemon")
+check(E.faced == 2, "...and no refused press turns the partner")
 E.lead = mon()
 
 -- ------- a follower shrunk into the player (surfing, PMD recall) cannot be talked to

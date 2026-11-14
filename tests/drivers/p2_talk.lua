@@ -27,6 +27,11 @@ return function(game)
   if not ok(ex ~= nil and ex.engineReady, VERSION .. ": Vivid Worlds: OG installed") then return finish() end
   local EP, fi = ex.enginePatch, ex.followerInteraction
   ok(EP.supports("interaction"), "this generation carries Pet / Play / Talk")
+  -- no wild Pokemon and no step encounters: a battle in the grass would cut the walk short
+  local opts = game.mods.modOptions
+  opts.vivid_worlds_og = opts.vivid_worlds_og or {}
+  opts.vivid_worlds_og.enabled = false
+  opts.vivid_worlds_og.classic_enc = false
 
   local mon
   if GEN == 1 then

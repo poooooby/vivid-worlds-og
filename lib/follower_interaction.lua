@@ -215,6 +215,8 @@ function FollowerInteraction:tryStart(game)
 
   self.game, self.mon = game or self.game, mon
   local name = EnginePatch.displayName(mon)
+  -- it turns to you, as a person you talk to does (kept up in tick while this lasts)
+  if EnginePatch.followerFacePlayer then EnginePatch.followerFacePlayer() end
 
   if self.limiter:status().locked then
     self:finish(Dialogue.refusal("locked", name, self.rng), "Angry")
@@ -479,6 +481,8 @@ function FollowerInteraction:tick(game)
   self.game = game or self.game
   local state = self.state
   if not state then return end
+  -- still facing you: Yellow's idle (a look around, a spin) must not turn it away mid-talk
+  if EnginePatch.followerFacePlayer then EnginePatch.followerFacePlayer() end
 
   if state == "report" then
     if not EnginePatch.isMessageOpen() then
