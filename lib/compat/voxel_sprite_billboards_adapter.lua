@@ -1,19 +1,15 @@
--- Shared in-memory SpriteBillboards.mesh wrap for Voxel forks that expose
--- the same public module table Battle Art does: exports.lib.require.
+-- The one SpriteBillboards.mesh wrap for every 3D world mod that exposes Battle Art's public
+-- module table (exports.lib.require): Battle Art (Gen 1 and Gen 2), TERRARIUM, Potato,
+-- Dramaless, Stadium 2 -- each a thin Factory.create entry beside this file.
 --
--- Battle Art keeps its own adapters, one per fork (lib/compat/
--- battle_art_variable_geometry.lua for Gen1, lib/compat/battle_art_gen2_geometry.lua
--- for Gen2 -- real behavioral differences between the two, see that Gen2
--- file's header) and neither is routed through this factory. Potato /
--- Dramaless / Stadium2 / Terrarium use this so their wrap contract stays
--- aligned without touching the known-good Battle Art paths.
---
--- Wilds does NOT copy VoxelScene, shaders, camera, or mesher code.
--- Vanilla 16×16 defs call the original mesh() unchanged.
--- shadowBlob() is never wrapped (Potato low-end contact shadow).
+-- Our voxel sheets (lib/voxel_sheets.lua) carry their own frame size, anchor and display
+-- (Species Sizes) size; the wrap builds their card at that size with the anchor on the
+-- providers' pivot (x + 8), and re-points shadowQuad at it so body, shadow and silhouette
+-- agree. A 16 x 16 def calls the provider's own mesh() unchanged; shadowBlob() (Potato) is
+-- never wrapped. No provider source is copied or patched on disk.
 local V = ...
--- (Vivid Worlds: OG: this file and the per-provider ones beside it are Wilds of Kanto
--- Revival's, kept as they are but for this log shim and the feet `cut` -- see wrappedMesh.)
+-- (From Wilds of Kanto Revival's adapters, by way of Wilds of Hoenn: the log shim, the feet
+-- `cut`, `handles` and `centreHalfWidth` are ours.)
 local DebugLog = {
   info = function(mod, fmt, ...)
     if mod and mod.log and mod.log.info then mod.log:info("[vivid_worlds_og] " .. fmt, ...) end
@@ -27,20 +23,9 @@ local INSET_V = 0.05
 -- Dramatic Shape-family billboard / caster matrices apply T(-8, 0, 0).
 local PIVOT_X = 8
 
-local function sourceLooksNative(src)
-  if type(src) ~= "string" or src == "" then return false end
-  local usesGeometry = src:find("getPoseGeometry", 1, true)
-    or src:find("getFrameGeometry", 1, true)
-    or src:find("frameWidth", 1, true)
-  local fixed16 = src:find("frame %*% 16", 1)
-    or src:find("frame * 16", 1, true)
-    or src:find("{ 16, 16, 0", 1, true)
-  return usesGeometry and not fixed16
-end
-
 --- spec:
 ---   providerId, displayName
----   failLog, okInstalled, okNative  (DEV log strings)
+---   failLog, okInstalled  (log strings)
 ---   handles(def)     optional: only these defs get our card (others keep the provider's)
 ---   centreHalfWidth  optional: also wrap SpriteBillboards.halfWidth to answer 8 for the defs
 ---                    we build (a provider that places a card from x + halfWidth, Battle Art
@@ -53,7 +38,7 @@ function Factory.create(spec)
     or (tostring(spec.displayName or "Voxel")
       .. " variable geometry unavailable; using Classic")
 
-  local _state = "idle" -- idle | installed | native | failed | absent
+  local _state = "idle" -- idle | installed | failed | absent
   local _reason = nil
   local _loggedFail = false
   local _loggedOk = false
@@ -81,15 +66,8 @@ function Factory.create(spec)
   local function logOk(mod, detail)
     if _loggedOk then return end
     _loggedOk = true
-    local msg
-    if _state == "native" then
-      msg = spec.okNative
-        or (tostring(spec.displayName or "Voxel") .. " variable geometry: native")
-    else
-      msg = spec.okInstalled
-        or (tostring(spec.displayName or "Voxel")
-          .. " variable geometry: adapter installed")
-    end
+    local msg = spec.okInstalled
+      or (tostring(spec.displayName or "Voxel") .. " variable geometry: adapter installed")
     if DebugLog and DebugLog.info then
       DebugLog.info(mod, "%s", msg)
     end
@@ -132,31 +110,11 @@ function Factory.create(spec)
     _Assets = nil
   end
 
-  function Adapter.isInstalled()
-    return _state == "installed" or _state == "native"
-  end
-
-  function Adapter.isSupported()
-    return Adapter.isInstalled()
-  end
-
-  function Adapter.supportsVariableGeometry()
-    return _state == "installed" or _state == "native"
-  end
-
-  function Adapter.supportReason()
-    return _reason
-  end
-
-  function Adapter.state()
-    return _state
-  end
-
   -- displayWidth/displayHeight/displayAnchorX/displayAnchorY let a caller
   -- request a billboard quad SMALLER or LARGER than the real frameWidth/
   -- frameHeight/anchorX/anchorY. They default to the real values, so every
-  -- existing caller (Battle Art, Potato, Dramaless, Stadium2, non-native
-  -- Terrarium) is unaffected unless it sets them. Unlike a 2D canvas scale,
+  -- existing caller (Battle Art, Potato, Dramaless, Stadium2, Terrarium) is
+  -- unaffected unless it sets them. Unlike a 2D canvas scale,
   -- this changes only the 3D quad's world-space size (Adapter.localQuad);
   -- Adapter.uvRect always slices the texture from the real frameWidth/
   -- frameHeight, so every source pixel is still sampled at native
@@ -270,21 +228,6 @@ function Factory.create(spec)
     local v0 = (fy + INSET_V) / ih
     local v1 = (fy + fh - INSET_V) / ih
     return u0, v0, u1, v1, fy
-  end
-
-  local function providerIsNative(ds)
-    if ds.exports and (ds.exports.variableSpriteGeometry == true
-        or ds.exports.supportsVariableSizeSprites == true
-        or ds.exports.supportsVariableSpriteGeometry == true) then
-      return true, "exports_flag"
-    end
-    if type(ds.read) == "function" then
-      local ok, data = pcall(ds.read, ds, "lib/SpriteBillboards.lua")
-      if ok and sourceLooksNative(data) then
-        return true, "sprite_billboards_geometry_api"
-      end
-    end
-    return false, nil
   end
 
   local function getImageSize(imagePath)
@@ -411,7 +354,7 @@ function Factory.create(spec)
   end
 
   function Adapter.install(mod)
-    if _state == "installed" or _state == "native" then
+    if _state == "installed" then
       return true, _reason
     end
     if _state == "failed" then
@@ -423,12 +366,6 @@ function Factory.create(spec)
       if not ds then
         _state = "absent"
         _reason = "provider_absent"
-        return
-      end
-      local native, nativeWhy = providerIsNative(ds)
-      if native then
-        _state = "native"
-        _reason = nativeWhy
         return
       end
       local lib = ds.exports and ds.exports.lib

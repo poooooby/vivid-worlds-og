@@ -81,12 +81,6 @@ check(sb ~= sa and sb.def.image ~= sa.def.image, "stride B: its own sheet")
 check(composed[sb.def.image] ~= nil, "...a composed asset too")
 eq(sb.def.frameWidth, sa.def.frameWidth, "...the same cell")
 check(sheets:spriteFor(ra, false) == sb, "...one per art")
--- the PMD Walk frame each stride bakes
-eq(VS.pmdStrideClock({ 8, 10, 8, 10 }, false), 8, "PMD four-frame Walk: A = its second frame")
-eq(VS.pmdStrideClock({ 8, 10, 8, 10 }, true), 26, "...B = its fourth")
-eq(VS.pmdStrideClock({ 6, 6, 6, 6, 6, 6 }, false), 6, "another length: A = the first frame change")
-eq(VS.pmdStrideClock({ 6, 6, 6, 6, 6, 6 }, true), 18, "...B = half way round the loop")
-eq(VS.pmdStrideClock(nil, true), 0, "no Walk timings: frame 0")
 
 print("")
 if failures > 0 then

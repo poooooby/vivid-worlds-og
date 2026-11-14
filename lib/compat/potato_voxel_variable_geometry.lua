@@ -21,5 +21,4 @@ return Factory.create({
   displayName = "Potato Voxel",
   failLog = "Potato Voxel variable geometry unavailable; using Classic",
   okInstalled = "Potato Voxel variable geometry: adapter installed",
-  okNative = "Potato Voxel variable geometry: native",
 })

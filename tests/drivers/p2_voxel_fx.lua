@@ -42,6 +42,12 @@ return function(game)
     game.world:warpToMapId("ROUTE_29", 17, 5, "down")
   end
   U.wait(120)
+  -- nobody on the row the player walks along (walking into one starts its battle)
+  local pc = EP.playerCell()
+  for _, id in ipairs(sm.order or {}) do
+    local e = sm.entities[id]
+    if e and pc and e.cellY == pc.y then sm:despawn(id) end
+  end
   U.hold(game, "left", 40)
   U.wait(90)
 
@@ -69,6 +75,7 @@ return function(game)
   say(string.format("last frame: %s actors, %s effects, %s figures as cards", tostring(lf.actors), tostring(lf.fx),
     tostring(lf.proxies)))
   say("effect draws through drawFx in 40 frames: " .. counted)
+  ok(not (EP.battleActive and EP.battleActive()), "no battle opened meanwhile (the field is up)")
   ok(counted > 0, "the partner's bubble draws in the 3D world")
   U.still(game, SHOT .. "/1_bubble.png")
   EP.drawFxActors = realFx

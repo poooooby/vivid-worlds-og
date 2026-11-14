@@ -17,7 +17,6 @@ local Adapter = Factory.create({
   displayName = "Battle Art",
   failLog = "Battle Art variable geometry unavailable; using Classic",
   okInstalled = "Battle Art variable sprite adapter installed",
-  okNative = "Battle Art variable geometry: native",
 })
 Adapter.BATTLE_ART_ID = Adapter.PROVIDER_ID
 

@@ -17,5 +17,4 @@ return Factory.create({
   displayName = "Dramaless",
   failLog = "Dramaless variable geometry unavailable; using Classic",
   okInstalled = "Dramaless variable geometry: adapter installed",
-  okNative = "Dramaless variable geometry: native",
 })

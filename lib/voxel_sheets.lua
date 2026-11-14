@@ -1,31 +1,30 @@
--- Our Pokemon as sprites a voxel world mod can build cards from (TERRARIUM, Potato Voxel,
--- Dramaless, Stadium2 -- on Red / Blue / Yellow / Gold / Silver / Crystal: lib/engine_patch.lua,
+-- Our Pokemon as sprites a voxel world mod can build cards from (Battle Art, TERRARIUM, Potato
+-- Voxel, Dramaless, Stadium2 -- on Red / Blue / Yellow / Gold / Silver / Crystal: lib/engine_patch.lua,
 -- lib/compat/).
 --
 -- A render pipeline mod draws the world itself, from each entity's ENGINE sprite: e:pose()
 -- -> sprite, whose `def.image` it loads through src.render.Assets and slices with Gen 1's
 -- SpriteRenderer layout (a vertical strip: STAND down / up / left = frames 0-2, WALK =
--- 3-5, right = left mirrored). Our renderers draw HGSS / PMDCollab art of any size, so for
+-- 3-5, right = left mirrored). Our renderers draw HGSS / GSC art of any size, so for
 -- each (art key, shiny, style, silhouette, colour mode) this bakes such a strip once: the
 -- renderer's own drawing of each pose, rendered into a canvas cell (feet on the cell's
 -- bottom edge, centred), read back and registered as a COMPOSED asset
 -- (Assets.compose(path, build)) -- so `Assets.image(def.image)` and the mod's palette bake
 -- (Assets.imageData) both find it with nothing written to disk. The def carries the real
 -- frame size and anchor (frameWidth / frameHeight / anchorX / anchorY, Gen1Recomp's own
--- SpriteDef geometry names); the adapters in lib/compat/ (Wilds of Kanto Revival's) make
--- the cards that size.
+-- SpriteDef geometry names) and `wohVoxel = true`; the adapters in lib/compat/ make the cards
+-- that size.
 --
 -- Colour: in a mode that honours true colour the sheet keeps its colours (trueColor =
 -- true); otherwise it is baked in the three luminance shades lib/gb_color.lua draws the 2D
 -- path with (trueColor = false), so the mod colours it from the map's palette like any
--- vanilla sprite. PMD art is baked on its Idle's first frame (standing) and its Walk's
--- first stride (walking): a card shows one still frame per pose.
+-- vanilla sprite. A card shows one still frame per pose.
 --
 -- Strides: the strip has ONE walk frame per facing, and the pipelines show it alternating
 -- with the stand frame -- up / down also mirror it every other step (a second stride for
 -- free), but a mirrored side view would face the other way, so sideways the art only bobbed
 -- (HGSS stand and stride A are nearly the same side pose): it glided. So each art gets a
--- second strip whose walk rows hold the OTHER stride (HGSS walk B, PMD Walk's B step), and
+-- second strip whose walk rows hold the OTHER stride (walk B), and
 -- `spriteFor` hands out the one for the renderer's current step (`r.voxelStride`, "a" / "b",
 -- set per step by lib/spawn_manager.lua and lib/follower_adapter.lua): stand, A, stand, B,
 -- like the 2D game.
@@ -63,40 +62,13 @@ function VoxelSheets.new(deps)
 end
 
 local function styleOf(r)
-  return r.isPmd and "pmd" or (r.style or "pokemmo")
-end
-
---- The PMD Walk clock showing stride A or B (`b`): a four-frame Walk is Base, A, Base, B
---- (PmdRenderer.stepStart); any other length takes its first frame change for A and half
---- way round the loop for B. Pure (tested).
-function VoxelSheets.pmdStrideClock(durations, b)
-  if type(durations) ~= "table" or #durations == 0 then return 0 end
-  if #durations == 4 then
-    if b then return durations[1] + durations[2] + durations[3] end
-    return durations[1]
-  end
-  if not b then return tonumber(durations[1]) or 0 end
-  local total = 0
-  for _, d in ipairs(durations) do total = total + (tonumber(d) or 0) end
-  return math.floor(total / 2)
+  return r.style or "pokemmo"
 end
 
 -- draws one pose of `r` into the current canvas, its tile at (tx, ty); `b` = stride B
 local function drawPose(r, row, tx, ty, poses, b)
-  if r.isPmd then
-    local entry
-    if row.walk then
-      r.anim = "walk"
-      entry = r.info and r.info.walk
-      r.clock = VoxelSheets.pmdStrideClock(entry and entry.durations, b)
-    else
-      r.anim, r.clock = "idle", 0
-    end
-    r:draw(tx, ty, 0, 0, row.facing, 0, false)
-  else
-    local walk = b and (poses.WALK_B or poses.WALK_A) or poses.WALK_A
-    r:draw(tx, ty, 0, 0, row.facing, row.walk and walk or poses.STAND, false)
-  end
+  local walk = b and (poses.WALK_B or poses.WALK_A) or poses.WALK_A
+  r:draw(tx, ty, 0, 0, row.facing, row.walk and walk or poses.STAND, false)
 end
 
 -- renders the six poses into an ImageData (cell x cell*6), or nil
@@ -136,7 +108,7 @@ end
 --- The engine-shaped sprite for a renderer's art, or nil (no art, no love). Cached per
 --- art key / shiny / style / silhouette / colour mode / species size; the pixels are baked
 --- the first time the mod asks for the image (Assets.compose's build), inside its own draw.
---- Species Sizes (HGSS_scale / PMD_scale, lib/hd_field.lua): the card's display size
+--- Species Sizes (HGSS_scale, lib/hd_field.lua): the card's display size
 --- (displayWidth / displayHeight, which the adapters in lib/compat/ honour, the anchor
 --- scaled with it) is the frame times the species' factor; the sheet itself is shared.
 function VoxelSheets:spriteFor(r, luma)

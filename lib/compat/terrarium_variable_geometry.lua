@@ -19,5 +19,4 @@ return Factory.create({
   displayName = "Terrarium",
   failLog = "Terrarium variable geometry unavailable; using Classic",
   okInstalled = "Terrarium variable geometry: adapter installed",
-  okNative = "Terrarium variable geometry: native",
 })

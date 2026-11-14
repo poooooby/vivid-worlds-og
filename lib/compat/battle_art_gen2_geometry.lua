@@ -16,7 +16,6 @@ local Adapter = Factory.create({
   displayName = "Battle Art Gen2",
   failLog = "Battle Art Gen2 variable geometry unavailable; using Classic",
   okInstalled = "Battle Art Gen2 variable sprite adapter installed",
-  okNative = "Battle Art Gen2 variable geometry: native",
   handles = function(def) return def.wohVoxel == true end,
   centreHalfWidth = true,
 })
