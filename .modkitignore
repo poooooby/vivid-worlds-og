@@ -27,6 +27,7 @@ tests/drivers/p11_face.lua
 tests/drivers/p12_overlap.lua
 tests/drivers/p13_battle_art.lua
 tests/drivers/p14_static_3d.lua
+tests/drivers/p16_over_grass.lua
 tests/drivers/p1_checks.lua
 tests/drivers/p2_emotes.lua
 tests/drivers/p2_reacts.lua
@@ -138,3 +139,4 @@ dist/vivid-worlds-og-v1.0.5.zip
 dist/vivid-worlds-og-v1.0.6.zip
 dist/vivid-worlds-og-v1.0.7.zip
 dist/vivid-worlds-og-v1.0.8.zip
+dist/vivid-worlds-og-v1.0.9.zip

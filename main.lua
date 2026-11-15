@@ -93,6 +93,7 @@ return function(mod)
     end)
   end
   HdField.setSpeciesSizes(Config.get(mod, "species_sizes"))
+  EnginePatch.wildsOverGrass = Config.get(mod, "over_grass") == true
 
   -- Pure asset I/O, no engine dependency. A repo checkout or --no-atlas build has no
   -- assets/atlas/ index, so this is a normal, silent false everywhere except a release ZIP
@@ -507,6 +508,8 @@ return function(mod)
       if ev.value == false then pcall(function() spawnManager:calmReactions() end) end
     elseif ev.key == "species_sizes" then
       HdField.setSpeciesSizes(ev.value)
+    elseif ev.key == "over_grass" then
+      EnginePatch.wildsOverGrass = ev.value == true
     elseif ev.key == "sprite_style" then
       -- re-point every wild Pokemon's renderer now (the partner follows on its next tick)
       pcall(function() spawnManager:refreshSpriteStyle() end)

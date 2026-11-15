@@ -67,6 +67,14 @@ Wild Pokémon never share a tile: each entity carries the spawn manager's `occup
 never our spawns). `tests/drivers/p12_overlap.lua` (`red` / `crystal`) watches a crowd wander
 for a minute and counts frames with a shared cell.
 
+The Over Grass option (`EnginePatch.wildsOverGrass`, set from `main.lua`): in 2D a wild Pokémon's
+draw proxy loses what the engine covers feet by (Gen 1: its `cellX`/`cellY`, Gen 2: `inGrass`); in
+3D it keeps its cell (Battle Art reads the ground height there) and its `pose()` answers a `py`
+`EnginePatch.overGrassLift` higher (8 px on grass, blended across a step), the hop lift a pipeline
+already applies. `tests/drivers/p16_over_grass.lua` (`red` / `crystal`; pre-create
+`<shots>/<version>-overgrass`) counts the engine's grass-over-feet draws with the option off and
+on, then, with a Battle Art installed, the lifted cards in its 3D world.
+
 The Battle Art adapters (`lib/compat/battle_art_*`): `tests/drivers/p13_battle_art.lua`, with
 ONE Battle Art copied into the throwaway engine's `mods/` (Battle Art 1.x on `red` / `yellow`,
 Battle Art Gen 2 on `crystal`; pre-create `<shots>/<version>-battleart`), turns its 3D world on and

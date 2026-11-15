@@ -4,6 +4,15 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### New
+
+- **Over Grass** option (off by default): wild Pokémon stand on top of tall grass, drawn whole,
+  instead of the grass covering their feet. It works on the flat field and in Battle Art's 3D
+  world, where they stand on top of the grass tufts. In Gold, Silver and Crystal the grass
+  still rustles under them as they step.
+
 ## 1.0.9 — 2026-11-14
 
 ### Fixes

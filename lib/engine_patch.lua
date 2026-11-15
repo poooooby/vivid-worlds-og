@@ -176,6 +176,27 @@ local scratch = {}
 -- bars, hit FX ...), which get no proxy; drawn by the frame's ctx.drawFx instead (below)
 local fxActors, fxCamX, fxCamY = {}, 0, 0
 EngineGb._lastFrame = { actors = 0, fx = 0, proxies = 0, pipeline = false }
+-- the Over Grass option (main.lua sets it): wild Pokemon drawn whole on top of tall grass.
+-- In 3D the grass is standing tufts drawn after the figures (Battle Art: rows of an 8 x 8 tile,
+-- at most 8 px tall), so a card there stands OVER_GRASS_LIFT px up, on the tuft tops: its pose()
+-- answers a py that much higher, the hop offset a pipeline already lifts a figure by.
+EngineGb.wildsOverGrass = false
+EngineGb.OVER_GRASS_LIFT = 8
+
+--- How far a card at world pixel (x, y) stands up over tall grass: OVER_GRASS_LIFT on a grass
+--- cell, nothing off it, blended across a step between the two (no pop at the grass edge).
+function EngineGb.overGrassLift(map, x, y)
+  if not (map and map.isGrassCell) then return 0 end
+  local fx, fy = (x or 0) / CELL, (y or 0) / CELL
+  local x0, y0 = math.floor(fx), math.floor(fy)
+  local tx, ty = fx - x0, fy - y0
+  local function g(cx, cy) return map:isGrassCell(cx, cy) == true and 1 or 0 end
+  local here = g(x0, y0)
+  local blend = here
+  if tx > 0 then blend = here * (1 - tx) + g(x0 + 1, y0) * tx
+  elseif ty > 0 then blend = here * (1 - ty) + g(x0, y0 + 1) * ty end
+  return EngineGb.OVER_GRASS_LIFT * blend
+end
 
 -- a proxy's pose() for a render pipeline mod (e:pose() -> sprite, px, py, facing, phase,
 -- flip, the engine NPC's contract): the voxel sheet of its renderer (lib/voxel_sheets.lua)
@@ -192,7 +213,7 @@ end
 local function poseOf(p)
   local a = p.actor
   local phase, flip = walkPhase(a and a.walkPhase)
-  return p.sprite, p.px, p.py, p.facing, phase, flip
+  return p.sprite, p.px, p.py - p.lift, p.facing, phase, flip
 end
 
 -- the voxel sprite for a renderer (nil without the sheets, or a renderer with no art key)
@@ -232,7 +253,7 @@ local function buildProxies(world, hooks, pipeline)
     n = n + 1
     local p = pool[n]
     if not p then
-      p = { _wilds = true, passable = true, def = {}, pose = poseOf }
+      p = { _wilds = true, passable = true, def = {}, pose = poseOf, lift = 0 }
       pool[n] = p
     end
     p.sprite = sprite
@@ -249,11 +270,19 @@ local function buildProxies(world, hooks, pipeline)
     p.moving = false
     -- the main sprite of a wild Pokemon stands on a cell: the engine covers its feet when
     -- that cell is grass (Gen 1 queueGrass reads cellX/cellY; Gen 2 reads inGrass)
+    -- Over Grass (EngineGb.wildsOverGrass): no grass over its feet -- Gen 1 queues a grass
+    -- strip for any entity with a grass cell, so in 2D it gets none; a pipeline still needs the
+    -- cell (Battle Art reads cellX / cellY for the ground height), and there the card stands
+    -- up on the grass tufts instead (overGrassLift). Gen 2 covers only inGrass.
     p.grassShake, p.progress, p.stepFrames = nil, nil, nil
+    p.lift = 0
     if act.kind == "wild_mon" then
       local cx, cy = math.floor(((act.x or 0) + CELL / 2) / CELL), math.floor(((act.y or 0) + CELL / 2) / CELL)
+      local over = EngineGb.wildsOverGrass == true
+      if over and gen == 1 and not pipeline then cx, cy = nil, nil end
+      if over and pipeline then p.lift = EngineGb.overGrassLift(map, act.x, act.y) end
       p.cellX, p.cellY = cx, cy
-      p.inGrass = map ~= nil and map.isGrassCell ~= nil and map:isGrassCell(cx, cy) == true
+      p.inGrass = not over and map ~= nil and map.isGrassCell ~= nil and map:isGrassCell(cx, cy) == true
       -- Gen 2: a wild Pokemon stepping into tall grass rustles it, drawn by the engine itself
       -- (World:drawGrassShake reads grassShake / moving / progress / stepFrames, the way an
       -- NPC's NormalStep sets them); Gen 1 has no grass rustle

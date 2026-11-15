@@ -124,4 +124,11 @@ return {
     default = true,
     description = "Draw each species at its own size next to you: small ones knee-high, giants towering over you. On the flat 2D field this needs WoobleView with its Field HD on (in Red, Blue and Yellow, the ADVANCED colours); in a 3D world mod (TERRARIUM, Battle Art, Potato, Dramaless, Stadium 2) it always applies. Off: each sprite at its own art size.",
   },
+  {
+    key = "over_grass",
+    label = "Over Grass",
+    type = "toggle",
+    default = false,
+    description = "Wild Pokemon stand on top of tall grass, drawn whole, instead of the grass covering their feet the way it covers yours. In Battle Art's 3D world they stand on top of the grass tufts. Gold, Silver and Crystal still rustle the grass under them as they step. Off: the grass covers their feet, like the original games.",
+  },
 }

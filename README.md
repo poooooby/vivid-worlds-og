@@ -126,6 +126,7 @@ Change them in the Mod Manager, or while you play: the game's own **OPTION** men
 | **Shiny Rate** | Off / 1/8192 (GSC) / 1/4096 / 1/1024 / 1/512 / 1/100 / 1/10 / Always | 1/4096 | How often a wild Pokémon is shiny. |
 | **Silhouette** | Off / Undiscovered / All | Off | Silhouettes for uncaught species, or for all of them. |
 | **Species Sizes** | On / Off | On | Each HGSS species at its own size next to you, on the field with WoobleView and in the 3D world mods. |
+| **Over Grass** | On / Off | Off | Wild Pokémon stand on top of tall grass, drawn whole, instead of the grass covering their feet; in Battle Art's 3D world too. |
 
 ## 💾 Installation
 

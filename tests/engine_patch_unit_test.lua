@@ -368,6 +368,18 @@ for _, e in ipairs(drawn.during) do if e._wilds and e.cellX then wildProxy = e e
 check(wildProxy and wildProxy.cellX == 4 and wildProxy.cellY == 1 and wildProxy.passable,
   "the wild Pokemon's proxy stands on its cell (grass cover) and blocks nobody")
 check(wildProxy and wildProxy.inGrass == true, "...and knows it is in grass")
+-- Over Grass: Gen 1 queues a grass strip for any entity with a grass cell, so the proxy has none
+EP.wildsOverGrass = true
+OverworldState.drawWorld(ow)
+wildProxy = nil
+for _, e in ipairs(drawn.during) do if e._wilds and e.px == 64 then wildProxy = e end end -- (x 64: the wild one)
+check(wildProxy and wildProxy.cellX == nil and wildProxy.cellY == nil and wildProxy.inGrass == false,
+  "Over Grass (2D): the wild Pokemon's proxy has no grass cell, so no grass strip covers its feet")
+EP.wildsOverGrass = false
+OverworldState.drawWorld(ow)
+wildProxy = nil
+for _, e in ipairs(drawn.during) do if e._wilds and e.cellX then wildProxy = e end end
+check(wildProxy and wildProxy.cellX == 4 and wildProxy.inGrass == true, "...off again: the grass covers its feet")
 
 drawn.fail = true
 local okDraw = pcall(OverworldState.drawWorld, ow)
@@ -387,6 +399,22 @@ check(spr == vsprite, "its pose() hands the pipeline the voxel sprite")
 check(px == 64 and py == 16 and facing == "down" and phase == 0, "...at its tile, facing, standing")
 eq(drawn.luma, true, "a palette colour mode asks for the luminance sheet")
 eq(#ow.entities, 1, "...and it is gone after the draw")
+EP.wildsOverGrass = true
+OverworldState.drawWorld(ow)
+wildProxy = nil
+for _, e in ipairs(drawn.during) do if e._wilds and e.px == 64 then wildProxy = e end end
+check(wildProxy and wildProxy.cellX == 4 and wildProxy.cellY == 1 and wildProxy.inGrass == false,
+  "Over Grass (3D): the proxy keeps its cell (a pipeline reads the ground height there)")
+eq(drawn.pose[3], 16 - EP.OVER_GRASS_LIFT, "...and its pose() stands it up on the grass tufts (a hop's lift)")
+EP.wildsOverGrass = false
+OverworldState.drawWorld(ow)
+eq(drawn.pose[3], 16, "...off: back on the ground")
+-- the lift across a step: full on grass (cell 2..4, row 1), none off it, blended between
+local gm = ow.map
+eq(EP.overGrassLift(gm, 48, 16), EP.OVER_GRASS_LIFT, "overGrassLift: on a grass cell, the full lift")
+eq(EP.overGrassLift(gm, 80, 16), 0, "...on plain ground, none")
+eq(EP.overGrassLift(gm, 72, 16), EP.OVER_GRASS_LIFT / 2, "...halfway off the grass, half")
+eq(EP.overGrassLift(gm, 48, 4), EP.OVER_GRASS_LIFT * 0.25, "...a quarter of the way from the plain row above into the grass, a quarter")
 -- our effects in the 3D world: the frame's drawFx draws the engine's own, then ours
 actorDraws, drawn.engineFx = 0, 0
 local translated = {}
@@ -853,6 +881,12 @@ World.drawPeople(world)
 eq(#drawn.during, 1, "while Gen 2 draws its people our actor is among them")
 eq(gen2Draws, 1, "Crystal's grass split draws it once (whole on \"bottom\", nothing on \"top\")")
 eq(#world.npcs, 0, "after the people pass world.npcs is the engine's again")
+check(drawn.during[1].inGrass == true and drawn.during[1].cellX == 3, "Gen 2: on a grass cell the grass covers its feet")
+EP2.wildsOverGrass = true
+World.drawPeople(world)
+check(drawn.during[1].inGrass == false and drawn.during[1].cellX == 3,
+  "Gen 2 Over Grass: not inGrass (no grass over its feet), still on its cell")
+EP2.wildsOverGrass = false
 
 local s1, s2 = EP2.speciesTypes("SENTRET")
 check(s1 == "NORMAL" and s2 == nil, "Gen 2: the species' type from the live world's data")

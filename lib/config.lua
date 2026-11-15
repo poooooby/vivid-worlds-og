@@ -10,6 +10,7 @@ Config.DEFAULTS = {
   shiny_rate = "modern", -- 1/4096
   wild_silhouettes = "off",
   species_sizes = true,
+  over_grass = false, -- wild Pokemon drawn whole on top of tall grass (lib/engine_patch.lua)
   spawn_amount = "normal",
   show_follower = true,
   wild_reacts = true,
