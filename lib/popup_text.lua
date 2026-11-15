@@ -11,8 +11,9 @@
 --   level   "Lv.12!": no plate -- rainbow letters, each rising and falling in a wave, the
 --           colours shifting along the word and over time, over a soft glow that grows in
 --           and out.
--- The Game Boy games keep the classic light plate (outline + white fill) for every label: no
--- animation.
+-- The Game Boy games keep the classic light plate (outline + white fill) for every other
+-- label. Their level-up is the rainbow too: their font draws only black, so each letter is
+-- baked once and turned white (whiten) for the tint.
 --
 -- Plates and letters are painted ONCE into tiny offscreen canvases (1 canvas pixel = 1
 -- game pixel) drawn like any sprite, so they land exactly the same at every window size,
@@ -278,12 +279,32 @@ local function plateFor(text, style, geo, words, widths)
   end)
 end
 
+-- The Game Boy font draws only black: its baked glyph turned white (every pixel it covers,
+-- its shape kept in the alpha), so the rainbow can tint it like the Gen 3 font's white.
+-- nil when the pixels can't be read back (the dark glyph is kept then).
+local function whiten(canvas)
+  local g = love.graphics
+  if not (canvas.newImageData and g.newImage) then return nil end
+  local ok, img = pcall(function()
+    local data = canvas:newImageData()
+    data:mapPixel(function(_, _, _, _, _, a) return 1, 1, 1, a end)
+    local image = g.newImage(data)
+    if image.setFilter then image:setFilter("nearest", "nearest") end
+    return image
+  end)
+  if not ok then return nil end
+  if canvas.release then pcall(canvas.release, canvas) end
+  return img
+end
+
 -- one character in the font's white, for tinting
 local function glyphFor(ch, w)
   return cached_("ch:" .. ch, function()
-    return bakeCanvas(w, PLATE_H, function()
+    local canvas = bakeCanvas(w, PLATE_H, function()
       EnginePatch.drawText(ch, 0, 1 - faceDrop(), FONT_WHITE)
     end)
+    if canvas and classic() then return whiten(canvas) or canvas end
+    return canvas
   end)
 end
 
@@ -370,11 +391,17 @@ local function drawLevel(text, sx, sy, age)
   g.setColor(LEVEL_GLOW[1], LEVEL_GLOW[2], LEVEL_GLOW[3], gl.alpha)
   roundRect(g, left - 1, top + 1, total + 2, PLATE_H - 2, INNER)
   local x = left
+  local shadowed = classic()
   for _, l in ipairs(letters) do
     if l.gap then x = x + WORD_GAP end
     local y = top + math.floor(l.dy + 0.5)
     local glyph = glyphFor(l.ch, l.w)
     if glyph then
+      if shadowed then
+        -- (the Gen 3 font's white carries its own shadow; the Game Boy's whitened one none)
+        g.setColor(l.r * 0.35, l.g * 0.35, l.b * 0.35, 1)
+        g.draw(glyph.canvas, x + 1, y + 1)
+      end
       g.setColor(l.r, l.g, l.b, 1)
       g.draw(glyph.canvas, x, y)
     else
@@ -414,7 +441,7 @@ function PopupText.actor(text, ox, oy, elevation, lift, id, age)
       local words = PopupText.words(text)
       local widths, width, measured = measure(words)
       if measured <= 0 then return end -- no engine font: draw nothing
-      if style == "level" and not classic() then
+      if style == "level" then
         drawLevel(text, sx, sy, age)
         return
       end

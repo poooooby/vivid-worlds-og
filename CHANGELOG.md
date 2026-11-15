@@ -4,6 +4,22 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### New
+
+- **Rainbow level-up:** when your Battler grows a level, its "Lv.12!" now rises over it in
+  rainbow letters that wave and shift colour over a soft glow, as in Vivid Worlds. Before, it
+  was a plain label on the Game Boy games.
+
+### Fixes
+
+- In a 3D world mod (Battle Art and the others), Play with your partner now has it run after the
+  ball it is thrown and bring it back, as on the flat field. Before, it stood still and only the
+  ball flew.
+- In a 3D world mod, "New move ready!", "Ready to evolve!" and the partner's other labels, emotes
+  and sparkles sit just over its head. Over a small partner they used to float well above it.
+
 ## 1.0.12 — 2026-11-15
 
 ### New

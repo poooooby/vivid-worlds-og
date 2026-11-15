@@ -120,7 +120,8 @@ check(#rects > 0, "...over the glow")
 local rd = PopupText.actor("New move ready!", 64, 48, 3, 20, 2, 25)
 eq(rd.style, "bubble", "\"New move ready!\" is a speech bubble like the rest")
 
--- the Game Boy font only draws dark: the classic light plate there, for every label
+-- the Game Boy font only draws dark: the classic light plate there for a label, but the
+-- level-up is the rainbow too (its letters whitened for the tint, below)
 E.fontLayout = function() return "gb" end
 fakeLove()
 E.drawn = {}
@@ -131,7 +132,8 @@ fakeLove()
 E.drawn = {}
 lv.draw(lv, 8, 4)
 love = savedLove
-eq(#rects, 2, "...a level-up too (no rainbow)")
+check(#rects > 2, "...a level-up: the glow, not a plate")
+eq(#E.drawn, 6, "...and its letters one by one (the rainbow wave)")
 E.fontLayout = nil
 E.drawn = {}
 fakeLove()
@@ -252,6 +254,31 @@ do
   local rects2 = 0
   for _, e in ipairs(log) do if e[1] == "rectangle" then rects2 = rects2 + 1 end end
   check(rects2 > 10, "a canvas that fails to build falls back to direct drawing")
+  -- the Game Boy's black font: a rainbow letter's glyph is whitened once (its alpha kept),
+  -- so the per-frame colour tints it
+  PopupText._dropCache()
+  local mapped, images = {}, 0
+  love.graphics.newCanvas = function(w, h, settings)
+    canvases = canvases + 1
+    return { w = w, h = h, settings = settings, setFilter = function() end, release = function() end,
+      newImageData = function()
+        return { mapPixel = function(_, fn) mapped[#mapped + 1] = { fn(0, 0, 0.1, 0.1, 0.1, 1) } mapped[#mapped + 1] = { fn(0, 0, 0, 0, 0, 0) } end }
+      end }
+  end
+  love.graphics.newImage = function(data) images = images + 1 return { data = data, setFilter = function() end } end
+  E.fontLayout = function() return "gb" end
+  log = {}
+  local lvGb = PopupText.actor("Lv.9!", 0, 0, 3, 20, 2, 5)
+  lvGb.draw(lvGb, 0, 0)
+  eq(images, 5, "Game Boy level-up: each letter's glyph becomes one white image")
+  check(mapped[1][1] == 1 and mapped[1][2] == 1 and mapped[1][3] == 1 and mapped[1][4] == 1,
+    "...an inked pixel turns white")
+  eq(mapped[2][4], 0, "...a clear one stays clear")
+  local before = images
+  lvGb.draw(lvGb, 0, 0)
+  eq(images, before, "...once (cached, not per frame)")
+  E.fontLayout = nil
+  love.graphics.newImage = nil
   E.drawText = origDraw
   love = savedLove
   PopupText._dropCache()
