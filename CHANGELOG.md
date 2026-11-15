@@ -4,6 +4,16 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- In a 3D world mod (Battle Art and the others) on a phone or tablet, your partner and the wild
+  Pokémon showed only pieces of their sprites: the screen's pixel density stretched the sprite
+  sheets made for the 3D world. They are made at their real size now.
+- In a 3D world mod, your partner stayed visible after going into its ball (Follower off, a
+  bike, a rest, a cutscene). It disappears now, like on the flat field.
+
 ## 1.0.10 — 2026-11-14
 
 ### New

@@ -82,6 +82,42 @@ check(composed[sb.def.image] ~= nil, "...a composed asset too")
 eq(sb.def.frameWidth, sa.def.frameWidth, "...the same cell")
 check(sheets:spriteFor(ra, false) == sb, "...one per art")
 
+-- the bake's canvas is 1:1 with the sheet's pixels: a phone's DPI scale (2 to 3) would make
+-- it that many times the frame size, and the mod would slice a corner of each pose
+local made
+local function noop() end
+love.graphics = {
+  newCanvas = function(w, h, settings)
+    made = { w = w, h = h, settings = settings }
+    return { newImageData = function() return { clone = function(c) return c end, w = w, h = h } end, release = noop }
+  end,
+  push = noop, pop = noop, origin = noop, setCanvas = noop, clear = noop, setShader = noop,
+  setColor = noop, setBlendMode = noop,
+}
+local drew = 0
+local sheets2 = VS.new({
+  assets = Assets, poses = { STAND = 1, WALK_A = 2 },
+  makeRenderer = function(key, shiny, style)
+    return { dex = key, shiny = shiny, style = style, headLift = function() return 20 end,
+      draw = function() drew = drew + 1 end }
+  end,
+})
+local baked = sheets2:spriteFor({ dex = 155, shiny = false, style = "pokemmo" }, false)
+local img = composed[baked.def.image]()
+check(made and made.settings and made.settings.dpiscale == 1, "the bake's canvas has dpiscale 1 (no DPI scaling)")
+eq(made.w, baked.def.frameWidth, "...as wide as one frame")
+eq(made.h, baked.def.frameHeight * VS.FRAMES, "...six frames tall")
+eq(img.w, made.w, "...and the sheet read back is that size")
+eq(drew, VS.FRAMES, "...each pose drawn once")
+love.graphics = nil
+
+-- the partner in its ball: a blank sheet (all transparent: the mods discard it)
+local blank = sheets:blank()
+check(blank and blank.def and blank.def.frames == 6 and blank.def.walker, "blank: a 6-frame walker def")
+eq(blank.def.frameWidth, 16, "...one tile")
+check(composed[blank.def.image] ~= nil, "...a composed asset")
+check(sheets:blank() == blank, "...one of it")
+
 print("")
 if failures > 0 then
   io.stderr:write(failures .. " failure(s)\n")

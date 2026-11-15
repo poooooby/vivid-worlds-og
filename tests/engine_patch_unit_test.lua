@@ -818,6 +818,13 @@ s:draw(player.px, player.py, 0, 0, "down", 0)
 eq(rdraws, 1, "...but not while it stands inside the player (a fresh map)")
 EP._pipeline = true
 eq(s.def, vsprite.def, "in a pipeline the follower's def is its voxel sheet's")
+local blankSprite = { def = { image = "blank.png" } }
+EP.voxelSheets.blank = function() return blankSprite end
+renderer.recall = 0.3
+eq(s.def, blankSprite.def, "...in its ball (recall under 0.5): the blank sheet, nothing shown")
+renderer.recall = 0.7
+eq(s.def, vsprite.def, "...coming out (recall 0.5 and up): its sheet again")
+renderer.recall = nil
 EP._pipeline = false
 eq(s.def and s.def.image, "pika.png", "...outside one, the engine sprite's again")
 eq(EP.followerSprite(nil, npc), base, "no renderer: the npc gets its own sprite back")

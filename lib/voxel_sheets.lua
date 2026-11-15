@@ -75,7 +75,13 @@ end
 local function bake(r, cell, luma, poses, b)
   local G = love.graphics
   if not (G and G.newCanvas) then return nil end
-  local ok, canvas = pcall(G.newCanvas, cell, cell * VoxelSheets.FRAMES)
+  -- 1:1 with the sheet's pixels: by default a canvas takes the screen's DPI scale (2 to 3 on
+  -- a phone), and the sheet would come out that many times its frame size -- the mod then
+  -- slices a cell x cell corner of each pose, pieces of the art (lib/popup_text.lua alike)
+  local ok, canvas = pcall(G.newCanvas, cell, cell * VoxelSheets.FRAMES, { dpiscale = 1 })
+  if not (ok and canvas) then
+    ok, canvas = pcall(G.newCanvas, cell, cell * VoxelSheets.FRAMES) -- older LOVE: no settings
+  end
   if not (ok and canvas) then return nil end
   G.push("all")
   G.origin()
@@ -168,6 +174,29 @@ function VoxelSheets:spriteFor(r, luma)
   }
   self.sprites[spriteKey] = sprite
   return sprite
+end
+
+--- An engine-shaped sprite with nothing on it (every texel transparent, which the mods'
+--- shaders discard: no card, no shadow, no silhouette): the partner in its ball still walks
+--- behind the player as the engine's follower, and a pipeline draws every entity it has.
+function VoxelSheets:blank()
+  if self.blankSprite ~= nil then return self.blankSprite or nil end
+  local Assets = self.deps.assets
+  if not (Assets and Assets.compose) then
+    self.blankSprite = false
+    return nil
+  end
+  local path = "vivid_worlds_og/voxel/blank.png"
+  Assets.compose(path, function() return love.image.newImageData(16, 16 * VoxelSheets.FRAMES) end)
+  local def = {
+    id = "VWOG_VOXEL_blank", image = path, frames = VoxelSheets.FRAMES, walker = true,
+    trueColor = true, frameWidth = 16, frameHeight = 16, anchorX = 8, anchorY = 16, wohVoxel = true,
+  }
+  self.blankSprite = {
+    def = def, frameWidth = 16, frameHeight = 16, anchorX = 8, anchorY = 16,
+    resolveImage = function() return Assets.image(path) end,
+  }
+  return self.blankSprite
 end
 
 return VoxelSheets

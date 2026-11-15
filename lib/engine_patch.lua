@@ -220,7 +220,9 @@ end
 local function voxelSprite(renderer, mode)
   local sheets = EngineGb.voxelSheets
   if not (sheets and renderer) then return nil end
-  local ok, sprite = pcall(sheets.spriteFor, sheets, renderer, mode == "luma")
+  -- in its ball (the 2D draw shows nothing below this, lib/follower_adapter.lua isRecalled)
+  local fn = (renderer.recall or 1) < 0.5 and sheets.blank or sheets.spriteFor
+  local ok, sprite = pcall(fn, sheets, renderer, mode == "luma")
   return ok and sprite or nil
 end
 
