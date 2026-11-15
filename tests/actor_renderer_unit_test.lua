@@ -338,6 +338,10 @@ do
   eq(ActorRenderer.swimDropFor("assets/wilds_generated/true_size18/levitates/041-normal.png"), 0, "levitating art keeps its place")
   eq(ActorRenderer.swimDropFor("assets/wilds_generated/true_size18/hgss/007-normal.png"), 0, "land art too")
   eq(ActorRenderer.swimDropFor(nil), 0, "no path: no drop")
+  eq(ActorRenderer.swimDropFor("assets/wilds_generated/gsc/swimming/007-normal.png"), Cfg.GSC_SWIM_DROP,
+    "a GSC swimming cut sinks GSC_SWIM_DROP")
+  check(Cfg.GSC_SWIM_DROP > 0 and Cfg.GSC_SWIM_DROP < Cfg.SWIM_DROP, "...less than the bigger HGSS swimmers")
+  eq(ActorRenderer.swimDropFor("assets/wilds_generated/gsc/007-normal.png"), 0, "...a GSC land sheet none")
 end
 
 -- ------- feet on the ground: an HGSS land sheet's empty rows under the feet are measured

@@ -14,6 +14,11 @@ python3 tools/generate_true_size_18frame.py --report   # inspect detected column
 python3 tools/generate_true_size_18frame.py
 ```
 
+The swimming bake also cuts the GSC sheets for water (`bake_gsc_swim` writes
+`assets/wilds_generated/gsc/swimming/`). It uses the same domed foam cut the Emerald forms get
+(`domed_cut`), at each species' HGSS waterline, and only for species HGSS draws swimming. So run
+it after `copy_wilds_assets.py`.
+
 `scripts/bootstrap.sh` links this repo into `../gen1recomp/mods/vivid_worlds_og`. That makes it
 show up (enabled) in that install's Mod Manager, so only run it against a test checkout of the
 engine, not one you play on.

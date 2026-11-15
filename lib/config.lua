@@ -239,6 +239,9 @@ Config.FORAGE = {
 -- measure from, PMD_SWIM_Y px below the tile's top edge.
 Config.PMD_SWIM_Y = 18
 Config.SWIM_DROP = 4
+-- the GSC style's swimming cut (a 16 px sheet, lib/sprite_source.lua gscSwimPath): the same
+-- look at its scale
+Config.GSC_SWIM_DROP = 2
 -- Ticks a walk keeps playing after movement stops, so the one-tick gaps between chained steps
 -- do not flick the sprite to standing and back; PMD_WILD_IDLE_SPEED: how fast a wild
 -- Pokemon's idle loop plays (0.75 = slowed down by 25%).

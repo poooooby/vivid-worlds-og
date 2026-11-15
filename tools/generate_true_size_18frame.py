@@ -434,12 +434,12 @@ def swim_keep(out_root: Path, dex: int, variant: str) -> float:
     return max(0.6, min(0.95, sh / lh))
 
 
-def emerald_swim_sheet(land: Image.Image, keep: float) -> Image.Image:
-    """Each frame cut at one shared waterline (`keep` of the body above it), its last
-    rows a foam bowl -- solid at the bottom, stepping out about 2 px per row to the
-    body's edge, foam on the ends -- then padded by WATER_PAD on every side."""
-    fw, fh = land.width, land.height // FRAME_COUNT
-    frames = [land.crop((0, i * fh, fw, (i + 1) * fh)) for i in range(FRAME_COUNT)]
+def domed_cut(frames: list[Image.Image], keep: float) -> tuple[list[Image.Image], int]:
+    """Every frame cut at one shared waterline (`keep` of the median body above it), its
+    last rows a foam bowl -- solid at the bottom, stepping in about 2 px per row from the
+    body's edge, foam on the ends. Returns the cut frames (all `waterline` rows tall) and
+    that waterline."""
+    fw, fh = frames[0].size
     cuts = []
     for fr in frames:
         box = fr.getchannel("A").getbbox()
@@ -453,9 +453,8 @@ def emerald_swim_sheet(land: Image.Image, keep: float) -> Image.Image:
         if row:
             widths.append(row[-1] - row[0] + 1)
     depth = 3 if widths and sorted(widths)[len(widths) // 2] >= 14 else 2
-    cw, ch = fw + 2 * WATER_PAD, w + 2 * WATER_PAD
-    out = Image.new("RGBA", (cw, ch * FRAME_COUNT), (0, 0, 0, 0))
-    for i, fr in enumerate(frames):
+    out = []
+    for fr in frames:
         cut = fr.crop((0, 0, fw, w))
         px = cut.load()
         top = w - depth
@@ -472,8 +471,68 @@ def emerald_swim_sheet(land: Image.Image, keep: float) -> Image.Image:
                         px[x, y] = (0, 0, 0, 0)
                     elif k == depth - 1 or x < lo + edge or x > hi - edge:
                         px[x, y] = FOAM
-        out.paste(cut, (WATER_PAD, i * ch + WATER_PAD), cut)
+        out.append(cut)
+    return out, w
+
+
+def emerald_swim_sheet(land: Image.Image, keep: float) -> Image.Image:
+    """The domed cut of every frame (domed_cut), padded by WATER_PAD on every side."""
+    fw, fh = land.width, land.height // FRAME_COUNT
+    frames = [land.crop((0, i * fh, fw, (i + 1) * fh)) for i in range(FRAME_COUNT)]
+    cut, w = domed_cut(frames, keep)
+    cw, ch = fw + 2 * WATER_PAD, w + 2 * WATER_PAD
+    out = Image.new("RGBA", (cw, ch * FRAME_COUNT), (0, 0, 0, 0))
+    for i, fr in enumerate(cut):
+        out.paste(fr, (WATER_PAD, i * ch + WATER_PAD), fr)
     return out
+
+
+# ------------------------------------------------------------- GSC swimmers
+# The Sprite Style option's GSC sheets (Poke Followers, tools/copy_wilds_assets.py: 16x96, six
+# 16x16 frames in the engine's order) get a swimming sheet cut the same way: the domed cut at
+# the species' own HGSS waterline (swim_keep), each frame then set down on its cell's bottom
+# row -- still 16x96, no pad, like the land sheets (lib/actor_renderer.lua swimDropFor sinks
+# it into the water). Only for a species HGSS draws swimming (true_size18/swimming): a
+# levitator keeps its HGSS hover art (lib/sprite_source.lua).
+GSC_DIR = ROOT / "assets/wilds_generated/gsc"
+GSC_FRAME, GSC_FRAMES = 16, 6
+
+
+def gsc_swim_sheet(gsc: Image.Image, keep: float) -> Image.Image:
+    frames = [gsc.crop((0, i * GSC_FRAME, GSC_FRAME, (i + 1) * GSC_FRAME)) for i in range(GSC_FRAMES)]
+    cut, w = domed_cut(frames, keep)
+    out = Image.new("RGBA", (GSC_FRAME, GSC_FRAME * GSC_FRAMES), (0, 0, 0, 0))
+    for i, fr in enumerate(cut):
+        out.paste(fr, (0, i * GSC_FRAME + GSC_FRAME - w), fr)
+    return out
+
+
+def bake_gsc_swim(out_root: Path, species_filter, force: bool, stats: dict) -> None:
+    """gsc/swimming/<key>-<variant>.png for every GSC sheet whose base species has HGSS
+    swimming art; one waterline per species (its normal sheets decide it)."""
+    if not GSC_DIR.is_dir():
+        return
+    out_dir = GSC_DIR / "swimming"
+    for src in sorted(GSC_DIR.glob("*.png")):
+        head = src.stem.split("-", 1)[0]
+        if not head.isdigit():
+            continue
+        dex = int(head)
+        if species_filter is not None and dex not in species_filter:
+            continue
+        if not (out_root / "swimming" / f"{dex:03d}-normal.png").is_file():
+            continue
+        gsc = Image.open(src).convert("RGBA")
+        if gsc.size != (GSC_FRAME, GSC_FRAME * GSC_FRAMES):
+            stats["missing_source"] += 1
+            continue
+        path = out_dir / src.name
+        if path.exists() and not force:
+            stats["skipped_existing"] += 1
+            continue
+        out_dir.mkdir(parents=True, exist_ok=True)
+        gsc_swim_sheet(gsc, swim_keep(out_root, dex, "normal")).save(path, "PNG", optimize=True)
+        stats["written"] += 1
 
 
 def match_scale(out_root: Path, dex: int, land: Image.Image) -> float:
@@ -728,6 +787,11 @@ def main() -> int:
                 stats["missing_source"] += 2
                 continue
             bake_emerald(out_root, dex, form, folder, args.force, stats)
+
+    # The GSC style's swimmers (bake_gsc_swim): after the swimming pack, whose sheets decide
+    # who swims and how deep
+    if "swimming" in kinds and not args.report:
+        bake_gsc_swim(out_root, species_filter, args.force, stats)
 
     if args.report:
         print("\n(report mode: nothing written)")

@@ -4,6 +4,15 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### New
+
+- **GSC swimmers:** with Sprite Style on GSC, a Pokémon swimming in the water keeps its GSC
+  sprite, cut at the waterline in a ring of foam the way the HGSS swimmers are drawn. Before,
+  every swimmer switched to its HGSS sprite. Pokémon that hover over the water keep their HGSS
+  art.
+
 ## 1.0.11 — 2026-11-15
 
 ### Fixes

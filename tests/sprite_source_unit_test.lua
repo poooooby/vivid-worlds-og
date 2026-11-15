@@ -90,10 +90,30 @@ do
   eq(SpriteSource.pathFor(fakeMod, 900, false, F), "assets/wilds_generated/true_size18/hgss/900-normal.png",
     "a species with no GSC art at all falls back to HGSS")
   eq(SpriteSource.pathFor(fakeMod, 25, false, F, SpriteSource.PRESENTATION_SWIMMING),
-    "assets/wilds_generated/true_size18/swimming/025-normal.png", "on water it is the HGSS swimmer")
+    "assets/wilds_generated/true_size18/swimming/025-normal.png", "on water with no GSC swimming cut: the HGSS swimmer")
   eq(SpriteSource.pathFor(fakeMod, 25, false, "pokemmo"), "assets/wilds_generated/true_size18/hgss/025-normal.png",
     "the HGSS style never draws GSC art")
   eq(SpriteSource.frameCountOf(GSC .. "/025-normal.png"), 6, "a GSC sheet stacks 6 frames")
+
+  -- the GSC swimming cut (tools/generate_true_size_18frame.py bake_gsc_swim)
+  present[GSC .. "/swimming/025-normal.png"] = true -- no shiny cut
+  present["assets/wilds_generated/true_size18/swimming/025-shiny.png"] = true
+  present["assets/wilds_generated/true_size18/levitates/041-normal.png"] = true -- a levitator: no cut
+  present[GSC .. "/041-normal.png"] = true
+  local W = SpriteSource.PRESENTATION_SWIMMING
+  eq(SpriteSource.pathFor(fakeMod, 25, false, F, W), GSC .. "/swimming/025-normal.png", "GSC on water: its swimming cut")
+  eq(SpriteSource.pathFor(fakeMod, 25, false, F, SpriteSource.PRESENTATION_LEVITATES), GSC .. "/swimming/025-normal.png",
+    "...whichever water kind is asked")
+  eq(SpriteSource.pathFor(fakeMod, 25, true, F, W), "assets/wilds_generated/true_size18/swimming/025-shiny.png",
+    "...a shiny with no shiny cut takes the HGSS shiny swimmer (never shown plain)")
+  eq(SpriteSource.pathFor(fakeMod, 41, false, F, W), "assets/wilds_generated/true_size18/levitates/041-normal.png",
+    "...a levitator (no cut) hovers in its HGSS art")
+  eq(SpriteSource.pathFor(fakeMod, 25, false, F), GSC .. "/025-normal.png", "...on land still the GSC sheet")
+  eq(SpriteSource.pathFor(fakeMod, 25, false, "pokemmo", W), "assets/wilds_generated/true_size18/swimming/025-normal.png",
+    "...and the HGSS style never takes it")
+  check(SpriteSource.isGsc(GSC .. "/swimming/025-normal.png"), "the cut is a GSC sheet (Species Sizes leaves it)")
+  eq(SpriteSource.frameCountOf(GSC .. "/swimming/025-normal.png"), 6, "...6 frames")
+  eq(SpriteSource.bottomPadFor(GSC .. "/swimming/025-normal.png"), 0, "...no baked pad (its foam on the bottom row)")
   eq(SpriteSource.frameCountOf("assets/wilds_generated/true_size18/hgss/025-normal.png"), 18, "an HGSS sheet 18")
 end
 

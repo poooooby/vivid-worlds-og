@@ -185,16 +185,21 @@ function SpriteSource.pathFor(mod, dex, shiny, style, presentation)
   -- a form's own art first (shiny, then normal), then its base species'
   local keys = { dex }
   if SpriteSource.isForm(dex) then keys[2] = SpriteSource.baseOf(dex) end
-  local gsc = style == SpriteSource.STYLE_FOLLOWERS
-    and (presentation == nil or presentation == SpriteSource.PRESENTATION_LAND)
+  -- Poke Followers / GSC: its own sheet, else HGSS -- a shiny with no GSC shiny art takes the
+  -- HGSS shiny (a shiny is never shown plain). On water its swimming sheet (cut at the
+  -- waterline, tools/generate_true_size_18frame.py bake_gsc_swim), which only a species HGSS
+  -- draws swimming has: a levitator, or one with no GSC art, takes HGSS's water art
+  local gscFor
+  if style == SpriteSource.STYLE_FOLLOWERS then
+    gscFor = (presentation == nil or presentation == SpriteSource.PRESENTATION_LAND)
+      and SpriteSource.gscPath or SpriteSource.gscSwimPath
+  end
   for _, key in ipairs(keys) do
-    -- Poke Followers / GSC on land: its own sheet, else HGSS -- a shiny with no GSC shiny
-    -- art takes the HGSS shiny (a shiny is never shown plain); water is always HGSS
     if shiny then
-      local p = (gsc and SpriteSource.gscPath(mod, key, "shiny")) or SpriteSource.shinyPath(mod, key, style, presentation)
+      local p = (gscFor and gscFor(mod, key, "shiny")) or SpriteSource.shinyPath(mod, key, style, presentation)
       if p then return p end
     end
-    local p = (gsc and SpriteSource.gscPath(mod, key, "normal")) or SpriteSource.normalPath(mod, key, style, presentation)
+    local p = (gscFor and gscFor(mod, key, "normal")) or SpriteSource.normalPath(mod, key, style, presentation)
     if p then return p end
   end
   return nil
@@ -209,7 +214,15 @@ function SpriteSource.gscPath(mod, key, variant)
   return nil
 end
 
---- Is `path` a Poke Followers / GSC sheet?
+--- The GSC sheet's swimming cut (`GSC_REL/swimming/`), or nil.
+function SpriteSource.gscSwimPath(mod, key, variant)
+  if not validKey(key) then return nil end
+  local p = string.format("%s/swimming/%s-%s.png", GSC_REL, SpriteSource.keyName(key), variant)
+  if fileExists(mod, p) then return p end
+  return nil
+end
+
+--- Is `path` a Poke Followers / GSC sheet (land or swimming)?
 function SpriteSource.isGsc(path)
   return type(path) == "string" and path:sub(1, #GSC_REL + 1) == GSC_REL .. "/"
 end

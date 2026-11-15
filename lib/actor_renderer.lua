@@ -531,9 +531,10 @@ end
 --- lower-in-the-water look as PMDCollab's Config.PMD_SWIM_Y). Only the swimming pack;
 --- levitating art hovers and keeps its place. Pure; for testing.
 function ActorRenderer.swimDropFor(path)
-  if type(path) == "string" and path:find("/true_size18/swimming/", 1, true) then
-    return Config.SWIM_DROP or 0
-  end
+  if type(path) ~= "string" then return 0 end
+  if path:find("/true_size18/swimming/", 1, true) then return Config.SWIM_DROP or 0 end
+  -- a GSC swimming cut (16 px, its foam on the cell's bottom row)
+  if path:find("/gsc/swimming/", 1, true) then return Config.GSC_SWIM_DROP or 0 end
   return 0
 end
 
