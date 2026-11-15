@@ -32,8 +32,6 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 
 ## ✨ Features
 
-### Core Mechanics
-
 - 🦌 **Wild Pokémon in the overworld:** Areas with wild encounters fill with visible Pokémon
   wandering the grass and swimming the water. Walk onto one to battle it, the very Pokémon you
   saw. On land they only appear where you can actually walk to: never in a cave pocket you can't
@@ -54,8 +52,6 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   shiny with a sparkle and a chime; Gold, Silver and Crystal flash it the way they always have.
   The rate covers every wild Pokémon, including random encounters, fishing and Headbutt.
 
-### True to the Games
-
 - 🐺 **Roaming legends:** In Gold, Silver and Crystal, Raikou, Entei and Suicune can turn up
   among the wild Pokémon on whichever route they are roaming, as often as the game would send
   them at you. Walk into one for the real roaming battle: it keeps its HP, flees and moves on
@@ -69,64 +65,13 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
   when you walk near, as readily as they run from a Safari battle: the faster the species, the
   jumpier. None of them ever chase you.
 
-### Your Partner
+## 📖 More
 
-- 🐾 **A partner at your side:** Your lead Pokémon walks behind you, spaced out by its size.
-  Switch partners or call it back and a Poké Ball drops: it pops out of one, and goes back
-  into one.
-- 🤝 **A partner with a job:** Give it a role from the party menu. It can **follow** you,
-  **forage** for items as you walk, or **battle** the wild Pokémon around you. A Battler button
-  sends it into battle and calls it back with one press.
-- ⚔️ **Overworld battles:** As a Battler it charges nearby wild Pokémon and fights them right
-  on the field with its real moves and each game's own damage rules, with hit sparks,
-  knockouts and EXP for its wins. Whatever it wears a wild Pokémon down to carries into the
-  real battle if you then walk into it, and an Exp. Share holder gets its cut.
-- 💎 **Foraging:** As a Forager it finds an item every 60 steps you take. Every step counts
-  in towns, on routes and in caves; it sniffs the air (a "?" over its head) every 20 of them.
-  On a route or in a cave it then spots a glint, dashes over, digs and brings the item back.
-  The fonder it is of you, the better its finds.
-- 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood pops up above its head in
-  the game's own emote bubbles: a heart, a smile, a sad face, Zs, a bolt (Yellow's skull for a
-  poisoned one), with little drawn effects for the moods a game has no bubble for. In Gold,
-  Silver and Crystal this raises its real happiness, the stat behind Return, Frustration and
-  happiness evolutions.
-- 🌱 **It stays your partner:** its role and friendship carry over when it evolves.
-
-### A Living World
-
-- 🎨 **Two sprite styles:** **HGSS** sprites at true size, every species and form at its own
-  size so a Snorlax towers over a Rattata, or **GSC** sprites, one tile each like the original
-  games (705 species; any it lacks, or a shiny it has no art for, shows its HGSS sprite).
-- 🏔️ **The map's own Pokémon:** The Pokémon the games place on their maps show as their real
-  species in the same style: Mewtwo, the legendary birds, Snorlax, Lugia, Ho-Oh, the beasts,
-  the red Gyarados (shiny, as it is in battle), the Power Plant's Voltorb, and the Pokémon in
-  towns and houses (Slowpoke, Clefairy, Miltank ...), where the games drew most of them as a
-  handful of stand-in sprites. Dolls stay dolls.
-- 🧊 **3D worlds:** In TERRARIUM, Battle Art (Gen 1 and 2), Potato, Dramaless and Stadium 2's 3D
-  worlds, wild Pokémon and your partner stand as cards of their own size, and their emotes,
-  sparkles, health bars and battle effects show up in 3D too.
-- 🌑 **Silhouettes:** Optionally hide species you haven't caught as dark shapes.
-
-## ⚙️ Options
-
-Change them in the Mod Manager, or while you play: the game's own **OPTION** menu has a
-**VIVID WORLDS** entry with all of them.
-
-| Option | Choices | Default | What it does |
-|---|---|---|---|
-| **Show Wild Mons** | On / Off | On | Visible wild Pokémon in encounter areas. |
-| **Spawn Amount** | Low / Normal / High | Normal | How many wild Pokémon are out at once. |
-| **Sprite Style** | HGSS / GSC | HGSS | HGSS sprites at true size, or one-tile GSC sprites (HGSS for any species GSC lacks). |
-| **Wild Reacts** | On / Off | On | Biking close by startles or angers them; Safari Pokémon may run as you walk near. |
-| **Follower** | On / Off | On | Your partner walks behind you, or stays in its Poké Ball. |
-| **Battler: Pad** | R / L / Off | Off | A controller button that sends your partner into battle and back. |
-| **Battler: Key** | E (R) / Q (L) / R / Off | Off | The same on the keyboard. |
-| **Type Aura** | On / Off | Off | Now and then a little puff of your partner's type. |
-| **Classic Enc** | On / Off | On | The original step-based encounters in grass, caves and on Surf. |
-| **Shiny Rate** | Off / 1/8192 (GSC) / 1/4096 / 1/1024 / 1/512 / 1/100 / 1/10 / Always | 1/4096 | How often a wild Pokémon is shiny. |
-| **Silhouette** | Off / Undiscovered / All | Off | Silhouettes for uncaught species, or for all of them. |
-| **Species Sizes** | On / Off | On | Each HGSS species at its own size next to you, on the field with WoobleView and in the 3D world mods. |
-| **Over Grass** | On / Off | Off | Wild Pokémon stand on top of tall grass, drawn whole, instead of the grass covering their feet; in Battle Art's 3D world too. |
+- 🐾 [Your Partner](docs/PARTNER.md): roles, overworld battles, foraging, and Pet / Play / Talk.
+- ⚙️ [Options](docs/OPTIONS.md): every setting, its choices and its default.
+- 🔗 [Works With](docs/WORKS_WITH.md): Modern Spawns, WoobleView and the 3D world mods.
+- 📌 [Good to Know](docs/GOOD_TO_KNOW.md): the Safari Zone, roaming legends, shinies and more.
+- 🪪 [Credits](docs/CREDITS.md): who made the art and ideas this mod is built on.
 
 ## 💾 Installation
 
@@ -135,46 +80,6 @@ Change them in the Mod Manager, or while you play: the game's own **OPTION** men
    ZIP).
 2. Import it with the Gen1Recomp Mod Manager, or drop it in your mods folder.
 3. Enable **Vivid Worlds: OG**.
-
-## 🔗 Works With
-
-- [Modern Spawns](https://github.com/poooooby/g1r_modern_spawns): its generated encounter tables,
-  its rare legendaries and its shiny chains fill the overworld too.
-- [WoobleView](https://github.com/poooooby/gen3-hd-sprites) with its **Field HD** on: your partner
-  and the wild Pokémon are drawn sharp at your screen's resolution, glide smoothly between
-  pixels and stand at their species' true sizes (**Species Sizes**). In Red, Blue and Yellow
-  this needs the **ADVANCED** colours, which keep their full colour.
-- 3D world mods: TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2.
-- **Wilds of Kanto Revival** does the same job, so only one of the two can be on at a time.
-
-## 📌 Good to Know
-
-- In the Safari Zone, wild Pokémon battle as Safari Pokémon, and your Battler leaves them be.
-  It also leaves roaming legends and Pokémon Tower ghosts alone.
-- A roaming legend you have never battled shows in its usual colours: whether it is shiny is
-  decided the first time you meet it, as in the game.
-- With Classic Enc off, a roaming legend only turns up where you can see it.
-- During the Bug-Catching Contest, the National Park has no visible wild Pokémon: the contest's
-  own encounters run as in the game.
-- Red, Blue and Yellow have no shiny Pokémon of their own, so a shiny there follows Gold and
-  Silver's rule: it is written in the Pokémon's hidden stats. Pokémon the game itself fixes as
-  shiny or not, like the red Gyarados or a roaming beast you have already met, stay that way.
-- The separate **Shiny Pokémon** mod can't run alongside this one; the Shiny Rate does its job.
-
-## 🪪 Credits
-
-- [poooooby](https://github.com/poooooby): Vivid Worlds: OG, built from Wilds of Hoenn with
-  pieces of Wilds of Kanto Revival.
-- [Gen 9 Resource Pack](https://eeveeexpo.com/resources/1101/) and its many artists: the
-  HGSS-style overworld sprites (full list in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
-- **MegaMan-Omega** and **FrenchOrange**: the GSC sprites; **Wooble**: recolours;
-  [Pokémon Wilds](https://github.com/SheerSt/pokewilds): GSC sprites beyond dex 251.
-- **Nuclear-Blizzard**: the Pokémon Tower ghost.
-- [masterwebx](https://github.com/masterwebx): the
-  [Shiny Pokemon](https://github.com/masterwebx/gen1recomp-shiny-pokemon) mod, whose shiny rate and
-  battle sparkle the Shiny Rate is based on.
-- **TTiN** and **Untamed Tohjo**: the ideas behind the friendship-weighted foraging and the
-  shiny chain.
 
 ---
 
