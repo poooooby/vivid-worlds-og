@@ -435,6 +435,15 @@ function FollowerAdapter:_endBall()
   self.ballRun, self.ballRenderer, self.ballState = nil, nil, nil
 end
 
+-- the art's height over its feet as this frame shows it: on the flat field its headLift, in
+-- a 3D world its card's (lib/engine_patch.lua headInWorld), so labels and effects sit just
+-- over the head either way
+local function headOf(r)
+  local head = r:headLift()
+  if EnginePatch.headInWorld then head = EnginePatch.headInWorld(r, head) end
+  return head
+end
+
 -- the art's width as drawn (px), for which columns of tiles it spans
 local function drawnWidth(r)
   return (r.visualWidth and r:visualWidth()) or CELL
@@ -873,7 +882,7 @@ function FollowerAdapter:collectActors(actors)
     local state = self.actState or NO_STATE -- (read only: a new `{}` here was garbage a frame)
     -- just over its head as drawn (headLift: the highest point its art reaches, Species Sizes
     -- included; squashed under an eave), not a fixed height
-    local head = (r and r.headLift and r:headLift()) or CELL
+    local head = (r and r.headLift and headOf(r)) or CELL
     head = head * (1 - ((r and r.duck) or 0))
     local lift = math.max(2, math.floor(head - CELL + POPUP_GAP + 0.5))
     local a = PopupText.actor(popup and popup.text or ready,
@@ -895,7 +904,7 @@ function FollowerAdapter:collectActors(actors)
     self.sparkleAge = (self.sparkleAge or 0) + 1
     local act = sr.act
     local feetY = npc.py + CELL + (sr.pushY or 0) + (sr.duckDy or 0) + ((act and act.dy) or 0)
-    local lift = (sr:headLift() or CELL) * (1 - (sr.duck or 0))
+    local lift = (headOf(sr) or CELL) * (1 - (sr.duck or 0))
     local a = ShinySparkle.actor(self.sparkleAge, 0, npc.px + CELL / 2 + (sr.pushX or 0) + ((act and act.dx) or 0),
       feetY - lift, lift * 0.85, ShinySparkle.bodyWidth(sr) * 0.5 * 0.8, feetY + 1, npc.elevation)
     if a then actors[#actors + 1] = a end
@@ -906,7 +915,7 @@ function FollowerAdapter:collectActors(actors)
     local act = sr.act
     local x = npc.px + (sr.pushX or 0) + ((act and act.dx) or 0)
     local y = npc.py + (sr.pushY or 0) + (sr.duckDy or 0) + ((act and act.dy) or 0)
-    local lift = (sr:headLift() or CELL) * (1 - (sr.duck or 0))
+    local lift = (headOf(sr) or CELL) * (1 - (sr.duck or 0))
     local parts
     local pending = self.readyPending
     if pending and pending.evolve then parts = PartnerFx.evolveParts(self.fxClock or 0) end
@@ -931,7 +940,7 @@ function FollowerAdapter:collectActors(actors)
   if self.moodKind and sr and (sr.recall or 1) >= 0.5 and sr.headLift then
     local act = sr.act
     local feetY = npc.py + CELL + (sr.pushY or 0) + (sr.duckDy or 0) + ((act and act.dy) or 0)
-    local top = feetY - (sr:headLift() or CELL) * (1 - (sr.duck or 0))
+    local top = feetY - (headOf(sr) or CELL) * (1 - (sr.duck or 0))
     local x = npc.px + CELL / 2 + (sr.pushX or 0) + ((act and act.dx) or 0)
     -- (headLift is its highest frame, an idle hop or raised ears included: a little lower
     -- sits just over the head as it usually stands)
@@ -943,7 +952,7 @@ function FollowerAdapter:collectActors(actors)
     end
   end
   if self.sweatAge and sr and (sr.recall or 1) >= 0.5 and sr.headLift then
-    local height = sr:headLift() or CELL
+    local height = headOf(sr) or CELL
     local squashed = height * (1 - (sr.duck or 0))
     local half = drawnWidth(sr) / 2
     -- on the side it faces (its head), touching the top of it

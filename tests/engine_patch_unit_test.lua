@@ -75,6 +75,7 @@ local OverworldState = {}
 function OverworldState.drawWorld(ow)
   -- what the engine sees while it draws
   drawn.during = {}
+  if drawn.hook then drawn.hook(ow) end
   for _, e in ipairs(ow.entities) do
     drawn.during[#drawn.during + 1] = e
     if e._wilds and e.pose then drawn.pose = { e:pose() } end
@@ -828,6 +829,42 @@ renderer.recall = nil
 EP._pipeline = false
 eq(s.def and s.def.image, "pika.png", "...outside one, the engine sprite's again")
 eq(EP.followerSprite(nil, npc), base, "no renderer: the npc gets its own sprite back")
+
+-- an action scene (Play's chase) in a 3D world: the follower stands where the scene has it
+-- for the draw (a pipeline places its card from px / py / facing), then is put back
+npc.px, npc.py, npc.facing = 40, 32, "down"
+renderer.act = { dx = 12, dy = -6, facing = "left" }
+local seen
+drawn.hook = function() seen = { npc.px, npc.py, npc.facing } end
+drawn.pipeline = "voxel"
+OverworldState.drawWorld(ow)
+check(seen and seen[1] == 52 and seen[2] == 26 and seen[3] == "left",
+  "3D: during the draw the follower is at the scene's offset, facing its way")
+check(npc.px == 40 and npc.py == 32 and npc.facing == "down", "...and back on its own spot after it")
+drawn.pipeline = nil
+OverworldState.drawWorld(ow)
+check(seen[1] == 40 and seen[2] == 32 and seen[3] == "down", "the flat field: untouched (our renderer draws the offset)")
+renderer.act = nil
+drawn.pipeline = "voxel"
+OverworldState.drawWorld(ow)
+check(seen[1] == 40 and seen[3] == "down", "3D, no scene: untouched")
+drawn.pipeline, drawn.hook = nil, nil
+
+-- what floats over the partner (a label, sparkles) sits over its 3D card: the card's height
+do
+  local sheetsBefore = EP.voxelSheets
+  EP.voxelSheets = setmetatable({}, { factorFor = function(_, _) return 0.5 end })
+  local r = { imagePath = function() return "assets/wilds_generated/true_size18/hgss/155-normal.png" end }
+  EP._pipeline = true
+  eq(EP.headInWorld(r, 30), 15, "headInWorld: in 3D the art's height at its card's size")
+  EP._pipeline = false
+  eq(EP.headInWorld(r, 30), 30, "...on the flat field its own")
+  EP._pipeline = true
+  EP.voxelSheets = nil
+  eq(EP.headInWorld(r, 30), 30, "...no voxel sheets: its own")
+  EP._pipeline = false
+  EP.voxelSheets = sheetsBefore
+end
 
 EP.uninstall()
 eq(OverworldState.drawWorld ~= nil and EP._installed, false, "uninstall restores the engine")

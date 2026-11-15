@@ -117,6 +117,16 @@ end
 --- Species Sizes (HGSS_scale, lib/hd_field.lua): the card's display size
 --- (displayWidth / displayHeight, which the adapters in lib/compat/ honour, the anchor
 --- scaled with it) is the frame times the species' factor; the sheet itself is shared.
+--- The size a renderer's card is shown at against its art (`path`, the art it draws): a
+--- Poke Followers / GSC sheet keeps its own (1); HGSS art takes its species' Species Sizes
+--- factor against the shorter Game Boy player, with the option on only.
+function VoxelSheets.factorFor(r, path)
+  if SpriteSource.isGsc(path) then return 1 end
+  local factor = HdField.factorFor("hgss", r.dex)
+  if HdField.speciesSizes then factor = factor * Config.gbSizeRatio() end
+  return factor
+end
+
 function VoxelSheets:spriteFor(r, luma)
   if type(r) ~= "table" or r.dex == nil then return nil end
   local style = styleOf(r)
@@ -130,11 +140,7 @@ function VoxelSheets:spriteFor(r, luma)
   -- is sized by Species Sizes against the shorter Game Boy player (Config.gbSizeRatio),
   -- with the option on only -- off, a card keeps its art's own size
   local path = r.imagePath and r:imagePath()
-  local factor = 1
-  if not SpriteSource.isGsc(path) then
-    factor = HdField.factorFor("hgss", r.dex)
-    if HdField.speciesSizes then factor = factor * Config.gbSizeRatio() end
-  end
+  local factor = VoxelSheets.factorFor(r, path)
   local spriteKey = key .. "@" .. factor
   local hit = self.sprites[spriteKey]
   if hit ~= nil then return hit or nil end

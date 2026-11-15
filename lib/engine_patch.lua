@@ -226,6 +226,21 @@ local function voxelSprite(renderer, mode)
   return ok and sprite or nil
 end
 
+--- How tall `head` (a renderer's headLift: its art's height on the flat field) stands in the
+--- frame being drawn. In a 3D world the card shows the art at its Species Sizes size
+--- (lib/voxel_sheets.lua factorFor) without WoobleView's field scale, so what floats over
+--- it (a label, sparkles) sits just over the card, not the flat sprite. Flat: `head` itself.
+function EngineGb.headInWorld(r, head)
+  local sheets = EngineGb.voxelSheets
+  if not (EngineGb._pipeline and sheets and type(r) == "table" and r.imagePath and head) then return head end
+  local factorFor = getmetatable(sheets) and getmetatable(sheets).factorFor
+  local path = r:imagePath()
+  if not (factorFor and path) then return head end
+  local k = HdField.scaleOfPath(r.mod, path) or 1
+  if k <= 0 then k = 1 end
+  return head / k * factorFor(r, path)
+end
+
 -- the proxies for this frame's actors (pooled: no garbage per frame). While a render
 -- pipeline draws the world (`pipeline`), only the actors drawn by a renderer get one, with
 -- the pose() it reads: the rest (emotes, grass tufts, bars) are 2D-only drawings.
@@ -448,6 +463,35 @@ function EngineGb.install(hooks, log)
   end
   EngineGb._hideFollowerMarks, EngineGb._restoreFollowerMarks = hideFollowerMarks, restoreFollowerMarks
 
+  -- A follower action scene (lib/follower_actions.lua: Play's chase after the ball, a hop ...)
+  -- moves the partner by a pixel offset and a facing our renderer draws (`r.act`). A pipeline
+  -- places its card from the engine follower's own px / py / facing (pose()), so for the
+  -- length of a 3D draw the follower stands where the scene has it. Put back after the draw:
+  -- the engine's own step logic reads them.
+  local actNpc, actPx, actPy, actFacing
+  local function shiftFollowerAct()
+    if actNpc then return false end
+    local okF, npc = pcall(EngineGb.followerCurrent)
+    if not (okF and type(npc) == "table") then return false end
+    local s = npc.sprite
+    local r = type(s) == "table" and rawget(s, "_wilds") and rawget(s, "renderer") or nil
+    local act = r and r.act
+    if type(act) ~= "table" then return false end
+    local dx, dy = tonumber(act.dx) or 0, tonumber(act.dy) or 0
+    if dx == 0 and dy == 0 and not act.facing then return false end
+    actNpc, actPx, actPy, actFacing = npc, npc.px, npc.py, npc.facing
+    npc.px, npc.py = (npc.px or 0) + dx, (npc.py or 0) + dy
+    if act.facing then npc.facing = act.facing end
+    return true
+  end
+  local function restoreFollowerAct()
+    local npc = actNpc
+    if not npc then return end
+    npc.px, npc.py, npc.facing = actPx, actPy, actFacing
+    actNpc, actPx, actPy, actFacing = nil, nil, nil, nil
+  end
+  EngineGb._shiftFollowerAct, EngineGb._restoreFollowerAct = shiftFollowerAct, restoreFollowerAct
+
   -- runs `original(world, ...)` with this frame's proxies in `lists` (the engine lists it
   -- reads), taking them out again whatever happens
   local function withProxies(lists, pipeline, original, world, ...)
@@ -465,7 +509,9 @@ function EngineGb.install(hooks, log)
         log:warn("[vivid_worlds_og] collectActors error: %s", tostring(count))
       end
     end
+    local shifted = pipeline and shiftFollowerAct()
     local okD, r1, r2, r3 = pcall(original, world, ...)
+    if shifted then restoreFollowerAct() end
     if hid then restoreFollowerMarks() end
     if n > 0 then
       for _, list in ipairs(lists) do stripProxies(list) end
