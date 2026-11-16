@@ -43,9 +43,9 @@ games. A lightweight sister to **Vivid Worlds** (Wilds of Hoenn).
 - 🎲 **Classic encounters, your call:** Keep the original step-based encounters in grass, caves
   and on Surf alongside the visible ones, or only meet what you can see. Fishing, the
   Bug-Catching Contest and Sweet Scent work as always.
-- 😮 **They react to you:** Bike past and weaker Pokémon get startled and run off, while
-  stronger ones get angry and chase you down. Walking disturbs nobody, except in the Safari
-  Zone.
+- 😮 **They react to you:** Bike past (or run, with a running shoes mod) and weaker Pokémon
+  get startled and run off, while stronger ones get angry and chase you down. Walking disturbs
+  nobody, except in the Safari Zone.
 - ✨ **Shinies you can spot:** Set how often wild Pokémon are shiny, from the original 1 in 8192
   up to always. A shiny out in the grass shows its shiny colours with a twinkle, is the same
   shiny when you battle it, and stays shiny once caught. Red, Blue and Yellow battles greet a

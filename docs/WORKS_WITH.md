@@ -9,4 +9,6 @@
   pixels and stand at their species' true sizes (**Species Sizes**). In Red, Blue and Yellow
   this needs the **ADVANCED** colours, which keep their full colour.
 - 3D world mods: TERRARIUM, Battle Art, Potato, Dramaless and Stadium 2.
+- Running shoes mods: running past wild Pokémon startles or angers them the way biking does
+  (**Wild Reacts**), and with HGSS sprites your partner runs too.
 - **Wilds of Kanto Revival** does the same job, so only one of the two can be on at a time.

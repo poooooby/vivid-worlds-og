@@ -351,6 +351,23 @@ local hooks = {
 }
 -- a map entered before any wrapped frame ran (a boot, a save loaded): the world is adopted
 EP.noteMap(Game1, ow.map)
+
+-- running: a running-shoes mod's shorter step (Gen 1 keeps the step's length in stepFramesCur)
+player.stepFrames = 16
+eq(EP.playerIsRunning(), false, "Gen 1: no step taken yet, no running")
+player.stepFramesCur = 16
+eq(EP.playerIsRunning(), false, "...a walk (16) is not running")
+player.stepFramesCur = 8
+eq(EP.playerIsRunning(), true, "...a running-shoes step (8) is")
+player.stepFramesCur = EP.RUN_STEP_FRAMES
+eq(EP.playerIsRunning(), true, "...and so is one of RUN_STEP_FRAMES")
+player.surfing = true
+eq(EP.playerIsRunning(), false, "...never while surfing")
+player.surfing, player.onBike = nil, true
+eq(EP.playerIsRunning(), false, "...nor on the bike (that is biking)")
+player.onBike, player.ledgeHop = nil, true
+eq(EP.playerIsRunning(), false, "...nor hopping a ledge")
+player.ledgeHop, player.stepFramesCur, player.stepFrames = nil, nil, nil
 eq(EP.world(), ow, "map.entered adopts the overworld that loaded the map")
 eq(EP.mapBounds(), 6, "...so the map's cells can be scanned at once")
 check(EP.install(hooks, nil), "install wraps the Gen 1 draw, tick and input")
@@ -923,6 +940,19 @@ end, followerTick = function() end }, nil), "install wraps the Gen 2 people pass
 World.step(world)
 World.drawPeople(world)
 eq(#drawn.during, 1, "while Gen 2 draws its people our actor is among them")
+
+-- running on Gen 2: movePlayer writes each step's length (after movement.speed) to stepFrames
+p2.stepFrames = 16
+eq(EP2.playerIsRunning(), false, "Gen 2: a walk (16) is not running")
+p2.stepFrames = 8
+eq(EP2.playerIsRunning(), true, "...a running-shoes step (8) is")
+world.playerState = "bike"
+eq(EP2.playerIsRunning(), false, "...the bike's 8 is biking, not running")
+world.playerState = "surf"
+eq(EP2.playerIsRunning(), false, "...nor while surfing")
+world.playerState, p2.jumping = nil, true
+eq(EP2.playerIsRunning(), false, "...nor hopping a ledge")
+p2.jumping, p2.stepFrames = nil, nil
 eq(gen2Draws, 1, "Crystal's grass split draws it once (whole on \"bottom\", nothing on \"top\")")
 eq(#world.npcs, 0, "after the people pass world.npcs is the engine's again")
 check(drawn.during[1].inGrass == true and drawn.during[1].cellX == 3, "Gen 2: on a grass cell the grass covers its feet")

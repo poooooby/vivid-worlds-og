@@ -1,7 +1,7 @@
 -- Mod Manager option schema for vivid_worlds_og.
 -- Labels are limited to 14 characters (tools/validate_option_labels.py), ASCII only.
 --
--- Wandering is Idle or Roam; Wild Reacts adds fleeing / chasing when the player bikes close
+-- Wandering is Idle or Roam; Wild Reacts adds fleeing / chasing when the player bikes (or runs) close
 -- by (lib/wild_reactions.lua). Sprite Style: HGSS at each species' own size, or GSC (one tile).
 
 return {
@@ -40,7 +40,7 @@ return {
     label = "Wild Reacts",
     type = "toggle",
     default = true,
-    description = "Bike close to wild Pokemon and they react: weaker ones than your lead Pokemon are startled and run off, stronger ones get angry and chase you (catching you starts the battle). Walking past disturbs nobody. Off: they just wander.",
+    description = "Bike (or run, with a running shoes mod) close to wild Pokemon and they react: weaker ones than your lead Pokemon are startled and run off, stronger ones get angry and chase you (catching you starts the battle). Walking past disturbs nobody. Off: they just wander.",
   },
   {
     key = "show_follower",

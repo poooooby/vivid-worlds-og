@@ -4,6 +4,14 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### New
+
+- **Running shoes mods:** a player moving faster than a walk on foot (a running shoes mod)
+  now counts as running: wild Pokémon react to it the way they react to the bike (Wild
+  Reacts), and with HGSS sprites the partner uses its run frames.
+
 ## 1.0.16 — 2026-11-15
 
 ### New

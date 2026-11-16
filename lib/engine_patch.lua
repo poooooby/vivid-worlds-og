@@ -766,7 +766,22 @@ function EngineGb.playerPixel()
   return p.px, p.py
 end
 
-function EngineGb.playerIsRunning() return false end -- no running in Gen 1 / Gen 2
+--- Running. Gen 1 / Gen 2 have none, but a running-shoes mod (the engine's movement.speed
+--- hook) shortens the player's steps: a step on foot, on land, of RUN_STEP_FRAMES or fewer
+--- (a walk is 16, the bike 8) counts as running -- Wild Reacts treats it as a run and the
+--- HGSS partner takes its run frames. The last step's length (Gen 1 `stepFramesCur`, Gen 2
+--- `stepFrames`), so the tick between two steps still reads as running. Never on the bike
+--- (playerBiking), surfing, or hopping a ledge.
+EngineGb.RUN_STEP_FRAMES = 12
+function EngineGb.playerIsRunning()
+  local p = player()
+  if not p or p.jumping or p.ledgeHop then return false end
+  local frames = tonumber(p.stepFramesCur or p.stepFrames)
+  if not frames or frames > EngineGb.RUN_STEP_FRAMES then return false end
+  local a = A()
+  if not a or a.isBiking(EngineGb._world) == true or a.isSurfing(EngineGb._world) == true then return false end
+  return true
+end
 
 function EngineGb.playerBiking()
   local a = A()

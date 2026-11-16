@@ -10,7 +10,7 @@ Change them in the Mod Manager, or while you play: the game's own **OPTION** men
 | **Show Wild Mons** | On / Off | On | Visible wild Pokémon in encounter areas. |
 | **Spawn Amount** | Low / Normal / High | Normal | How many wild Pokémon are out at once. |
 | **Sprite Style** | HGSS / GSC | HGSS | HGSS sprites at true size, or one-tile GSC sprites (HGSS for any species GSC lacks). |
-| **Wild Reacts** | On / Off | On | Biking close by startles or angers them; Safari Pokémon may run as you walk near. |
+| **Wild Reacts** | On / Off | On | Biking (or running, with a running shoes mod) close by startles or angers them; Safari Pokémon may run as you walk near. |
 | **Follower** | On / Off | On | Your partner walks behind you, or stays in its Poké Ball. |
 | **Battler: Pad** | R / L / Off | Off | A controller button that sends your partner into battle and back. |
 | **Battler: Key** | E (R) / Q (L) / R / Off | Off | The same on the keyboard. |
