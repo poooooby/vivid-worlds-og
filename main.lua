@@ -102,7 +102,7 @@ return function(mod)
   mod.log:info("[vivid_worlds_og] sprite atlas: %s", atlasOk and "installed" or tostring(atlasReason))
 
   mod.exports = mod.exports or {}
-  mod.exports.version = "1.0.14"
+  mod.exports.version = "1.0.15"
   mod.exports.engineReady = false
   mod.exports.spriteAtlas = SpriteAtlas
   mod.exports.enginePatch = EnginePatch
