@@ -9,15 +9,24 @@ Everything here is for working on the mod. Players only need the [README](README
 # Not committed (.gitignore): a fresh clone needs this before anything draws a sprite.
 python3 tools/copy_wilds_assets.py
 
+# Fill the GSC gaps (Urshifu, regional forms, Ferroseed ...) from Pokémon Wilds and Pokémon
+# Ambrosia, each pinned to one commit and cached in assets/enhanced_overworld/gsc_extras/.
+python3 tools/import_gsc_extras.py
+
 # Bake the HGSS / PokeMMO 18-frame sheets from those raw grids (forms: tools/form_art_map.py).
 python3 tools/generate_true_size_18frame.py --report   # inspect detected column roles first
 python3 tools/generate_true_size_18frame.py
 ```
 
+HGSS shiny sheets are baked with their normal sheet's walk columns (the same art recoloured)
+and lose the source's blue sparkle (`desparkle`: cleared outside the Pokémon, refilled from the
+normal-to-shiny colour map over it).
+
 The swimming and levitates bakes also cut the GSC sheets for water (`bake_gsc_swim` writes
 `assets/wilds_generated/gsc/swimming/` and `gsc/levitates/`). It uses the same domed foam cut the
 Emerald forms get (`domed_cut`), at each species' HGSS waterline (swimming or hovering), and only
-for species HGSS draws swimming or hovering. So run it after `copy_wilds_assets.py`.
+for species HGSS draws swimming or hovering. So run it after `copy_wilds_assets.py` and
+`import_gsc_extras.py`.
 
 `scripts/bootstrap.sh` links this repo into `../gen1recomp/mods/vivid_worlds_og`. That makes it
 show up (enabled) in that install's Mod Manager, so only run it against a test checkout of the

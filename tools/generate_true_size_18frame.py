@@ -305,8 +305,54 @@ def halve(im: Image.Image) -> Image.Image:
     return out
 
 
+# The HGSS shiny source art draws a blue sparkle into every frame (a four-point star at the
+# top right, dots at the bottom left), often over the Pokemon itself. The mod draws its own
+# shiny twinkle (lib/shiny_sparkle.lua), so the baked one is cut out (desparkle).
+SPARKLE_COLOURS = ((151, 159, 246), (75, 91, 237))
+
+
+def is_sparkle(c) -> bool:
+    return min(sum((x - y) ** 2 for x, y in zip(c, s)) for s in SPARKLE_COLOURS) < 400
+
+
+def desparkle(normal: Image.Image, shiny: Image.Image) -> Image.Image:
+    """`shiny` without its sparkle, against its frame-aligned `normal` sheet: a sparkle pixel
+    where the normal sheet is empty is cleared; one over the Pokemon is refilled with the colour
+    that pixel's normal colour becomes everywhere else in the shiny (a shiny that really is that
+    blue keeps it: its own colour is then the usual one)."""
+    if normal.size != shiny.size:
+        return shiny
+    n_px = normal.load()
+    out = shiny.copy()
+    s_px = out.load()
+    votes: dict = {}
+    for y in range(out.height):
+        for x in range(out.width):
+            a, b = n_px[x, y], s_px[x, y]
+            if a[3] > 0 and b[3] > 0:
+                row = votes.setdefault(a[:3], {})
+                row[b[:3]] = row.get(b[:3], 0) + 1
+    usual = {c: max(row, key=row.get) for c, row in votes.items()}
+    for y in range(out.height):
+        for x in range(out.width):
+            b = s_px[x, y]
+            if b[3] == 0 or not is_sparkle(b[:3]):
+                continue
+            a = n_px[x, y]
+            if a[3] == 0:
+                s_px[x, y] = (0, 0, 0, 0)
+            elif usual.get(a[:3], b[:3]) != b[:3]:
+                s_px[x, y] = usual[a[:3]] + (a[3],)
+    return out
+
+
 def bake_species(kind: str, dex: int, variant: str, override, report: bool,
-                 out_root: Path | None = None, src: Path | None = None) -> dict | None:
+                 out_root: Path | None = None, src: Path | None = None,
+                 roles: dict | None = None) -> dict | None:
+    """`roles` (direction -> (walkA, walkB, runBase) columns, a normal sheet's `detected`):
+    use these columns instead of detecting them. A shiny is its normal sheet recoloured, so it
+    takes the normal sheet's: detected on its own, the shiny's sparkle (or a recolour) could
+    pick other columns, and the shiny walked with another gait (116 HGSS sheets did)."""
     src = src or find_source(kind, dex, variant)
     if not src:
         return None
@@ -325,7 +371,7 @@ def bake_species(kind: str, dex: int, variant: str, override, report: bool,
         shared = detect_roles_shared(list(all_tiles.values()))
     for direction, row in DIRECTION_ROW.items():
         tiles = all_tiles[direction]
-        walk_a, walk_b, run_base = shared or detect_roles({1: tiles[1], 2: tiles[2], 3: tiles[3]}, override)
+        walk_a, walk_b, run_base = (override and detect_roles({}, override)) or (roles or {}).get(direction)             or shared or detect_roles({1: tiles[1], 2: tiles[2], 3: tiles[3]}, None)
         detected[direction] = (walk_a, walk_b, run_base)
         frames[(direction, "stand")] = tiles[0]
         frames[(direction, "walkA")] = tiles[walk_a]
@@ -571,10 +617,14 @@ def spritecollab_shiny(dex: int, form: str, pmd_folder, normal: Image.Image) -> 
     """`normal` recoloured with the form's SpriteCollab normal -> shiny colour shifts (its
     Walk, else its Idle: the two sheets are pixel-aligned, and the shift maps colours, so it
     applies to HGSS art too -- generate_pmd_sprites.shift_recolorer). None when SpriteCollab
-    has no real shiny for the form."""
+    has no real shiny for the form, or the recolourer is not here (it lives in Wilds of Hoenn's
+    tools/; this repo keeps the shiny sheets it made then)."""
     if not pmd_folder:
         return None
-    import generate_pmd_sprites as pmd  # the recolourer; lazily, only a few forms need it
+    try:
+        import generate_pmd_sprites as pmd  # the recolourer; lazily, only a few forms need it
+    except ImportError:
+        return None
     from form_art_map import SHINY_DIR_OVERRIDE
     base = SPRITECOLLAB / f"{dex:04d}"
     folder = base / pmd_folder
@@ -690,11 +740,17 @@ def main() -> int:
             out_dir.mkdir(parents=True, exist_ok=True)
 
         for dex in dexes:
+            normal = None
             for variant in ("normal", "shiny"):
                 # CLI takes precedence (useful for trying a new override
                 # before committing it to MANUAL_OVERRIDES above).
                 override = cli_overrides.get(dex) or MANUAL_OVERRIDES.get((kind, dex))
-                result = bake_species(kind, dex, variant, override, args.report, out_root)
+                result = bake_species(kind, dex, variant, override, args.report, out_root,
+                                      roles=normal and normal["detected"])
+                if result is not None and variant == "normal":
+                    normal = result
+                elif result is not None and normal is not None and kind == "hgss" and not args.report:
+                    result["image"] = desparkle(normal["image"], result["image"])
                 if result is None:
                     stats["missing_source"] += 1
                     continue
@@ -721,7 +777,7 @@ def main() -> int:
         for dex, form, pmd_folder, hgss_variant in FORM_ART:
             if hgss_variant is None or (species_filter is not None and dex not in species_filter):
                 continue
-            normal_image = None
+            normal_image, normal_roles = None, None
             for variant in ("normal", "shiny"):
                 letter = "n" if variant == "normal" else "s"
                 if isinstance(hgss_variant, str):  # a file of the Gen 9 follower pack
@@ -732,15 +788,21 @@ def main() -> int:
                 if not src.is_file():
                     stats["missing_source"] += 1
                     continue
-                result = bake_species("hgss", dex, variant, None, args.report, out_root, src=src)
+                result = bake_species("hgss", dex, variant, None, args.report, out_root, src=src,
+                                      roles=normal_roles)
                 if result is None or args.report:
                     continue
                 if variant == "normal":
-                    normal_image = result["image"]
-                elif normal_image is not None and result["image"].tobytes() == normal_image.tobytes():
+                    normal_image, normal_roles = result["image"], result["detected"]
+                elif normal_image is not None:
+                    result["image"] = desparkle(normal_image, result["image"])
+                if variant == "shiny" and normal_image is not None and result["image"].tobytes() == normal_image.tobytes():
                     # the source's shiny sheet is the normal one (Gen 9 pack: Hisuian
                     # Typhlosion): recoloured with the form's SpriteCollab shiny colours
                     recolored = spritecollab_shiny(dex, form, pmd_folder, normal_image)
+                    if recolored is None and (out_dir / f"{dex:03d}-{form}-shiny.png").is_file():
+                        stats["skipped_existing"] += 1  # keep the recoloured one made before
+                        continue
                     if recolored is None:
                         print(f"WARN {dex:03d}-{form}: shiny sheet is the normal one, no colours to recolour it")
                     else:
@@ -760,6 +822,7 @@ def main() -> int:
         for dex, form, normal_file, shiny_file in GB_FORM_ART:
             if species_filter is not None and dex not in species_filter:
                 continue
+            gb_normal = None
             for variant, name in (("normal", normal_file), ("shiny", shiny_file)):
                 if name is None:
                     continue
@@ -767,9 +830,14 @@ def main() -> int:
                 if not src.is_file():
                     stats["missing_source"] += 1
                     continue
-                result = bake_species("hgss", dex, variant, None, args.report, out_root, src=src)
+                result = bake_species("hgss", dex, variant, None, args.report, out_root, src=src,
+                                      roles=gb_normal and gb_normal["detected"])
                 if result is None or args.report:
                     continue
+                if variant == "normal":
+                    gb_normal = result
+                elif gb_normal is not None:
+                    result["image"] = desparkle(gb_normal["image"], result["image"])
                 out_dir.mkdir(parents=True, exist_ok=True)
                 out_path = out_dir / f"{dex:03d}-{form}-{variant}.png"
                 if out_path.exists() and not args.force:

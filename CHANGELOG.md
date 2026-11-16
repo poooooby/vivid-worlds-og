@@ -6,8 +6,28 @@ here.
 
 ## Unreleased
 
+### New
+
+- **More GSC sprites:** with Sprite Style on GSC, these now have GSC sprites (and shinies)
+  instead of falling back to HGSS: Ferroseed, Ferrothorn, Genesect, Xerneas, Yveltal, Zygarde,
+  Melmetal, Polteageist, Arctozolt, Dracovish, Sneasler, Kingambit, the Frigibax line and
+  Urshifu (both styles), and, with WoobleDex, the regional and alternate forms: Alolan Raichu,
+  Grimer, Muk, Marowak and Ninetales; Galarian Ponyta, Rapidash, Farfetch'd, Mr. Mime, Corsola,
+  Darumaka, Darmanitan and Yamask; Hisuian Growlithe, Voltorb, Electrode, Typhlosion, Samurott,
+  Braviary and Decidueye; Rotom's five forms, Wormadam's Sandy and Trash Cloaks, East Sea Shellos
+  and Bloodmoon Ursaluna. They swim and hover on the water like the others.
+- **GSC shinies:** 69 more species with a GSC sprite but no GSC shiny (Volcarona, the Froakie
+  line, Sylveon, Phantump, Milcery, the Deino line, Flapple, Meowstic, Golett ...) now have one:
+  their main colour changes the way the same part of their HGSS sprite changes when it is
+  shiny. Before, they showed their HGSS shiny; Pangoro and Klefki, whose shinies barely differ,
+  still do.
+
 ### Fixes
 
+- HGSS shiny sprites no longer carry a fixed blue sparkle in every frame (often drawn across
+  the Pokémon itself). The mod's own twinkle still marks a shiny on the field.
+- HGSS shiny Pokémon walk with the same steps as their normal look: about a hundred of them
+  had their walking frames picked differently from the normal sprite.
 - Your partner's wings (and legs) beat properly when you move faster than walking, with a mod
   that adds running: a flier going up or down used to look frozen, or blur, because its
   stand frame dropped out of the cycle at the faster pace. It now flaps through the same

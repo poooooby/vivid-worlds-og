@@ -90,9 +90,9 @@ the complete, authoritative credit list for this art.
 ## Poke Followers / GSC sprites
 
 The Sprite Style option's **GSC** sheets under `assets/wilds_generated/gsc/` are a read-only
-copy (`tools/copy_wilds_assets.py`) of Wilds of Kanto Revival's built-in GSC walker art. They
-remain under the licence of their original authors and are not covered by this mod's MIT
-License; this mod claims no authorship of them.
+copy (`tools/copy_wilds_assets.py`) of Wilds of Kanto Revival's built-in GSC walker art, with
+the gaps filled by `tools/import_gsc_extras.py`. They remain under the licence of their original
+authors and are not covered by this mod's MIT License; this mod claims no authorship of them.
 
 - Dex 1-251 (`poke_followers`): third-party follower / overworld walker art in the Followers EX
   / PokéPC / ShockSlayer (Pokémon Crystal Clear) lineage, with GSC sprites by **MegaMan-Omega**
@@ -100,6 +100,37 @@ License; this mod claims no authorship of them.
 - Dex 252 and up (`Pokewilds`): the overworld walker sprites of
   [Pokémon Wilds](https://github.com/SheerSt/pokewilds) (SheerSt), converted by Wilds of Kanto
   Revival (frame order only, colours untouched). See that project for its per-species credits.
+- Shinies for 69 sheets that had none, made by `tools/import_gsc_extras.py`: the sheet's main
+  colour moved the way the same part of the species' HGSS sprite (above) moves in its shiny,
+  or, where that hardly shows, one colour swapped toward the species' shiny palette (Pokémon
+  Wilds' or the artists' Crystal `shiny.pal`).
+- Urshifu and the regional / alternate forms (Alolan Muk, Hisuian Growlithe, Rotom's forms ...):
+  more of Pokémon Wilds' overworld sprites, added by `tools/import_gsc_extras.py` (frame order
+  only, colours untouched).
+- Ferroseed, Ferrothorn, Genesect, Xerneas, Yveltal, Zygarde, Melmetal, Polteageist, Arctozolt,
+  Dracovish, Sneasler, Kingambit, Frigibax, Arctibax, Baxcalibur, Alolan Ninetales and Bloodmoon
+  Ursaluna: follower sprites in the same Pokémon Wilds style, coloured here from each species'
+  Crystal palettes (`tools/import_gsc_extras.py`), by these sprite artists:
+  Eeveeee1999, Rosehudson, Rangi, Solo, GoldZ, lakeofdance, Pokekoks, boonzeet, Proyecto,
+  Axel-Comics, BlueEmerald, Pokets3, Fokkos92, Egg3ggEgg.
+
+The Pokémon Wilds overworld sprites are credited to these contributors:
+
+  A.J. Nitro, Aaamdacuaga, Adrian der Cube, Alifib, ash, Ayinai, Badsy the Edgecat,
+  betsybugaboo, BloodlessNS, Blumiau, boomtox the boombox, bugcut, Charade, CuervoTerras,
+  CynderQuill, DerpKip, E.splash, EeVeeEe, Elusiveplayer, EnzoDaiki, Epharam, Et3rniti, Exet,
+  Filth-sama, ForeverBurning, Galenorla, Gargoyle, GenDraconis, GlitchxCity, Gmerc, GML, Goose,
+  Gyu, hades da god, HERO, Hibiwiki, ICantBelieveItsNotBowser, impl, IncuTyph, Indie,
+  Internet_Goblin, Invader, Iustinus Tempus, JappaWakka, Jiggy, Kalvinz, Kazdraws0w0, Kedöshim,
+  Kishibird, Kommie, kyro909, Lavios, Liminalia, Lockerz102, LunaMaddalena, Lux, LuxBeacon,
+  Manik-Needlemouse, MapleSyrup, Megaman-Omega, Menu, Meowmie/Tabby, Miserable Pile Of Secrets,
+  MKNZ, Molk, Morningdew, Mr Dustman, nik11dy6, Nuuk (nuukiie), OtDxRaichunite, peach-n-key,
+  Poisonous Gas, Potato Q, PotatoCheep, Queen Kami, Quilchess, Roffles, Rolyer, Sadfish, Sage,
+  Sakaya, SaltExplosion, Sayaka, Scarlax, SCHLIEMONI, Scoobleblablebly, Seiiccubus,
+  ShadowOne333, Shaqtothefuture, SharkGuy, SheerSt, Sir Fear-ali, Sir Feralipogchamp,
+  SkwovetSquire, Skymaury, Snak, Solo993, Sorrel, sun_dew, TerraTerraCotta, the Prism team,
+  Toastknight, Turner, Twilier / Reshidove, uchuu, Vandom, Ventilatore, Village, Zame,
+  𝔼z̶𝓊𝓹Δɔʞ / ITWinVis, Mmmmmm, ShockSlayer.
 
 ## Engine
 
