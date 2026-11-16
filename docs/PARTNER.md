@@ -15,7 +15,8 @@
 - 💎 **Foraging:** As a Forager it finds an item every 60 steps you take. Every step counts
   in towns, on routes and in caves; it sniffs the air (a "?" over its head) every 20 of them.
   On a route or in a cave it then spots a glint, dashes over, digs and brings the item back.
-  The fonder it is of you, the better its finds.
+  A find that comes due in a town waits for the next route (only one waits, however long you
+  walk). The fonder it is of you, the better its finds; how often stays the same.
 - 💬 **Pet, Play, Talk:** Turn to your partner and press A. Its mood pops up above its head in
   the game's own emote bubbles: a heart, a smile, a sad face, Zs, a bolt (Yellow's skull for a
   poisoned one), with little drawn effects for the moods a game has no bubble for. In Gold,

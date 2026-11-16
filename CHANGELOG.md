@@ -4,6 +4,16 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- A Forager no longer pours out a run of finds when you leave a town: every 60 steps walked
+  in town counted toward another find, all of them dug up one after another on the next route
+  (Goldenrod City to Route 34 was the worst). Only one find now waits for the next route; the
+  one after it takes 60 steps of its own. Friendship never changed how often it finds things,
+  only what it finds.
+
 ## 1.0.14 — 2026-11-15
 
 ### New

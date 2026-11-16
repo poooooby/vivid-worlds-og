@@ -8,7 +8,8 @@
 -- ROLLED (an item that fits the bag; rarer ones need more friendship,
 -- lib/forage_items.lua) and a spot 3-5 cells from the player is picked -- only
 -- where it may dig (a route or a cave, `env.forageOk`): a find that comes due
--- in a town waits for the next one. Then:
+-- in a town waits for the next one, and the count stops there (one find due at
+-- most, however far the player walks). Then:
 --   perk    it stops and perks up (an alert bounce, shorter the fonder it is);
 --           a glint appears on the spot (lib/forage_sparkle.lua) ->
 --   out     it dashes there (faster the fonder it is), cell by cell round
@@ -132,6 +133,9 @@ function Forager:_countStep(env)
   local countOk = env.countOk
   if countOk == nil then countOk = env.forageOk ~= false end
   if not countOk then return end
+  -- one find due at most: a long walk through a town (or hemmed in, or a full bag) never
+  -- banks a run of them to pour out on the next route. Steps walked during a trip still carry.
+  if self.mode == "near" and self.steps >= self:goal() then return end
   self.steps = self.steps + 1
   local every = self.cfg.hintEvery
   if every and every > 0 and self.mode == "near" and self.steps % every == 0 and self.steps < self:goal() then

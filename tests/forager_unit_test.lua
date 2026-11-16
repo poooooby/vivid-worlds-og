@@ -422,6 +422,24 @@ do
   eq(perkedAt, 60, "with the real settings it sets out on the 60th step")
 end
 
+-- ------- a long walk in a town banks ONE find, not one per 60 steps (Goldenrod -> Route 34
+-- used to pour out a find after every few steps)
+do
+  local f = newForager(nil, Config.FORAGE)
+  local px = walk(f, 20, 16 * 600, nil, { forageOk = false, countOk = true })
+  eq(f.steps, 60, "600 steps through a town: one find is due, no more")
+  local trips, wasNear = 0, true
+  walk(f, px, 16 * 59, function()
+    if f.mode == "perk" and wasNear then trips = trips + 1 end
+    wasNear = f.mode == "near"
+  end)
+  eq(trips, 1, "on the route it digs that one up, then the next needs 60 steps of its own")
+  -- the same while it is due but cannot set out (hemmed in, bag full)
+  local g = newForager({ cellFree = function() return false end }, Config.FORAGE)
+  walk(g, 20, 16 * 300)
+  eq(g.steps, 60, "hemmed in on a route: the count stops at the one find due")
+end
+
 -- ------- the real defaults
 do
   local F = Config.FORAGE
