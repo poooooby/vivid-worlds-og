@@ -4,6 +4,15 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixes
+
+- Your partner's wings (and legs) beat properly when you move faster than walking, with a mod
+  that adds running: a flier going up or down used to look frozen, or blur, because its
+  stand frame dropped out of the cycle at the faster pace. It now flaps through the same
+  wing beat as when you walk, a little quicker, in every direction and both Sprite Styles.
+
 ## 1.0.15 — 2026-11-15
 
 ### Fixes
