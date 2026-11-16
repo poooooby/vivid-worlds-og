@@ -341,6 +341,8 @@ do
   eq(ActorRenderer.swimDropFor("assets/wilds_generated/gsc/swimming/007-normal.png"), Cfg.GSC_SWIM_DROP,
     "a GSC swimming cut sinks GSC_SWIM_DROP")
   check(Cfg.GSC_SWIM_DROP > 0 and Cfg.GSC_SWIM_DROP < Cfg.SWIM_DROP, "...less than the bigger HGSS swimmers")
+  eq(ActorRenderer.swimDropFor("assets/wilds_generated/gsc/levitates/041-normal.png"), 0,
+    "a GSC hovering cut hovers where it stands, like HGSS's")
   eq(ActorRenderer.swimDropFor("assets/wilds_generated/gsc/007-normal.png"), 0, "...a GSC land sheet none")
 end
 

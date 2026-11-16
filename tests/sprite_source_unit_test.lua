@@ -107,7 +107,16 @@ do
   eq(SpriteSource.pathFor(fakeMod, 25, true, F, W), "assets/wilds_generated/true_size18/swimming/025-shiny.png",
     "...a shiny with no shiny cut takes the HGSS shiny swimmer (never shown plain)")
   eq(SpriteSource.pathFor(fakeMod, 41, false, F, W), "assets/wilds_generated/true_size18/levitates/041-normal.png",
-    "...a levitator (no cut) hovers in its HGSS art")
+    "...a levitator with no hover cut hovers in its HGSS art")
+  -- the GSC hovering cut (bake_gsc_swim's levitates kind): the fliers and floaters
+  present[GSC .. "/levitates/041-normal.png"] = true
+  present[GSC .. "/levitates/041-shiny.png"] = true
+  eq(SpriteSource.pathFor(fakeMod, 41, false, F, W), GSC .. "/levitates/041-normal.png", "GSC on water: a flier's hovering cut")
+  eq(SpriteSource.pathFor(fakeMod, 41, true, F, W), GSC .. "/levitates/041-shiny.png", "...its shiny cut")
+  eq(SpriteSource.pathFor(fakeMod, 41, false, F), GSC .. "/041-normal.png", "...on land its GSC sheet")
+  check(SpriteSource.isGsc(GSC .. "/levitates/041-normal.png"), "...a GSC sheet")
+  eq(SpriteSource.frameCountOf(GSC .. "/levitates/041-normal.png"), 6, "...6 frames")
+  eq(SpriteSource.bottomPadFor(GSC .. "/levitates/041-normal.png"), 0, "...no baked pad")
   eq(SpriteSource.pathFor(fakeMod, 25, false, F), GSC .. "/025-normal.png", "...on land still the GSC sheet")
   eq(SpriteSource.pathFor(fakeMod, 25, false, "pokemmo", W), "assets/wilds_generated/true_size18/swimming/025-normal.png",
     "...and the HGSS style never takes it")

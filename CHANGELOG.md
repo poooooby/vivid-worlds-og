@@ -4,6 +4,15 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### New
+
+- **GSC fliers on the water:** with Sprite Style on GSC, a Pokémon that flies or floats over
+  the water (Zubat, Gastly, Butterfree, Dragonite, Lugia ...) now keeps its GSC sprite, cut low
+  over the water in a ring of foam the way the HGSS ones hover. Before, it switched to its HGSS
+  sprite. Shinies keep their GSC shiny colours there too.
+
 ## 1.0.13 — 2026-11-15
 
 ### New

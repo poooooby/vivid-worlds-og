@@ -420,11 +420,12 @@ def stand_height(sheet: Image.Image) -> float | None:
     return sorted(hs)[len(hs) // 2] if hs else None
 
 
-def swim_keep(out_root: Path, dex: int, variant: str) -> float:
-    """Share of the body the base species' own swim sheet shows (land vs swimming
-    standing height, less the swimming pack's padding); 0.75 without one."""
+def swim_keep(out_root: Path, dex: int, variant: str, kind: str = "swimming") -> float:
+    """Share of the body the base species' own water sheet shows (land vs `kind` --
+    swimming or levitates -- standing height, less the water packs' padding); 0.75
+    without one."""
     land = out_root / "hgss" / f"{dex:03d}-{variant}.png"
-    swim = out_root / "swimming" / f"{dex:03d}-{variant}.png"
+    swim = out_root / kind / f"{dex:03d}-{variant}.png"
     if not (land.is_file() and swim.is_file()):
         return 0.75
     lh = stand_height(Image.open(land).convert("RGBA"))
@@ -487,13 +488,14 @@ def emerald_swim_sheet(land: Image.Image, keep: float) -> Image.Image:
     return out
 
 
-# ------------------------------------------------------------- GSC swimmers
+# ------------------------------------------------------------- GSC swimmers and hoverers
 # The Sprite Style option's GSC sheets (Poke Followers, tools/copy_wilds_assets.py: 16x96, six
-# 16x16 frames in the engine's order) get a swimming sheet cut the same way: the domed cut at
+# 16x16 frames in the engine's order) get a water sheet cut the same way: the domed cut at
 # the species' own HGSS waterline (swim_keep), each frame then set down on its cell's bottom
-# row -- still 16x96, no pad, like the land sheets (lib/actor_renderer.lua swimDropFor sinks
-# it into the water). Only for a species HGSS draws swimming (true_size18/swimming): a
-# levitator keeps its HGSS hover art (lib/sprite_source.lua).
+# row -- still 16x96, no pad, like the land sheets. A species HGSS draws swimming
+# (true_size18/swimming) gets gsc/swimming/ (lib/actor_renderer.lua swimDropFor sinks it into
+# the water); one HGSS draws hovering (true_size18/levitates, the fliers and floaters) gets
+# gsc/levitates/ at its shallower hover waterline, drawn where it stands (lib/sprite_source.lua).
 GSC_DIR = ROOT / "assets/wilds_generated/gsc"
 GSC_FRAME, GSC_FRAMES = 16, 6
 
@@ -507,12 +509,12 @@ def gsc_swim_sheet(gsc: Image.Image, keep: float) -> Image.Image:
     return out
 
 
-def bake_gsc_swim(out_root: Path, species_filter, force: bool, stats: dict) -> None:
-    """gsc/swimming/<key>-<variant>.png for every GSC sheet whose base species has HGSS
-    swimming art; one waterline per species (its normal sheets decide it)."""
+def bake_gsc_swim(out_root: Path, species_filter, force: bool, stats: dict, kind: str = "swimming") -> None:
+    """gsc/<kind>/<key>-<variant>.png (kind = swimming or levitates) for every GSC sheet whose
+    base species has that HGSS water art; one waterline per species (its normal sheets decide it)."""
     if not GSC_DIR.is_dir():
         return
-    out_dir = GSC_DIR / "swimming"
+    out_dir = GSC_DIR / kind
     for src in sorted(GSC_DIR.glob("*.png")):
         head = src.stem.split("-", 1)[0]
         if not head.isdigit():
@@ -520,7 +522,7 @@ def bake_gsc_swim(out_root: Path, species_filter, force: bool, stats: dict) -> N
         dex = int(head)
         if species_filter is not None and dex not in species_filter:
             continue
-        if not (out_root / "swimming" / f"{dex:03d}-normal.png").is_file():
+        if not (out_root / kind / f"{dex:03d}-normal.png").is_file():
             continue
         gsc = Image.open(src).convert("RGBA")
         if gsc.size != (GSC_FRAME, GSC_FRAME * GSC_FRAMES):
@@ -531,7 +533,7 @@ def bake_gsc_swim(out_root: Path, species_filter, force: bool, stats: dict) -> N
             stats["skipped_existing"] += 1
             continue
         out_dir.mkdir(parents=True, exist_ok=True)
-        gsc_swim_sheet(gsc, swim_keep(out_root, dex, "normal")).save(path, "PNG", optimize=True)
+        gsc_swim_sheet(gsc, swim_keep(out_root, dex, "normal", kind)).save(path, "PNG", optimize=True)
         stats["written"] += 1
 
 
@@ -788,10 +790,11 @@ def main() -> int:
                 continue
             bake_emerald(out_root, dex, form, folder, args.force, stats)
 
-    # The GSC style's swimmers (bake_gsc_swim): after the swimming pack, whose sheets decide
-    # who swims and how deep
-    if "swimming" in kinds and not args.report:
-        bake_gsc_swim(out_root, species_filter, args.force, stats)
+    # The GSC style's swimmers and hoverers (bake_gsc_swim): after the swimming / levitates
+    # packs, whose sheets decide who swims or hovers and how deep
+    for kind in ("swimming", "levitates"):
+        if kind in kinds and not args.report:
+            bake_gsc_swim(out_root, species_filter, args.force, stats, kind)
 
     if args.report:
         print("\n(report mode: nothing written)")

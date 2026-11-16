@@ -186,13 +186,13 @@ function SpriteSource.pathFor(mod, dex, shiny, style, presentation)
   local keys = { dex }
   if SpriteSource.isForm(dex) then keys[2] = SpriteSource.baseOf(dex) end
   -- Poke Followers / GSC: its own sheet, else HGSS -- a shiny with no GSC shiny art takes the
-  -- HGSS shiny (a shiny is never shown plain). On water its swimming sheet (cut at the
-  -- waterline, tools/generate_true_size_18frame.py bake_gsc_swim), which only a species HGSS
-  -- draws swimming has: a levitator, or one with no GSC art, takes HGSS's water art
+  -- HGSS shiny (a shiny is never shown plain). On water its swimming or hovering sheet (cut
+  -- at the waterline, tools/generate_true_size_18frame.py bake_gsc_swim), which only a species
+  -- HGSS draws swimming or hovering has; one with no GSC art takes HGSS's water art
   local gscFor
   if style == SpriteSource.STYLE_FOLLOWERS then
     gscFor = (presentation == nil or presentation == SpriteSource.PRESENTATION_LAND)
-      and SpriteSource.gscPath or SpriteSource.gscSwimPath
+      and SpriteSource.gscPath or SpriteSource.gscWaterPath
   end
   for _, key in ipairs(keys) do
     if shiny then
@@ -222,7 +222,21 @@ function SpriteSource.gscSwimPath(mod, key, variant)
   return nil
 end
 
---- Is `path` a Poke Followers / GSC sheet (land or swimming)?
+--- The GSC sheet's hovering cut (`GSC_REL/levitates/`: the fliers and floaters), or nil.
+function SpriteSource.gscHoverPath(mod, key, variant)
+  if not validKey(key) then return nil end
+  local p = string.format("%s/levitates/%s-%s.png", GSC_REL, SpriteSource.keyName(key), variant)
+  if fileExists(mod, p) then return p end
+  return nil
+end
+
+--- The GSC sheet a Pokemon on water draws: its swimming cut, else its hovering cut (a
+--- species has one or the other, by its HGSS water art), or nil.
+function SpriteSource.gscWaterPath(mod, key, variant)
+  return SpriteSource.gscSwimPath(mod, key, variant) or SpriteSource.gscHoverPath(mod, key, variant)
+end
+
+--- Is `path` a Poke Followers / GSC sheet (land, swimming or hovering)?
 function SpriteSource.isGsc(path)
   return type(path) == "string" and path:sub(1, #GSC_REL + 1) == GSC_REL .. "/"
 end
