@@ -1,12 +1,14 @@
--- The "trainer swaps Pokemon" scene: when the companion changes (another
--- Pokemon, another job, or a recall), the player raises their arm, a Poke Ball
--- drops onto the old companion and takes it in, and -- unless it was a recall --
--- the arm goes up again, a ball drops behind the player and the new one pops out
--- (lib/ball_drop.lua, run by the adapter when `want` flips).
+-- The "trainer swaps Pokemon" scene: when the companion changes, the player raises their
+-- arm and a Poke Ball drops (lib/ball_drop.lua).
 --
---   recall phase  arm up; after `recallDelay` ticks the ball takes the old one in
---   send phase    arm up again; after `sendDelay` ticks a ball drops, and the new
---                 one pops out of it (and cries as it does)
+--   change phase  another Pokemon for the one out (the party menu): arm up once; after
+--                 `sendDelay` ticks one ball drops at the old one's feet and pops, the old
+--                 one gone in the pop and the new one growing out of it (and crying)
+--   recall phase  only a recall: arm up; after `recallDelay` ticks the ball takes it in
+--   send phase    only a send-out (nothing was out): arm up; after `sendDelay` ticks a
+--                 ball drops, and the new one pops out of it (and cries as it does)
+--
+-- recall / send run their ball when `want` flips; change asks for its "swap" run with `drop`.
 --
 -- Pure: a tick-driven timeline. The adapter (lib/follower_adapter.lua) mirrors
 -- each tick's state onto the player pose, the ball actor and the renderer.
@@ -15,9 +17,10 @@
 --   local s = swap:step()   -- once per tick; nil when the scene is over
 --
 -- `s` = {
---   phase   "recall" | "send"
+--   phase   "change" | "recall" | "send"
 --   pose    true on the first tick of a phase: raise the player's arm now
 --   want    1 = the displayed companion should be out, 0 = inside the player
+--   drop    change only: true on the tick its one ball starts falling (BallDrop "swap")
 --   switch  true on the tick the displayed companion becomes the new one
 --   cry     true on the tick the new companion appears
 -- }
@@ -34,8 +37,13 @@ function FollowerSwap.new(ctx)
   local self = setmetatable({ cfg = cfg, t = 0, finished = false, phases = {} }, FollowerSwap)
   local len = math.max(cfg.poseTicks, cfg.recallDelay + BallDrop.length("in") + 2)
   local lenIn = math.max(cfg.poseTicks, cfg.sendDelay + BallDrop.length("out") + 2)
-  if ctx.hasOld then self.phases[#self.phases + 1] = { name = "recall", len = len } end
-  if ctx.hasNew then self.phases[#self.phases + 1] = { name = "send", len = lenIn } end
+  if ctx.hasOld and ctx.hasNew then
+    self.phases[1] = { name = "change", len = lenIn } -- one ball, popping the new one out
+  elseif ctx.hasOld then
+    self.phases[1] = { name = "recall", len = len }
+  elseif ctx.hasNew then
+    self.phases[1] = { name = "send", len = lenIn }
+  end
   self.index, self.phaseT = 1, 0
   if #self.phases == 0 then self.finished = true end
   return self
@@ -45,10 +53,10 @@ function FollowerSwap:isFinished()
   return self.finished
 end
 
---- True when the run has a send phase (the new companion grows out).
+--- True when the new companion grows out in this run (a send or a change).
 function FollowerSwap:hasSend()
   for _, p in ipairs(self.phases) do
-    if p.name == "send" then return true end
+    if p.name == "send" or p.name == "change" then return true end
   end
   return false
 end
@@ -73,13 +81,20 @@ function FollowerSwap:step()
   self.phaseT = self.phaseT + 1
   local pt = self.phaseT
   local state = { phase = phase.name, pose = first }
-  if phase.name == "recall" then
+  local popAt = self.cfg.sendDelay + BallDrop.popAt("out")
+  if phase.name == "change" then
+    -- the old one stands until the ball pops; the new one then grows out of it
+    state.want = 1
+    state.drop = pt == self.cfg.sendDelay + 1
+    state.switch = pt == popAt
+    state.cry = state.switch
+  elseif phase.name == "recall" then
     state.want = pt <= self.cfg.recallDelay and 1 or 0
   else
     state.want = pt <= self.cfg.sendDelay and 0 or 1
     state.switch = first
     -- the ball's run starts the tick `want` turns 1; the new one cries as it pops out
-    state.cry = pt == self.cfg.sendDelay + BallDrop.popAt("out")
+    state.cry = pt == popAt
   end
   return state
 end

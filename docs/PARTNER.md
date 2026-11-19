@@ -3,8 +3,8 @@
 [← Back to the README](../README.md)
 
 - 🐾 **A partner at your side:** Your lead Pokémon walks behind you, spaced out by its size.
-  Switch partners or call it back and a Poké Ball drops: it pops out of one, and goes back
-  into one.
+  Switch partners and one Poké Ball drops and opens: the new one grows out of it as the old
+  one goes in. Call it back and the ball opens at its feet, takes it in and closes.
 - 🤝 **A partner with a job:** Give it a role from the party menu. It can **follow** you,
   **forage** for items as you walk, or **battle** the wild Pokémon around you. A Battler button
   sends it into battle and calls it back with one press.

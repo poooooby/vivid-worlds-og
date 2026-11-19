@@ -36,34 +36,28 @@ local function run(ctx)
   return states
 end
 
--- ------- a full swap: old goes in, new comes out
+-- ------- a change of partner: one ball drops, the old one goes in its pop, the new one comes out
 do
+  local BallDrop = V.require("ball_drop")
   local st = run({ hasOld = true, hasNew = true })
   check(#st > 0, "the scene runs")
-  eq(st[1].phase, "recall", "it starts with the old companion going in")
-  check(st[1].pose and st[1].ball == nil, "the arm goes up on the first tick (the ball drops at the partner)")
-  eq(st[1].want, 1, "the old companion is still out while the arm is raised")
-  eq(st[Cfg.SWAP.recallDelay + 1].want, 0, "then a ball takes it in")
-  local switchAt, cryAt, sends = nil, nil, 0
+  local drops, switchAt, cryAt, pose = 0, nil, nil, 0
   for i, s in ipairs(st) do
+    check(s.phase == "change", "one phase: " .. i)
+    eq(s.want, 1, "never put away first: " .. i)
+    if s.drop then drops = drops + 1 end
     if s.switch then switchAt = i end
     if s.cry then cryAt = i end
-    if s.phase == "send" then sends = sends + 1 end
+    if s.pose then pose = pose + 1 end
   end
-  check(switchAt ~= nil and st[switchAt].phase == "send", "the new companion takes over at the start of the send phase")
-  check(st[switchAt].pose, "...and the arm goes up again")
-  eq(st[switchAt].want, 0, "...with the new one still inside the ball")
-  check(cryAt and cryAt > switchAt, "it cries as it comes out")
-  local BallDrop = V.require("ball_drop")
-  eq(cryAt - switchAt + 1, Cfg.SWAP.sendDelay + BallDrop.popAt("out"), "...on the tick its ball pops")
-  local outLen = 0
-  for i = switchAt, #st do if st[i].want == 1 then outLen = outLen + 1 end end
-  check(outLen >= BallDrop.length("out"), "the send phase lasts the whole pop-out")
-  eq(st[#st].want, 1, "it ends fully out")
-  check(st[#st].ball == nil, "no ball is left hanging in the air")
-  local pose = 0
-  for _, s in ipairs(st) do if s.pose then pose = pose + 1 end end
-  eq(pose, 2, "the player raises the ball once per phase")
+  check(st[1].pose, "the arm goes up on the first tick")
+  eq(pose, 1, "...once")
+  eq(drops, 1, "one ball drops")
+  check(st[Cfg.SWAP.sendDelay + 1].drop, "...after sendDelay ticks of the arm up")
+  eq(switchAt, Cfg.SWAP.sendDelay + BallDrop.popAt("out"), "the new companion takes over as the ball pops")
+  eq(cryAt, switchAt, "...and cries as it comes out")
+  check(#st - Cfg.SWAP.sendDelay >= BallDrop.length("swap"), "the scene lasts the whole pop-out")
+  check(Swap.new({ hasOld = true, hasNew = true }):hasSend(), "hasSend is true for a change")
   check(#st <= Cfg.SWAP.maxTicks, "within the hard cap")
 end
 

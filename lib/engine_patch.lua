@@ -430,7 +430,7 @@ local holds = {}
 local function held() return next(holds) ~= nil end
 
 --- Installs the draw / tick / input wraps. `hooks`: collectActors(actors, camX, camY),
---- followerTick(game). The collision rule is a mod hook (main.lua, collisionVerdict).
+--- followerTick(game), followerMarksHidden(). The collision rule is a mod hook (main.lua, collisionVerdict).
 function EngineGb.install(hooks, log)
   if EngineGb._installed then return true end
   local ok, missing = EngineGb.probe()
@@ -442,13 +442,14 @@ function EngineGb.install(hooks, log)
   -- follower walking behind the player, only drawn as nothing: for the length of a draw its
   -- marks go too -- Gen 2's grass rustle (grassShake) and ledge-hop shadow (jumping), Gen 1's
   -- hop shadow (hopShadowY) -- or the grass shakes behind the player as if it walked there.
+  -- The same while the partner is drawn away from that follower (a Forager off to an item).
   -- Put back after the draw: the engine's own step logic still reads them.
   local marksNpc, marksShake, marksJump, marksHop
   -- true when this call hid them (a draw wrapped inside another leaves them to the outer one)
   local function hideFollowerMarks()
-    if marksNpc or not hooks.followerInBall then return false end
-    local okH, inBall = pcall(hooks.followerInBall)
-    if not (okH and inBall == true) then return false end
+    if marksNpc or not hooks.followerMarksHidden then return false end
+    local okH, hide = pcall(hooks.followerMarksHidden)
+    if not (okH and hide == true) then return false end
     local okF, npc = pcall(EngineGb.followerCurrent)
     if not (okF and type(npc) == "table") then return false end
     marksNpc, marksShake, marksJump, marksHop = npc, npc.grassShake, npc.jumping, npc.hopShadowY
@@ -848,6 +849,22 @@ function EngineGb.isGrass(x, y)
   local map = w and w.map
   if not (map and map.isGrassCell) then return false end
   return map:isGrassCell(x, y) == true
+end
+
+-- the stand-in World:drawGrassShake reads (one table, reused every draw)
+local rustleEntity = { grassShake = true, moving = true }
+
+--- Gen 2's grass rustle (World:drawGrassShake: the engine's own two tufts, alternating every
+--- four frames by `progress`) for a figure at (x, y) in the current drawing space, one world
+--- pixel per unit -- for the partner out on a job, which is not the engine's follower (that one
+--- stays behind the player). False on Gen 1 (no rustle) or without the World's method.
+function EngineGb.drawGrassRustle(x, y, progress, stepFrames)
+  local a = A()
+  local w = EngineGb._world
+  if not (a and a.generation == 2 and w and type(w.drawGrassShake) == "function") then return false end
+  local e = rustleEntity
+  e.px, e.py, e.progress, e.stepFrames = x, y, progress or 0, stepFrames or 16
+  return pcall(w.drawGrassShake, w, e, 0, 0, 1) == true
 end
 
 function EngineGb.isWarpCell(x, y)

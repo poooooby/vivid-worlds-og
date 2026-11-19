@@ -223,19 +223,21 @@ function FollowerActions.ballActor(ball, ox, oy, elevation)
     x = gx, y = gy,
     i = 90500,
     draw = function(_, camX, camY)
-      FollowerActions.drawBall(gx - camX, gy - camY, ball.z, ball.alpha, ball.burst)
+      FollowerActions.drawBall(gx - camX, gy - camY, ball.z, ball.alpha, ball.burst, ball.open)
     end,
   }
 end
 
 --- A small Poke Ball: ground shadow, red top, white bottom, dark outline.
 --- (sx, sy) is the point on the ground under it; `z` the height in px. Optional: `alpha`
---- (0..1, fading out) and `burst` (0..1: the age of a white ring spreading from it as it
---- pops, lib/ball_drop.lua).
-function FollowerActions.drawBall(sx, sy, z, alpha, burst)
+--- (0..1, fading out), `burst` (0..1: the age of a white ring spreading from it as it
+--- pops) and `open` (0 shut .. 1: the lid swung up and back on its hinge, the light inside
+--- showing at the rim) -- lib/ball_drop.lua.
+function FollowerActions.drawBall(sx, sy, z, alpha, burst, open)
   if not (love and love.graphics and love.graphics.circle) then return end
   local g = love.graphics
   local a = tonumber(alpha) or 1
+  local o = math.max(0, math.min(1, tonumber(open) or 0))
   sx, sy = math.floor(sx + 0.5), math.floor(sy + 0.5)
   local lift = math.floor((z or 0) + 0.5)
   local r = 3
@@ -243,13 +245,32 @@ function FollowerActions.drawBall(sx, sy, z, alpha, burst)
   if a > 0 then
     g.setColor(0, 0, 0, math.max(0.12, 0.35 - lift * 0.01) * a)
     g.ellipse("fill", sx, sy, 3, 1.5)
-    g.setColor(0.86, 0.12, 0.12, a)
-    g.arc("fill", "closed", sx, cy, r, math.pi, 2 * math.pi)
-    g.setColor(1, 1, 1, a)
-    g.arc("fill", "closed", sx, cy, r, 0, math.pi)
-    g.setColor(0.1, 0.1, 0.12, a)
-    g.circle("line", sx, cy, r)
-    g.line(sx - r, cy, sx + r, cy)
+    if o > 0 then
+      -- the lid: raised on its hinge and tipped away from us (flatter as it opens)
+      g.push()
+      g.translate(sx, cy - o * (r + 1))
+      g.scale(1, 1 - 0.5 * o)
+      g.setColor(0.86, 0.12, 0.12, a)
+      g.arc("fill", "closed", 0, 0, r, math.pi, 2 * math.pi)
+      g.setColor(0.1, 0.1, 0.12, a)
+      g.arc("line", "closed", 0, 0, r, math.pi, 2 * math.pi)
+      g.pop()
+      g.setColor(1, 1, 1, a)
+      g.arc("fill", "closed", sx, cy, r, 0, math.pi)
+      g.setColor(0.1, 0.1, 0.12, a)
+      g.arc("line", "open", sx, cy, r, 0, math.pi)
+      -- the open rim, lit from inside
+      g.setColor(1, 0.95, 0.78, a)
+      g.ellipse("fill", sx, cy, r, math.max(0.6, 1.4 * o))
+    else
+      g.setColor(0.86, 0.12, 0.12, a)
+      g.arc("fill", "closed", sx, cy, r, math.pi, 2 * math.pi)
+      g.setColor(1, 1, 1, a)
+      g.arc("fill", "closed", sx, cy, r, 0, math.pi)
+      g.setColor(0.1, 0.1, 0.12, a)
+      g.circle("line", sx, cy, r)
+      g.line(sx - r, cy, sx + r, cy)
+    end
   end
   if burst then
     g.setColor(1, 1, 1, 0.9 * (1 - burst))

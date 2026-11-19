@@ -4,6 +4,26 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Changed
+
+- **Switching partners:** changing your lead Pokémon from the party menu now drops a single
+  Poké Ball: the old partner disappears as it pops and the new one comes out of it, instead
+  of one ball to put the old one away and a second to send the new one out.
+- **The Poké Ball opens:** when the ball lands it opens up, the partner grows out of it and
+  the open ball fades away. Calling a partner back (with no one to replace it), the ball drops
+  at its feet, opens, the partner shrinks inside, the ball closes and then fades.
+
+### Fixed
+
+- **Pokémon on the water at their land size:** Dewgong swimming and Dugtrio over the water
+  were drawn about a quarter bigger than on land (HGSS sprites); they now match.
+- **The grass rustles where your partner runs:** in Gold, Silver and Crystal, while your
+  partner ran off to dig up an item, the grass behind you kept rustling as if it were still
+  following you, and the grass it ran through stayed still. Now the grass it runs through
+  rustles, and the grass behind you doesn't. The same goes for the Battler out at a wild Pokémon.
+
 ## 1.0.17 — 2026-11-16
 
 ### New

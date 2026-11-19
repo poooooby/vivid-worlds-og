@@ -46,11 +46,14 @@ local EmoteArt = V.require("emote_art")
 local PartnerFx = V.require("partner_fx")
 local FollowerSwap = V.require("follower_swap")
 local BallDrop = V.require("ball_drop")
+local GbColor = V.require("gb_color")
 
 local FollowerAdapter = {}
 FollowerAdapter.__index = FollowerAdapter
 
 local CELL = 16
+-- the partner's grass rustle repeats over one walking step's frames (Player.STEP_FRAMES)
+local RUSTLE_STEP = 16
 local NO_STATE = {} -- what collectActors reads with no scene running (never written)
 local POPUP_GAP = 3 -- px of air between the top of its head and a label's tail
 FollowerAdapter.NOTICE_TICKS = 120 -- how long a notice (the Battler hotkey's call-out) stays up
@@ -343,6 +346,17 @@ function FollowerAdapter:isRecalled()
   return r ~= nil and (r.recall or 1) < 0.5
 end
 
+--- Is the partner drawn at least half a tile away from the engine follower's own spot (a
+--- Forager off to an item, Play's chase, the Battler out at a wild Pokemon, the run home)?
+--- The engine follower keeps walking behind the player meanwhile, so its marks (Gen 2's
+--- grass rustle) would show where nothing is drawn.
+function FollowerAdapter:isDisplaced()
+  local act = self.renderer and self.renderer.act
+  if type(act) ~= "table" then return false end
+  local half = CELL / 2
+  return math.abs(tonumber(act.dx) or 0) >= half or math.abs(tonumber(act.dy) or 0) >= half
+end
+
 --- Is the follower squished under a roof's edge (crouched enough to sweat,
 --- `_tickDuck`)? Its interaction then says it's cramped (lib/follower_interaction.lua).
 function FollowerAdapter:isCramped()
@@ -400,7 +414,16 @@ function FollowerAdapter:_tickRecall(npc, r)
   end
   local ballOk = not (incidental or self.lastIncidental)
   self.lastIncidental = incidental
-  if self.ballRun and self.ballRenderer ~= r then self:_endBall() end -- another sprite now
+  if self.swap and self.swapState and self.swapState.drop and not self.off and ballOk then
+    -- a change of partner: one ball for both, the old one gone in its pop (lib/follower_swap.lua)
+    self:_endBall()
+    self.ballRun = BallDrop.new("swap")
+  end
+  if self.ballRun and self.ballRun.dir == "swap" then
+    self.ballRenderer = r -- its run spans the change of sprite
+  elseif self.ballRun and self.ballRenderer ~= r then
+    self:_endBall() -- another sprite now
+  end
   if not self.ballRun and r.recallPlaced and r.recall == 1 - want and ballOk then
     -- settled the other way, and it is a choice: a Poke Ball drops (lib/ball_drop.lua)
     self.ballRun, self.ballRenderer = BallDrop.new(want == 0 and "in" or "out"), r
@@ -510,8 +533,8 @@ end
 -- What the player sees out is `self.disp` ({ mon, role, species, key }). It
 -- follows the companion (lib/companion.lua) only through a swap scene
 -- (lib/follower_swap.lua): the party menu changes the companion at once, but
--- the old one keeps standing there until the menu is closed, then goes into
--- its ball and the new one comes out of another.
+-- the old one keeps standing there until the menu is closed, then one ball drops
+-- at its feet and the new one comes out of it.
 
 -- Is this party Pokemon shiny? The same real check the wild spawns use, against
 -- ITS OWN trainer ids (a traded or gifted one is judged by its original trainer).
@@ -853,6 +876,40 @@ function FollowerAdapter:_tickRipple(npc)
   if EnginePatch.ripplesAt and EnginePatch.ripplesAt(cx, cy) then EnginePatch.startRipple(cx, cy) end
 end
 
+-- the grass rustle under the partner out on a job (one table, reused every frame)
+local rustleAct = { kind = "follower_rustle", i = 90400 }
+-- (drawn as a proxy, 2D only: its camY carries the FOOT_LIFT our sprites take, while the
+-- engine places a rustle by the walker's tile, so that lift is undone)
+rustleAct.draw = function(a, camX, camY)
+  EnginePatch.drawGrassRustle(a.x - camX, a.y - camY + GbColor.FOOT_LIFT, a.progress, RUSTLE_STEP)
+end
+
+--- Gen 2: while the partner runs through tall grass away from the engine follower (a Forager
+--- off to an item, the Battler charging, the run home), it rustles the grass the way any
+--- walker does -- the engine's own rustle, drawn at its feet as drawn. nil otherwise: still,
+--- in its place (the engine follower's own step rustles there), off grass, in 3D (Battle
+--- Art's grass is its own tufts), or a generation without one.
+function FollowerAdapter:_rustleActor(npc)
+  local r, state = self.renderer, self.actState
+  if not (r and state and state.moving and npc.px and npc.py) then return nil end
+  if (r.recall or 1) < 1 or not self:isDisplaced() then return nil end
+  if not (EnginePatch.generation and EnginePatch.generation() == 2) then return nil end
+  if EnginePatch.pipelineActive and EnginePatch.pipelineActive() then return nil end
+  local act = r.act
+  local x = npc.px + (r.pushX or 0) + act.dx
+  local y = npc.py + (r.pushY or 0) + act.dy
+  if not EnginePatch.isGrass(math.floor((x + CELL / 2) / CELL), math.floor((y + CELL / 2) / CELL)) then
+    return nil
+  end
+  local a = rustleAct
+  a.x, a.y, a.elevation = x, y, npc.elevation
+  a.groundX, a.groundY = x + CELL / 2, y + CELL
+  -- after the partner (the engine sorts it by its follower's own row, which may lie south)
+  a.sortY = math.max(y, npc.py) + 1
+  a.progress = (self.actClock or 0) % RUSTLE_STEP
+  return a
+end
+
 function FollowerAdapter:collectActors(actors)
   local npc = EnginePatch.followerCurrent()
   if not npc or npc.hidden then return end
@@ -872,6 +929,8 @@ function FollowerAdapter:collectActors(actors)
     local oy = npc.py + pushY + (act and act.dy or 0)
     actors[#actors + 1] = FollowerActions.ballActor(drop, ox, oy, npc.elevation)
   end
+  local rustle = self:_rustleActor(npc)
+  if rustle then actors[#actors + 1] = rustle end
   local role = self.behaviors and self.behaviors[self.role]
   if role and role.collectActors and not self.away then role:collectActors(actors) end
   local popup = self.actState and self.actState.popup

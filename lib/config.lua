@@ -139,12 +139,14 @@ Config.SWAP = {
 -- The partner going into / coming out of its Poke Ball on purpose (lib/ball_drop.lua: the
 -- party switch, the Follower option, a Battler resting): all ticks / px.
 --   out: the ball falls `fall` ticks from `dropZ`, bounces `bounceH` px for `bounce` ticks,
---        pops (sound, burst) and the Pokemon grows out over `grow` ticks as the ball fades
---   in:  the ball falls `fallIn` ticks from `dropZIn` to `hitZ` (on the Pokemon), pops, the
---        Pokemon shrinks in over `shrink` ticks as the ball settles, rests `rest`, fades `fade`
+--        opens over `open`, pops (sound, burst) and the Pokemon grows out over `grow`; the
+--        open ball then fades over `fade`
+--   in:  the ball falls `fallIn` ticks from `dropZIn` to its feet, bounces, opens over `open`,
+--        pops, the Pokemon shrinks in over `shrink`, the ball closes over `close`, rests
+--        `rest`, fades `fade`
 Config.BALL = {
-  fall = 8, dropZ = 20, bounce = 5, bounceH = 3, grow = 8,
-  fallIn = 7, dropZIn = 26, hitZ = 10, shrink = 8, rest = 3, fade = 6,
+  fall = 8, dropZ = 20, bounce = 5, bounceH = 3, open = 4, grow = 8,
+  fallIn = 8, dropZIn = 20, shrink = 8, close = 4, rest = 3, fade = 6,
   burst = 8, -- ticks the white pop ring spreads and fades
 }
 
@@ -171,7 +173,7 @@ Config.OW_BATTLE = {
   sinkTicks = 40,       -- ... then it sinks into the ground over this long
   cryPause = 36,        -- the Battler's cry before a Poke Ball takes it in
   -- coming back out of its ball (lib/ball_drop.lua's "out" run)
-  recallTicks = Config.BALL.fall + Config.BALL.bounce + Config.BALL.grow,
+  recallTicks = Config.BALL.fall + Config.BALL.bounce + Config.BALL.open + Config.BALL.grow,
   restCheck = 30,       -- ticks between "healed yet?" checks while resting
   popupTicks = 110,     -- "+EXP" label time
   expShare = 0.5,       -- fraction of the engine's EXP value a win is worth

@@ -304,9 +304,10 @@ return function(mod)
     end,
     messageDraw = function() end, -- no portraits: the partner's emote is a field actor
     -- the partner in its ball (Follower off, a bike, a cutscene ...): the engine's follower
-    -- walking behind leaves no grass rustle or hop shadow either
-    followerInBall = function()
-      return followerAdapter:isRecalled()
+    -- walking behind leaves no grass rustle or hop shadow either; nor while the partner is
+    -- drawn away from it (a Forager off to an item, the Battler out at a wild Pokemon)
+    followerMarksHidden = function()
+      return followerAdapter:isRecalled() or followerAdapter:isDisplaced()
     end,
     -- Runs BEFORE the engine's A-button handler: facing your partner and pressing A
     -- opens its Pet / Play / Talk menu instead (true = handled).

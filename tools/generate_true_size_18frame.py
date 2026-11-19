@@ -190,18 +190,26 @@ def detect_roles_shared(per_direction: list[dict[int, Image.Image]]):
 
 
 # --- Water art scale -------------------------------------------------------
-# The swimming/levitates source sheets are drawn on 64px cells, roughly twice
-# the HGSS land art's scale, so baking them raw draws a water Charizard at
-# about double its land size. Mirrors Wilds of Kanto Revival's "perceived
-# size" match (tools/generate_true_size_runtime.py): shrink the water art
-# (nearest-neighbour, never upscaled) until its median opaque pixel area
-# equals the same species' LAND sprite, times WATER_PERCEIVED_TARGET. Land is
-# the hgss sheet in the same out-root, baked first (KINDS order).
+# The swimming/levitates source sheets are drawn at twice the HGSS land art's
+# density (64px cells; the same Pokemon's head or body is 2x as many pixels
+# across), so a water sheet baked at exactly 0.5 shows the species at its land
+# size. That is the rule: a clean 2:1 reduction for every such sheet.
+#
+# Which density a sheet is drawn at is read from its art: shrink the water art
+# (nearest-neighbour, never upscaled) until its median opaque pixel area equals
+# the same species' LAND sprite, times WATER_PERCEIVED_TARGET (Wilds of Kanto
+# Revival's "perceived size" match). Below HALF_DENSITY_BELOW the sheet is a 2x
+# one and bakes at 0.5: the area alone misjudges those -- a swimmer shows only
+# the part of it above the water (Dewgong came out 0.62, a quarter too big),
+# wings spread in flight (Pidove 0.38, a quarter too small). At or above it the
+# art is drawn nearer the land density (Eiscue, Reshiram) and keeps the area
+# match. Land is the hgss sheet in the same out-root, baked first (KINDS order).
 #
 # Tried and reverted: a width cap on top of this, and area-averaged (BOX)
 # resampling. The artefacts came from cropping each sheet TIGHT with no margin
 # (see WATER_PAD), not from the nearest-neighbour choice itself.
 WATER_PERCEIVED_TARGET = 0.97
+HALF_DENSITY_BELOW = 0.75
 # frames 0-8: stand + walkA/walkB for down/up/left (see OUTPUT_FRAMES)
 METRIC_FRAMES = range(9)
 
@@ -232,7 +240,8 @@ def water_scale(sheet: Image.Image, land: Image.Image | None) -> float:
     water_area, land_area = median_opaque_area(sheet), median_opaque_area(land)
     if not water_area or not land_area:
         return 1.0
-    return min(1.0, WATER_PERCEIVED_TARGET * (land_area / water_area) ** 0.5)
+    scale = min(1.0, WATER_PERCEIVED_TARGET * (land_area / water_area) ** 0.5)
+    return 0.5 if scale < HALF_DENSITY_BELOW else scale
 
 
 # Transparent border around every baked water frame. Frames are stacked
@@ -244,9 +253,6 @@ def water_scale(sheet: Image.Image, land: Image.Image | None) -> float:
 # margin is mirrored in lib/sprite_source.lua (WATER_BOTTOM_PAD) so the
 # renderer can keep the feet flush with the tile.
 WATER_PAD = 2
-# Scales this close to 0.5 snap to exactly 0.5 (Kanto's snap_friendly_scales):
-# a clean 2:1 reduction instead of an uneven fractional one.
-SNAP_HALF_TOLERANCE = 0.1
 
 
 def scale_and_trim(sheet: Image.Image, scale: float) -> Image.Image:
@@ -270,8 +276,6 @@ def scale_and_trim(sheet: Image.Image, scale: float) -> Image.Image:
     x1 = min(sheet.width, union[2] + union[2] % 2)
     y1 = min(ch, union[3] + union[3] % 2)
     cw, chh = x1 - x0, y1 - y0
-    if abs(scale - 0.5) <= SNAP_HALF_TOLERANCE:
-        scale = 0.5
     resized = scale < 1.0
     nw = max(1, round(cw * scale)) if resized else cw
     nh = max(1, round(chh * scale)) if resized else chh

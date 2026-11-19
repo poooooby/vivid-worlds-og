@@ -789,18 +789,23 @@ do
   for _, a in ipairs(actors) do if a.kind == "follower_action_ball" then ball = true end end
   check(not ball, "no ball in the player's hand: it drops at the partner")
 
-  local sawOut, sawIn = false, false
+  local oldShrank, newGrew, ballSeen, ballWhileOld = false, false, false, false
   for _ = 1, 200 do
     fs:tick()
-    if fs.renderer.dex == 252 and fs.renderer.recall == 0 then sawOut = true end
-    if fs.renderer.dex == 255 and fs.renderer.recall == 0 then sawIn = true end
+    if fs.renderer.dex == 252 and fs.renderer.recall < 1 then oldShrank = true end
+    if fs.renderer.dex == 255 and fs.renderer.recall < 1 then newGrew = true end
+    if fs.ballState then
+      ballSeen = true
+      if fs.renderer.dex == 252 then ballWhileOld = true end
+    end
     if not fs:isBusy() then break end
   end
-  check(sawOut, "the old companion shrank all the way into the player first")
-  check(sawIn, "the new one began inside the player")
+  check(not oldShrank, "the old companion is not put away in a ball of its own")
+  check(ballSeen and ballWhileOld, "one ball drops while the old one still stands")
+  check(newGrew, "the new one grew out of it")
   eq(fs.renderer.dex, 255, "the new companion is displayed")
   eq(fs.renderer.recall, 1, "...grown fully out")
-  eq(poses, 2, "the ball went up once for each")
+  eq(poses, 1, "the ball went up once")
   eq(unlocks, 1, "the field is released")
   eq(cries[#cries], 998, "the new one cried as it came out")
   check(not fs:isBusy(), "the scene is over")
@@ -811,7 +816,7 @@ do
   eq(fs.renderer.dex, 252, "an evolved companion shows its new species")
   eq(fs.disp.species, 999, "...its displayed species follows")
   check(not fs:isBusy(), "...with no ball scene")
-  eq(poses, 2, "...and no ball raised")
+  eq(poses, 1, "...and no ball raised")
   -- a fresh table for the same Pokemon (the engine rebuilt the party mon) after a battle too
   party[2] = { species = 998, personality = 222, hp = 20 }
   fs:tick()
@@ -1101,6 +1106,56 @@ do
   FollowerAdapter._tickStride(st, npc)
   check(st.renderer.voxelStride ~= second, "no target cell: a new step on the moving edge")
   FollowerAdapter._tickStride({}, npc) -- no renderer: nothing to do
+end
+
+-- isDisplaced: the partner drawn half a tile or more from the engine follower (a Forager off
+-- to an item) hides that follower's grass rustle
+do
+  local d = FollowerAdapter.isDisplaced
+  check(not d({}), "no renderer: not displaced")
+  check(not d({ renderer = {} }), "no scene: not displaced")
+  check(not d({ renderer = { act = { dx = 0, dy = -4 } } }), "a hop's lift: still in its place")
+  check(not d({ renderer = { act = { dx = 7.9, dy = 0 } } }), "under half a tile: still in its place")
+  check(d({ renderer = { act = { dx = 8, dy = 0 } } }), "half a tile across: displaced")
+  check(d({ renderer = { act = { dx = 0, dy = -24 } } }), "a tile and a half up: displaced")
+end
+
+-- _rustleActor: the partner running through grass away from the engine follower rustles it
+-- (Gen 2, 2D), at its feet as drawn, after it in the draw order
+do
+  local saved = { fakeEngine.generation, fakeEngine.pipelineActive, fakeEngine.isGrass }
+  local gen, pipe, grassAt = 2, false, nil
+  fakeEngine.generation = function() return gen end
+  fakeEngine.pipelineActive = function() return pipe end
+  fakeEngine.isGrass = function(x, y) grassAt = { x, y } return true end
+  local f = { renderer = { recall = 1, pushX = 0, pushY = -8, act = { dx = -40, dy = 0 } },
+    actState = { moving = true }, actClock = 21, isDisplaced = FollowerAdapter.isDisplaced }
+  local n = { px = 160, py = 96, elevation = 3 }
+  local a = FollowerAdapter._rustleActor(f, n)
+  check(a ~= nil, "running through grass, away from its place: a rustle")
+  eq(a and a.x, 120, "at its drawn x (tile + spacing + offset)")
+  eq(a and a.y, 88, "at its drawn y")
+  eq(grassAt and grassAt[1], 8, "grass judged at its drawn cell (x)")
+  eq(grassAt and grassAt[2], 6, "grass judged at its drawn cell (y)")
+  check(a and a.sortY > n.py, "drawn after the partner (sorted by its follower's row)")
+  eq(a and a.progress, 5, "the tufts' phase follows its clock over a 16-frame step")
+  f.actState.moving = false
+  check(FollowerAdapter._rustleActor(f, n) == nil, "standing still (digging): none")
+  f.actState.moving = true
+  f.renderer.act.dx = 4
+  check(FollowerAdapter._rustleActor(f, n) == nil, "in its place: the engine follower's own step rustles")
+  f.renderer.act.dx = -40
+  fakeEngine.isGrass = function() return false end
+  check(FollowerAdapter._rustleActor(f, n) == nil, "off the grass: none")
+  fakeEngine.isGrass = function() return true end
+  gen = 1
+  check(FollowerAdapter._rustleActor(f, n) == nil, "Gen 1 has no rustle")
+  gen, pipe = 2, true
+  check(FollowerAdapter._rustleActor(f, n) == nil, "in 3D: none (the pipeline's own grass)")
+  pipe = false
+  f.renderer.recall = 0.5
+  check(FollowerAdapter._rustleActor(f, n) == nil, "going into its ball: none")
+  fakeEngine.generation, fakeEngine.pipelineActive, fakeEngine.isGrass = saved[1], saved[2], saved[3]
 end
 
 if failures > 0 then
