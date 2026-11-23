@@ -153,8 +153,16 @@ function VoxelSheets:spriteFor(r, luma)
   end
   fresh.silhouette = sil
   local lift = fresh.headLift and fresh:headLift() or (fresh.visualHeight and fresh:visualHeight()) or 24
-  local cell = VoxelSheets.cellFor(lift)
-  local path = "vivid_worlds_og/voxel/" .. key .. ".png"
+  -- the bake draws the art at its own size; headLift is as drawn on the 2D field, with
+  -- WoobleView's Field HD scale (Species Sizes) in it: undone, or a cell sized for the
+  -- shrunk art (Scyther: 48 px for art that needs 64) would cut a big one off
+  local k = fresh.imagePath and HdField.scaleOfPath(fresh.mod, fresh:imagePath()) or 1
+  if not k or k <= 0 then k = 1 end
+  local cell = VoxelSheets.cellFor(lift / k)
+  -- the cell is part of the sheet's name: a card never slices a sheet baked at another cell
+  -- (the composed asset is built once per name)
+  local base = key .. "-" .. cell
+  local path = "vivid_worlds_og/voxel/" .. base .. ".png"
   local data = self.data
   if not self.composed then self.composed = {} end
   if not self.composed[path] then self.composed[path] = true Assets.compose(path, function()
@@ -167,7 +175,7 @@ function VoxelSheets:spriteFor(r, luma)
     return img:clone() -- callers may change what they get
   end) end
   local def = {
-    id = "VWOG_VOXEL_" .. key, image = path, frames = VoxelSheets.FRAMES, walker = true,
+    id = "VWOG_VOXEL_" .. base, image = path, frames = VoxelSheets.FRAMES, walker = true,
     trueColor = not luma, frameWidth = cell, frameHeight = cell, anchorX = cell / 2, anchorY = cell,
     wohVoxel = true,
   }

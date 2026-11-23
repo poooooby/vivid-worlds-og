@@ -4,6 +4,15 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixed
+
+- **Battle Art with WoobleView: big Pokémon drawn whole:** with both mods, turning Species
+  Sizes off (or back on) could show a large Pokémon such as Scyther or Onix as pieces of two
+  poses at once, and with Species Sizes on its head could be cut off. Each now keeps the same
+  sprite sheet with the option on or off.
+
 ## 1.1.0 — 2026-11-19
 
 ### Changed

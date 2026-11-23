@@ -66,6 +66,45 @@ check(plain ~= pika and plain.def.displayWidth == nil, "Species Sizes off: the s
 eq(plain.def.image, pika.def.image, "...the same baked sheet either way")
 HdField.setSpeciesSizes(true)
 
+-- WoobleView's Field HD on: the renderer's headLift is as drawn on the field, shrunk by
+-- Species Sizes. The bake draws the art at its own size, so the cell comes from the art's own
+-- height either way -- the same sheet on and off -- and a sheet baked at one cell is never
+-- handed to a card of another (Scyther with Battle Art: frames sliced across two poses)
+do
+  local wv = { exports = { tag = function() end, isActive = function() return true end,
+    enabled = function() return true end } }
+  local mod = { find = function(_, id) if id == "gen3-hd-sprites" then return wv end end }
+  local SCY = "assets/wilds_generated/true_size18/hgss/123-normal.png"
+  local RAW = 40 -- the art's own reach above its feet: a 80 px cell (cellFor(40))
+  local sheetsW = VS.new({
+    assets = Assets, poses = { STAND = 1, WALK_A = 2 },
+    makeRenderer = function(key, shiny, style)
+      return { dex = key, shiny = shiny, style = style, mod = mod,
+        imagePath = function() return SCY end,
+        headLift = function() return RAW * HdField.scaleOfPath(mod, SCY) end }
+    end,
+  })
+  local function scyther() return { dex = 123, shiny = false, style = "pokemmo", mod = mod, imagePath = function() return SCY end } end
+  check(HdField.scaleOfPath(mod, SCY) < 0.9, "(WoobleView scales a Scyther sheet down with Species Sizes on)")
+  local on = sheetsW:spriteFor(scyther(), false)
+  eq(on.def.frameWidth, VS.cellFor(RAW), "Species Sizes on: the cell holds the art at its own size")
+  HdField.setSpeciesSizes(false)
+  local off = sheetsW:spriteFor(scyther(), false)
+  HdField.setSpeciesSizes(true)
+  check(off ~= on and off.def.displayWidth == nil, "Species Sizes off: its own card, at the sheet's size")
+  eq(off.def.frameWidth, on.def.frameWidth, "...the same cell")
+  eq(off.def.image, on.def.image, "...the same baked sheet")
+  -- a card with another cell (a different art reach) gets a sheet and id of its own
+  RAW = 20
+  local small = VS.new({ assets = Assets, poses = { STAND = 1, WALK_A = 2 },
+    makeRenderer = function(key, shiny, style)
+      return { dex = key, shiny = shiny, style = style, headLift = function() return RAW end }
+    end }):spriteFor(scyther(), false)
+  check(small.def.frameWidth ~= on.def.frameWidth, "(another cell)")
+  check(small.def.image ~= on.def.image and small.def.id ~= on.def.id,
+    "another cell: its own sheet and id, never the one baked at the other cell")
+end
+
 -- the Game Boy player is one 16 px tile (the size table is tuned against a 22 px one)
 local Config = V.require("config")
 check(math.abs(Config.gbSizeRatio() - 16 / 22) < 1e-9, "always a Game Boy boot: 16 / 22")
