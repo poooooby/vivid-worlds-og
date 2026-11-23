@@ -524,9 +524,14 @@ function FollowerAdapter:inCutscene()
   return EnginePatch.leadingNpc ~= nil and EnginePatch.leadingNpc() == true
 end
 
---- The callback passed to mod.hooks:wrap("world.follower.spawn", ...).
+--- The callback passed to mod.hooks:wrap("world.follower.spawn", ...). No Pokemon to show
+--- (a new game before the first one, a party of eggs): no follower at all -- the engine's
+--- npc would walk behind the player in its own sheet (Gen 1's grey walker, Gen 2's
+--- Pikachu). Both engines ask every frame, so it comes out once the party has a lead.
 function FollowerAdapter:shouldSpawn()
-  return Config.followerEnabled(self.mod)
+  if not Config.followerEnabled(self.mod) then return false end
+  if EnginePatch.leadPartyMon and EnginePatch.leadPartyMon() == nil then return false end
+  return true
 end
 
 -- ----------------------------------------------------------------- swapping

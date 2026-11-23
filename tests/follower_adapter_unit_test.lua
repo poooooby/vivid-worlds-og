@@ -72,6 +72,12 @@ eq(fa:shouldSpawn(), true, "shouldSpawn is always true")
 optionStore.show_follower = false
 eq(fa:shouldSpawn(), true, "...even with a stale saved Follower value")
 optionStore.show_follower = true
+-- no Pokemon yet (or only eggs): no follower, or the engine's own sheet walks behind
+local leadMon = nil
+fakeEngine.leadPartyMon = function() return leadMon end
+eq(fa:shouldSpawn(), false, "no lead Pokemon: no follower")
+leadMon = { species = 999 }
+eq(fa:shouldSpawn(), true, "...and one as soon as the party has a lead")
 
 -- ------- tick() with no follower spawned does nothing
 fa:tick()

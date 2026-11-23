@@ -4,6 +4,15 @@ Vivid Worlds: OG starts from Wilds of Hoenn's code (its Game Boy port) with piec
 Kanto Revival; `docs/PROVENANCE.md` records where each part comes from. Its history begins
 here.
 
+## Unreleased
+
+### Fixed
+
+- **Nothing follows you before your first Pokémon:** at the start of a new game, a grey
+  character (Red, Blue, Yellow) or a grey Pikachu (Gold, Silver, Crystal) walked behind you
+  before you had any Pokémon. Now nothing follows you until you get one, and then it comes out
+  as your partner.
+
 ## 1.1.1 — 2026-11-22
 
 ### Fixed
